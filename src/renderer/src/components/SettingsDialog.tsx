@@ -108,7 +108,7 @@ function Accounts({ suggestBaseUrl }: { suggestBaseUrl?: string }): React.JSX.El
               if (e.key === 'Enter') void connect()
             }}
           />
-          <button className="primary" disabled={busy || !token.trim() || !baseUrl.trim()} onClick={() => void connect()}>
+          <button className="primary" aria-busy={busy} disabled={busy || !token.trim() || !baseUrl.trim()} onClick={() => void connect()}>
             {busy ? 'Connecting…' : 'Connect'}
           </button>
         </span>

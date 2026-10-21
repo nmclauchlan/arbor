@@ -1,0 +1,90 @@
+.brand-icon {
+  display: inline-flex;
+  flex: none;
+  vertical-align: middle;
+}
+
+.brand-icon svg { display: block; width: 100%; height: 100%; overflow: visible; }
+.brand-lockup { display: flex; align-items: center; gap: 7px; flex: none; padding-right: 4px; }
+.brand-lockup strong { font-size: 12px; font-weight: 650; letter-spacing: -0.02em; }
+
+.welcome {
+  min-height: 0;
+  justify-content: flex-start;
+  overflow: auto;
+  padding: 36px 24px;
+  background: radial-gradient(ellipse at 50% 34%, color-mix(in srgb, var(--green) 5%, transparent), transparent 56%);
+}
+
+.welcome-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 32px;
+  width: min(480px, 100%);
+  margin: auto;
+  flex: none;
+}
+
+.welcome-brand { display: flex; flex-direction: column; align-items: center; text-align: center; }
+.welcome-brand .brand-icon { margin-bottom: 18px; filter: drop-shadow(0 10px 24px rgb(0 0 0 / 12%)); }
+.welcome .welcome-heading { margin: 0; color: var(--fg); font-size: 40px; font-weight: 600; letter-spacing: -0.045em; line-height: 1.2; }
+.welcome-tagline { margin: 10px 0 0; color: var(--fg-dim); font-size: 14px; line-height: 1.5; }
+
+.welcome-actions { display: flex; justify-content: center; flex-wrap: wrap; gap: 10px; }
+.welcome-actions button { display: inline-flex; align-items: center; gap: 8px; min-height: 40px; padding: 9px 14px; border-radius: 7px; }
+.welcome-actions svg { width: 18px; height: 18px; flex: none; }
+.welcome-actions kbd { margin-left: 6px; padding: 2px 5px; border: 1px solid currentColor; border-radius: 3px; opacity: 0.75; font-family: inherit; font-size: 10px; line-height: 1.2; }
+.welcome-clone { background: transparent; }
+
+.welcome .recent { width: 100%; gap: 10px; }
+.recent h2 { margin: 0; padding: 0 10px; color: var(--fg-dim); font-size: 10px; line-height: 1.5; font-weight: 600; letter-spacing: 0.09em; text-transform: uppercase; }
+.recent-list { display: flex; flex-direction: column; gap: 3px; max-height: 28vh; overflow-y: auto; scrollbar-gutter: stable; }
+.welcome .recent .recent-repo { display: flex; flex-direction: row; align-items: center; gap: 12px; flex: none; width: 100%; min-height: 56px; padding: 9px 12px; border: 1px solid transparent; border-radius: 7px; background: transparent; }
+.welcome .recent .recent-repo:hover, .welcome .recent .recent-repo:focus-visible { background: var(--bg-2); border-color: var(--border); }
+.recent-repo-icon { width: 20px; height: 20px; flex: none; color: var(--fg-dim); }
+.recent-repo-text { display: flex; flex: 1; flex-direction: column; gap: 3px; min-width: 0; }
+.recent-repo-text > span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 13px; font-weight: 500; }
+.recent-repo-text small { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 11px; }
+.recent-repo-arrow { width: 18px; height: 18px; flex: none; color: var(--accent); opacity: 0; transform: translateX(-4px); transition: opacity 160ms ease, transform 160ms ease; }
+.recent-repo:hover .recent-repo-arrow, .recent-repo:focus-visible .recent-repo-arrow { opacity: 1; transform: translateX(0); }
+
+@keyframes brand-grow {
+  from { stroke-dashoffset: 1; }
+  to { stroke-dashoffset: 0; }
+}
+
+@keyframes brand-node-in {
+  from { opacity: 0; transform: scale(0.65); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+@keyframes welcome-in {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .welcome-brand { animation: welcome-in 360ms ease-out both; }
+  .welcome-actions { animation: welcome-in 300ms 80ms ease-out both; }
+  .recent h2 { animation: welcome-in 300ms 120ms ease-out both; }
+  .recent-repo { animation: welcome-in 280ms calc(140ms + var(--recent-delay, 0ms)) ease-out backwards; }
+  .brand-icon--animated .brand-trunk, .brand-icon--animated .brand-branch { stroke-dasharray: 1; animation: brand-grow 540ms cubic-bezier(0.22, 1, 0.36, 1) both; }
+  .brand-icon--animated .brand-branch-left { animation-delay: 140ms; }
+  .brand-icon--animated .brand-branch-right { animation-delay: 220ms; }
+  .brand-icon--animated .brand-node { transform-box: fill-box; transform-origin: center; animation: brand-node-in 240ms ease-out both; }
+  .brand-icon--animated .brand-node-top { animation-delay: 280ms; }
+  .brand-icon--animated .brand-node-left { animation-delay: 360ms; }
+  .brand-icon--animated .brand-node-right { animation-delay: 440ms; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .recent-repo-arrow { transform: none; transition: none; }
+}
+
+@media (max-height: 700px) {
+  .welcome { padding-block: 24px; }
+  .welcome-content { gap: 24px; }
+  .welcome-brand .brand-icon { width: 88px !important; height: 88px !important; margin-bottom: 12px; }
+  .welcome .welcome-heading { font-size: 34px; }
+}

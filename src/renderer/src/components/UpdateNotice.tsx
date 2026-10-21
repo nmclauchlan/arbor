@@ -28,7 +28,7 @@ export function UpdateNotice(): React.JSX.Element | null {
 
   switch (status.state) {
     case 'checking':
-      return <span className="update-notice muted">Checking for updates…</span>
+      return <span className="update-notice checking muted" role="status">Checking for updates…</span>
     case 'available':
       return (
         <span className="update-notice">
@@ -39,7 +39,9 @@ export function UpdateNotice(): React.JSX.Element | null {
       return (
         <span className="update-notice" title={`Downloading Arbor ${status.version ?? ''}`}>
           <span className="dot" /> Downloading update
-          <span className="bar"><div style={{ width: `${status.percent ?? 0}%` }} /></span>
+          <span className="bar" role="progressbar" aria-label="Downloading update" aria-valuemin={0} aria-valuemax={100} aria-valuenow={status.percent ?? 0}>
+            <div style={{ width: `${status.percent ?? 0}%` }} />
+          </span>
           {status.percent ?? 0}%
         </span>
       )

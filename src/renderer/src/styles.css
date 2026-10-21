@@ -28,6 +28,10 @@
   --row-h: 28px;
   --titlebar-h: 36px;
   --mono: 'Cascadia Code', 'Consolas', 'Courier New', monospace;
+  --motion-fast: 120ms;
+  --motion-normal: 180ms;
+  --motion-enter: 240ms;
+  --ease-out: cubic-bezier(0.2, 0.8, 0.2, 1);
 }
 
 * { box-sizing: border-box; }
@@ -51,9 +55,20 @@ button {
   border-radius: 4px;
   padding: 4px 10px;
   cursor: pointer;
+  transition:
+    background-color var(--motion-fast) ease,
+    border-color var(--motion-fast) ease,
+    color var(--motion-fast) ease,
+    opacity var(--motion-fast) ease,
+    transform var(--motion-fast) var(--ease-out);
 }
 button:hover { background: var(--bg-4); }
+button:enabled:active { transform: translateY(1px); }
 button:disabled { opacity: 0.5; cursor: default; }
+button:focus-visible, select:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
 button.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
 button.primary:hover { background: var(--accent-2); }
 button.danger { color: var(--red); }
@@ -68,6 +83,7 @@ input, textarea {
   border-radius: 4px;
   padding: 6px 8px;
   outline: none;
+  transition: border-color var(--motion-fast) ease, box-shadow var(--motion-fast) ease;
 }
 input:focus, textarea:focus { border-color: var(--accent); }
 textarea { resize: vertical; font-family: inherit; }
@@ -366,6 +382,7 @@ textarea { resize: vertical; font-family: inherit; }
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
   padding: 4px 0;
   min-width: 200px;
+  animation: menu-enter var(--motion-normal) var(--ease-out);
 }
 .context-menu .item { padding: 6px 14px; cursor: pointer; white-space: nowrap; }
 .context-menu .item:hover { background: var(--accent); color: #fff; }
@@ -382,6 +399,7 @@ textarea { resize: vertical; font-family: inherit; }
   align-items: center;
   justify-content: center;
   z-index: 200;
+  animation: fade-enter var(--motion-normal) ease-out;
 }
 .dialog {
   background: var(--bg-2);
@@ -393,6 +411,7 @@ textarea { resize: vertical; font-family: inherit; }
   flex-direction: column;
   gap: 12px;
   box-shadow: 0 16px 48px rgba(0, 0, 0, 0.5);
+  animation: dialog-enter var(--motion-enter) var(--ease-out);
 }
 .dialog h3 { margin: 0; font-size: 15px; }
 .dialog p { margin: 0; color: var(--fg-dim); white-space: pre-wrap; user-select: text; }
@@ -485,6 +504,7 @@ textarea { resize: vertical; font-family: inherit; }
   font-size: 12px;
   user-select: text;
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
+  animation: toast-enter var(--motion-enter) var(--ease-out);
 }
 .toast.info { border-color: var(--accent); font-family: inherit; }
 
@@ -603,7 +623,7 @@ body.resizing iframe, body.resizing .cm-editor { pointer-events: none; }
 .update-notice.error { color: var(--red); }
 .update-notice .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--green); box-shadow: 0 0 6px var(--green); }
 .update-notice .bar { width: 80px; height: 4px; background: var(--bg-4); border-radius: 2px; overflow: hidden; }
-.update-notice .bar div { height: 100%; background: var(--accent); }
+.update-notice .bar div { height: 100%; background: var(--accent); transition: width var(--motion-normal) ease-out; }
 
 .titlebar-spacer { flex: none; width: 8px; }
 .titlebar-btn { -webkit-app-region: no-drag; font-size: 12px; color: var(--fg-dim); padding: 2px 8px; flex: none; white-space: nowrap; }
@@ -687,3 +707,72 @@ html[data-dark="false"] .ref-badge.branch.head { color: #fff; }
 .conflict-result { display: flex; flex-direction: column; min-height: 0; }
 .conflict-result-head { padding: 4px 12px; font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--fg-dim); background: var(--bg-3); flex: none; }
 .conflict-result .editor-host { flex: 1; min-height: 0; }
+
+/* Animate interaction surfaces; repository polling leaves graph rows still. */
+.tab, .tab-group, .tab .close, .group-row, .sidebar .ref-item,
+.file-item, .dir-item, .clone-row, .context-menu .item,
+.conflict-block {
+  transition:
+    background-color var(--motion-fast) ease,
+    border-color var(--motion-normal) ease,
+    color var(--motion-fast) ease,
+    opacity var(--motion-fast) ease;
+}
+
+.group-dropdown { animation: menu-enter var(--motion-normal) var(--ease-out); }
+.file-viewer { animation: fade-enter var(--motion-normal) ease-out; }
+.operation-banner { animation: banner-enter var(--motion-normal) var(--ease-out); }
+
+.statusbar .spin { display: inline-flex; align-items: center; gap: 6px; }
+.statusbar .spin::before,
+.update-notice.checking::before,
+button[aria-busy='true']::before {
+  content: '';
+  display: inline-block;
+  flex: none;
+  width: 11px;
+  height: 11px;
+  box-sizing: border-box;
+  border: 1.5px solid currentColor;
+  border-right-color: transparent;
+  border-radius: 50%;
+  animation: activity-spin 800ms linear infinite;
+}
+button[aria-busy='true']::before { margin-right: 6px; vertical-align: -1px; }
+
+@keyframes fade-enter {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes menu-enter {
+  from { opacity: 0; transform: translateY(-4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes dialog-enter {
+  from { opacity: 0; transform: translateY(10px) scale(0.985); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+@keyframes toast-enter {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes banner-enter {
+  from { opacity: 0; transform: translateY(-3px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes activity-spin {
+  to { transform: rotate(360deg); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation: none !important;
+    transition: none !important;
+    scroll-behavior: auto !important;
+  }
+}
