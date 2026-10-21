@@ -80,6 +80,14 @@ const handlers: Handlers = {
     if (result.canceled || !result.filePaths.length) return null
     return result.filePaths[0]
   },
+  async selectFolder(title) {
+    const win = BrowserWindow.getFocusedWindow()
+    const opts = { properties: ['openDirectory' as const, 'createDirectory' as const], title }
+    const result = win ? await dialog.showOpenDialog(win, opts) : await dialog.showOpenDialog(opts)
+    if (result.canceled || !result.filePaths.length) return null
+    return result.filePaths[0]
+  },
+  clone: gitService.clone,
   async initialRepo() {
     const arg = process.argv.slice(app.isPackaged ? 1 : 2).find((a) => !a.startsWith('-'))
     return arg ?? null

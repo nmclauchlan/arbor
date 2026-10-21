@@ -111,10 +111,7 @@ export default function App(): React.JSX.Element {
     [dialogs.confirm, dialogs.prompt, openPath, showError, showInfo]
   )
 
-  const visibleTabs = useMemo(() => {
-    const collapsed = new Set(groups.filter((g) => g.collapsed).map((g) => g.id))
-    return tabs.filter((t) => !t.group || !collapsed.has(t.group) || t.path === activePath)
-  }, [tabs, groups, activePath])
+  const visibleTabs = tabs
 
   useEffect(() => {
     const key = (e: KeyboardEvent): void => {
@@ -154,6 +151,33 @@ export default function App(): React.JSX.Element {
     setTabs((list) => paths.reduce((acc, p) => assignGroup(acc, p, id), list))
   }
 
+  const newGroup = async (): Promise<void> => {
+    const name = await dialogs.prompt('New tab group', 'Group name')
+    if (name) createGroup(name, [])
+  }
+
+  const openInto = async (group?: string): Promise<void> => {
+    const p = await window.git.selectRepo()
+    if (p) openPath(p, true, group)
+  }
+
+  const cloneRepo = async (group?: string): Promise<void> => {
+    const url = await dialogs.prompt('Clone repository', 'Repository URL (https or ssh)')
+    if (!url) return
+    const parent = await window.git.selectFolder('Choose where to clone into')
+    if (!parent) return
+    const name = url.replace(/\/+$/, '').split(/[/:]/).pop()?.replace(/\.git$/, '') || 'repository'
+    const dest = `${parent.replace(/[\\/]+$/, '')}/${name}`
+    showInfo(`Cloning ${url}…`)
+    try {
+      await window.git.clone(url, dest)
+      await openPath(dest, true, group)
+      showInfo(`Cloned into ${dest}`)
+    } catch (e) {
+      showError(errorMessage(e))
+    }
+  }
+
   const updateGroup = (id: string, patch: Partial<TabGroup>): void =>
     setGroups((gs) => gs.map((g) => (g.id === id ? { ...g, ...patch } : g)))
 
@@ -180,6 +204,9 @@ export default function App(): React.JSX.Element {
           onCreateGroup={createGroup}
           onUpdateGroup={updateGroup}
           onUngroup={ungroup}
+          onOpenInto={openInto}
+          onClone={cloneRepo}
+          onNewGroup={newGroup}
         />
         <div className="titlebar-spacer" />
         <button className="icon titlebar-btn" title={`Theme: ${theme.name}`} onClick={themeMenu}>

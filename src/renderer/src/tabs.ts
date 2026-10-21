@@ -43,12 +43,11 @@ export function loadSavedTabs(): SavedTabs {
 
 export function saveTabs(tabs: Tab[], groups: TabGroup[], active: string | null): void {
   try {
-    const used = new Set(tabs.map((t) => t.group).filter(Boolean))
     localStorage.setItem(
       KEY,
       JSON.stringify({
         tabs: tabs.map((t) => ({ path: t.path, group: t.group })),
-        groups: groups.filter((g) => used.has(g.id))
+        groups
       })
     )
     if (active) localStorage.setItem(ACTIVE_KEY, active)
