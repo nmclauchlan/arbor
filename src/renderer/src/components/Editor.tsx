@@ -10,7 +10,7 @@ import type { Shell } from '../actions'
 import { errorMessage } from '../util'
 import { currentTheme, subscribeTheme } from '../themes'
 
-const highlight = syntaxHighlighting(
+export const editorHighlight = syntaxHighlighting(
   HighlightStyle.define([
     { tag: [t.keyword, t.modifier, t.controlKeyword, t.operatorKeyword], color: 'var(--syn-keyword)' },
     { tag: [t.string, t.special(t.string), t.regexp], color: 'var(--syn-string)' },
@@ -29,7 +29,7 @@ const highlight = syntaxHighlighting(
   ])
 )
 
-function buildTheme(dark: boolean) {
+export function buildEditorTheme(dark: boolean) {
   return EditorView.theme(
     {
       '&': { height: '100%', backgroundColor: 'var(--bg)', color: 'var(--fg)' },
@@ -53,7 +53,7 @@ function buildTheme(dark: boolean) {
   )
 }
 
-async function languageFor(file: string) {
+export async function languageFor(file: string) {
   const name = file.split('/').pop() ?? file
   const ext = name.includes('.') ? name.slice(name.lastIndexOf('.') + 1) : ''
   const desc = languages.find(
@@ -120,8 +120,8 @@ export function Editor({
           doc: content,
           extensions: [
             basicSetup,
-            themeComp.current.of(buildTheme(currentTheme().dark)),
-            highlight,
+            themeComp.current.of(buildEditorTheme(currentTheme().dark)),
+            editorHighlight,
             keymap.of([
               indentWithTab,
               { key: 'Mod-s', run: () => { void saveRef.current(); return true } }
@@ -151,7 +151,7 @@ export function Editor({
   useEffect(
     () =>
       subscribeTheme(() => {
-        view.current?.dispatch({ effects: themeComp.current.reconfigure(buildTheme(currentTheme().dark)) })
+        view.current?.dispatch({ effects: themeComp.current.reconfigure(buildEditorTheme(currentTheme().dark)) })
       }),
     []
   )

@@ -1,9 +1,10 @@
 import { useEffect, useState } from 'react'
 import type { RepoStatus, StatusFile } from '@shared/types'
 import type { Actions } from '../actions'
+import type { MenuItem } from './ContextMenu'
 import { FileList, FileViewToggle } from './FileList'
 import { canEdit, type FileViewRequest } from './FileViewer'
-import { errorMessage } from '../util'
+import { errorMessage, revealInFolder, revealLabel } from '../util'
 
 type Area = 'staged' | 'unstaged'
 
@@ -23,6 +24,15 @@ export function WorkingTree({
   const [message, setMessage] = useState('')
   const [amend, setAmend] = useState(false)
   const [working, setWorking] = useState(false)
+  const operation = status.operation
+  const conflicted = new Set(status.conflicted)
+  const conflictFiles = status.unstaged.filter((f) => conflicted.has(f.path))
+  const unstagedFiles = status.unstaged.filter((f) => !conflicted.has(f.path))
+
+  useEffect(() => {
+    if (operation?.message && !message) setMessage(operation.message)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [operation?.kind])
 
   useEffect(() => {
     if (!viewing || viewing.source.kind !== 'worktree') return
@@ -62,17 +72,74 @@ export function WorkingTree({
     })
   }
 
-  const view = (area: Area, file: StatusFile, mode: 'diff' | 'edit'): void => {
+  const view = (area: Area, file: StatusFile, mode: 'diff' | 'edit' | 'conflict'): void => {
     if (mode === 'edit' && !canEdit(file)) mode = 'diff'
     onView({ file, source: { kind: 'worktree', staged: area === 'staged', status: file.status }, mode })
   }
+
+  const resolveWith = (file: StatusFile, side: 'ours' | 'theirs'): Promise<void> =>
+    run(() => window.git.resolveFile(repoPath, file.path, null, side))
+
+  const abort = async (): Promise<void> => {
+    if (!operation) return
+    const ok = await actions.confirm(`Abort ${operation.kind}`, `Abort the ${operation.kind} in progress and restore the previous state?`, true)
+    if (ok) await run(() => window.git.abortOperation(repoPath))
+  }
+
+  const continueOp = async (): Promise<void> => {
+    await run(async () => {
+      await window.git.continueOperation(repoPath, message)
+      setMessage('')
+    })
+  }
+
+  const fileMenu =
+    (area: Area | 'conflict') =>
+    (e: React.MouseEvent, files: StatusFile[], folder: string | null): void => {
+      e.preventDefault()
+      const paths = files.map((f) => f.path)
+      const noun = folder ? 'folder' : 'file'
+      const items: MenuItem[] = []
+      if (area === 'unstaged') {
+        items.push({ label: `Stage ${noun}`, onClick: () => stage(paths) })
+        items.push({ label: `Discard changes in ${noun}`, danger: true, onClick: () => discard(paths) })
+      } else if (area === 'staged') {
+        items.push({ label: `Unstage ${noun}`, onClick: () => unstage(paths) })
+      } else {
+        const takeAll = (side: 'ours' | 'theirs'): Promise<void> =>
+          run(async () => {
+            for (const p of paths) await window.git.resolveFile(repoPath, p, null, side)
+          })
+        items.push({ label: folder ? 'Take ours for folder' : 'Take ours', onClick: () => takeAll('ours') })
+        items.push({ label: folder ? 'Take theirs for folder' : 'Take theirs', onClick: () => takeAll('theirs') })
+      }
+      if (!folder && area !== 'conflict' && canEdit(files[0])) {
+        items.push({ separator: true })
+        items.push({ label: 'Edit', onClick: () => view(area, files[0], 'edit') })
+      }
+      items.push({ separator: true })
+      items.push({ label: revealLabel(), onClick: () => revealInFolder(repoPath, folder ?? files[0].path) })
+      items.push({
+        label: 'Copy path',
+        onClick: () => {
+          const p = folder ?? files[0].path
+          navigator.clipboard.writeText(p)
+          actions.showInfo(`Copied ${p}`)
+        }
+      })
+      actions.openMenu(e, items)
+    }
+
+  const opLabel = operation
+    ? { merge: 'Merge', 'cherry-pick': 'Cherry-pick', revert: 'Revert', rebase: 'Rebase' }[operation.kind]
+    : ''
 
   const selectedIn = (area: Area): string | null =>
     viewing && viewing.source.kind === 'worktree' && viewing.source.staged === (area === 'staged')
       ? viewing.file.path
       : null
 
-  const unstagedPaths = status.unstaged.map((f) => f.path)
+  const unstagedPaths = unstagedFiles.map((f) => f.path)
   const stagedPaths = status.staged.map((f) => f.path)
   const canCommit = (status.staged.length > 0 && message.trim().length > 0) || amend
 
@@ -88,18 +155,56 @@ export function WorkingTree({
           {status.conflicted.length ? ` · ${status.conflicted.length} conflicted` : ''}
         </div>
       </div>
+      {operation && (
+        <div className={`operation-banner${conflictFiles.length ? ' conflicted' : ''}`}>
+          <div className="operation-text">
+            <strong>{opLabel} in progress</strong>
+            <span className="muted">
+              {conflictFiles.length
+                ? `${conflictFiles.length} file${conflictFiles.length === 1 ? '' : 's'} with conflicts to resolve`
+                : operation.message || 'All conflicts resolved'}
+            </span>
+          </div>
+          <button disabled={working} onClick={abort}>Abort</button>
+          <button className="primary" disabled={working || conflictFiles.length > 0} onClick={continueOp}>
+            {operation.kind === 'merge' ? 'Commit merge' : 'Continue'}
+          </button>
+        </div>
+      )}
       <div className="panel-body">
+        {conflictFiles.length > 0 && (
+          <>
+            <div className="file-group-title conflicts">
+              <span>Conflicts ({conflictFiles.length})</span>
+            </div>
+            <FileList
+              files={conflictFiles}
+              selectedPath={selectedIn('unstaged')}
+              onSelect={(f) => view('unstaged', f, 'conflict')}
+              onDoubleClick={(f) => view('unstaged', f, 'conflict')}
+              onContextMenu={fileMenu('conflict')}
+              actions={(f) => (
+                <span className="actions" onClick={(e) => e.stopPropagation()}>
+                  <button title="Resolve in editor" onClick={() => view('unstaged', f, 'conflict')}>⚡</button>
+                  <button title="Take ours" onClick={() => resolveWith(f, 'ours')}>Ours</button>
+                  <button title="Take theirs" onClick={() => resolveWith(f, 'theirs')}>Theirs</button>
+                </span>
+              )}
+            />
+          </>
+        )}
         <div className="file-group-title">
-          <span>Unstaged ({status.unstaged.length})</span>
-          <button disabled={working || !status.unstaged.length} onClick={() => stage(unstagedPaths)}>
+          <span>Unstaged ({unstagedFiles.length})</span>
+          <button disabled={working || !unstagedFiles.length} onClick={() => stage(unstagedPaths)}>
             Stage all
           </button>
         </div>
         <FileList
-          files={status.unstaged}
+          files={unstagedFiles}
           selectedPath={selectedIn('unstaged')}
           onSelect={(f) => view('unstaged', f, 'diff')}
           onDoubleClick={(f) => view('unstaged', f, 'edit')}
+          onContextMenu={fileMenu('unstaged')}
           actions={(f) => (
             <span className="actions" onClick={(e) => e.stopPropagation()}>
               {canEdit(f) && <button title="Edit" onClick={() => view('unstaged', f, 'edit')}>✎</button>}
@@ -119,6 +224,7 @@ export function WorkingTree({
           selectedPath={selectedIn('staged')}
           onSelect={(f) => view('staged', f, 'diff')}
           onDoubleClick={(f) => view('staged', f, 'edit')}
+          onContextMenu={fileMenu('staged')}
           actions={(f) => (
             <span className="actions" onClick={(e) => e.stopPropagation()}>
               {canEdit(f) && <button title="Edit" onClick={() => view('staged', f, 'edit')}>✎</button>}
@@ -141,9 +247,15 @@ export function WorkingTree({
             <input type="checkbox" checked={amend} onChange={(e) => setAmend(e.target.checked)} /> Amend
           </label>
           <div style={{ flex: 1 }} />
-          <button className="primary" disabled={working || !canCommit} onClick={commit}>
-            {amend ? 'Amend commit' : `Commit ${status.staged.length ? `(${status.staged.length})` : ''}`}
-          </button>
+          {operation ? (
+            <button className="primary" disabled={working || conflictFiles.length > 0} onClick={continueOp}>
+              {operation.kind === 'merge' ? 'Commit merge' : `Continue ${operation.kind}`}
+            </button>
+          ) : (
+            <button className="primary" disabled={working || !canCommit} onClick={commit}>
+              {amend ? 'Amend commit' : `Commit ${status.staged.length ? `(${status.staged.length})` : ''}`}
+            </button>
+          )}
         </div>
       </div>
     </div>

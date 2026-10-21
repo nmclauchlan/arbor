@@ -24,3 +24,14 @@ export function errorMessage(err: unknown): string {
 }
 
 export const WIP_HASH = 'WIP'
+
+export function revealLabel(): string {
+  const p = window.native?.platform
+  if (p === 'darwin') return 'Reveal in Finder'
+  if (p === 'win32') return 'Show in Explorer'
+  return 'Show in file manager'
+}
+
+export function revealInFolder(repoPath: string, relative: string | null): void {
+  window.native?.showInFolder(repoPath, relative)
+}

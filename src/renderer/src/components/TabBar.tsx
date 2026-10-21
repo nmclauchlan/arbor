@@ -2,6 +2,7 @@ import { useState } from 'react'
 import type { Shell } from '../actions'
 import type { MenuItem } from './ContextMenu'
 import { GROUP_COLORS, type Tab, type TabGroup } from '../tabs'
+import { revealInFolder, revealLabel } from '../util'
 
 type DropHint = { path: string; after: boolean } | { group: string } | null
 
@@ -65,6 +66,7 @@ export function TabBar({
       { label: 'Close others', disabled: !others.length, onClick: () => onCloseMany(others) },
       { label: 'Close tabs to the right', disabled: !right.length, onClick: () => onCloseMany(right) },
       { separator: true },
+      { label: revealLabel(), onClick: () => revealInFolder(tab.path, null) },
       {
         label: 'Copy path',
         onClick: () => {
