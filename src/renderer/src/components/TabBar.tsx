@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from 'react'
 import type { Shell } from '../actions'
 import type { MenuItem } from './ContextMenu'
-import { GROUP_COLORS, type Tab, type TabGroup } from '../tabs'
+import type { Tab, TabGroup } from '../tabs'
+import { GroupColorDialog } from './GroupColorDialog'
 import { revealInFolder, revealLabel } from '../util'
 
 type DropHint = { path: string; after: boolean } | { group: string; after?: boolean } | null
@@ -51,8 +52,10 @@ export function TabBar({
   const [dragging, setDragging] = useState<Dragging>(null)
   const [hint, setHint] = useState<DropHint>(null)
   const [openGroup, setOpenGroup] = useState<string | null>(null)
+  const [colorGroupId, setColorGroupId] = useState<string | null>(null)
   const [anchor, setAnchor] = useState<{ x: number; y: number }>({ x: 0, y: 0 })
   const dropdown = useRef<HTMLDivElement>(null)
+  const groupChips = useRef(new Map<string, HTMLDivElement>())
   const scroller = useRef<HTMLDivElement>(null)
   const [overflowing, setOverflowing] = useState(false)
   const groupById = new Map(groups.map((g) => [g.id, g]))
@@ -133,6 +136,12 @@ export function TabBar({
     shell.openMenu(e, items)
   }
 
+  const editGroupColor = (group: TabGroup): void => {
+    groupChips.current.get(group.id)?.focus()
+    setOpenGroup(null)
+    setColorGroupId(group.id)
+  }
+
   const groupMenu = (e: React.MouseEvent, group: TabGroup): void => {
     e.preventDefault()
     const members = tabs.filter((t) => t.group === group.id).map((t) => t.path)
@@ -146,17 +155,14 @@ export function TabBar({
           if (name) onUpdateGroup(group.id, { name })
         }
       },
-      ...GROUP_COLORS.map((c) => ({
-        label: `${c.value === group.color ? '✓ ' : '   '}${c.name}`,
-        onClick: () => onUpdateGroup(group.id, { color: c.value })
-      })),
+      { label: 'Color…', onClick: () => editGroupColor(group) },
       { separator: true },
       { label: 'Ungroup', onClick: () => onUngroup(group.id) },
       { label: 'Close group', danger: true, disabled: !members.length, onClick: () => onCloseMany(members) }
     ])
   }
 
-  const toggleGroup = (e: React.MouseEvent, id: string): void => {
+  const toggleGroup = (e: React.MouseEvent | React.KeyboardEvent, id: string): void => {
     const rect = e.currentTarget.getBoundingClientRect()
     setAnchor({ x: rect.left, y: rect.bottom + 2 })
     setOpenGroup((cur) => (cur === id ? null : id))
@@ -224,11 +230,24 @@ export function TabBar({
     return (
       <div
         key={'g:' + group.id}
+        ref={(element) => {
+          if (element) groupChips.current.set(group.id, element)
+          else groupChips.current.delete(group.id)
+        }}
         className={`tab-group${count === 0 ? ' empty' : ''}${isOpen ? ' open' : ''}${hasActive ? ' has-active' : ''}${isDragging ? ' dragging' : ''}${hintCls}`}
-        style={{ background: group.color }}
+        style={{ '--group-color': group.color } as React.CSSProperties}
         title={count === 0 ? `${group.name}: empty group` : `${group.name}: ${count} repositor${count === 1 ? 'y' : 'ies'}`}
+        role="button"
+        tabIndex={0}
+        aria-expanded={isOpen}
         draggable
         onClick={(e) => toggleGroup(e, group.id)}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault()
+            toggleGroup(e, group.id)
+          }
+        }}
         onContextMenu={(e) => groupMenu(e, group)}
         onDragStart={(e) => {
           e.dataTransfer.effectAllowed = 'move'
@@ -310,6 +329,7 @@ export function TabBar({
 
   const open = openGroup ? groupById.get(openGroup) : undefined
   const openMembers = open ? tabs.filter((t) => t.group === open.id) : []
+  const colorGroup = colorGroupId ? groupById.get(colorGroupId) : undefined
 
   return (
     <div className="tabs">
@@ -360,7 +380,9 @@ export function TabBar({
           }}
         >
           <div className="group-dropdown-head">
-            <span className="swatch" style={{ background: open.color }} />
+            <button className="icon group-color-trigger" title="Customize group color" aria-label={`Customize color for ${open.name}`} onClick={() => editGroupColor(open)}>
+              <span className="swatch" style={{ background: open.color }} />
+            </button>
             <span className="name">{open.name}</span>
             <button className="icon" title="Group options" onClick={(e) => groupMenu(e, open)}>
               ⋯
@@ -401,6 +423,14 @@ export function TabBar({
             + Open repository into {open.name}…
           </div>
         </div>
+      )}
+      {colorGroup && (
+        <GroupColorDialog
+          key={colorGroup.id}
+          group={colorGroup}
+          onClose={() => setColorGroupId(null)}
+          onApply={(color) => onUpdateGroup(colorGroup.id, { color })}
+        />
       )}
     </div>
   )
