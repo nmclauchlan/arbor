@@ -425,7 +425,7 @@ export function RepoView({
           defaultTitle={commits.find((c) => c.refs.some((r) => r.kind === 'head'))?.subject ?? ''}
           onCreated={(pr) => {
             setCreatingPr(false)
-            shell.showInfo(`Created pull request !${pr.id}`)
+            shell.showInfo(`Created pull request ${host.kind === 'azure' ? '!' : '#'}${pr.id}`)
             setPrs((list) => [pr, ...list])
             setSelectedPr(pr)
           }}

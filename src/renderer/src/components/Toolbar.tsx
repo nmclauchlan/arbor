@@ -1,5 +1,6 @@
 import type { HostInfo, PullRequest, RepoInfo, RepoRefs } from '@shared/types'
 import type { Actions } from '../actions'
+import { prPrefix } from '../util'
 
 export function Toolbar({
   repo,
@@ -54,7 +55,7 @@ export function Toolbar({
       {host && current && (
         currentPr ? (
           <button disabled={busy} onClick={() => onViewPr(currentPr)} title={currentPr.title}>
-            ⇄ PR !{currentPr.id}
+            ⇄ PR {prPrefix(host.kind)}{currentPr.id}
           </button>
         ) : (
           <button disabled={busy || !current.upstream} onClick={onCreatePr} title={current.upstream ? 'Create a pull request for this branch' : 'Push the branch first'}>

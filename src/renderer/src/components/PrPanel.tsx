@@ -1,11 +1,12 @@
 import { useEffect, useState } from 'react'
 import type { HostInfo, PullRequest, PullRequestDetails } from '@shared/types'
 import type { Actions } from '../actions'
-import { errorMessage, formatFullDate } from '../util'
+import { errorMessage, formatFullDate, prPrefix } from '../util'
 
 function voteLabel(vote: number): { text: string; cls: string } {
   if (vote >= 10) return { text: 'Approved', cls: 'ok' }
   if (vote === 5) return { text: 'Approved with suggestions', cls: 'ok' }
+  if (vote === 1) return { text: 'Commented', cls: '' }
   if (vote === -5) return { text: 'Waiting for author', cls: 'warn' }
   if (vote <= -10) return { text: 'Rejected', cls: 'bad' }
   return { text: 'No vote', cls: '' }
@@ -50,7 +51,7 @@ export function PrPanel({
           </h3>
         </div>
         <div className="meta">
-          !{d.id} · {d.author} · {formatFullDate(d.createdAt)}
+          {prPrefix(host.kind)}{d.id} · {d.author} · {formatFullDate(d.createdAt)}
         </div>
         <div className="meta pr-branches">
           <span className="ref-badge branch" title={d.sourceBranch}>{d.sourceBranch}</span>
@@ -96,7 +97,7 @@ export function PrPanel({
             <div className="pr-description">{d.description}</div>
           </>
         )}
-        <div className="file-group-title"><span>{host.project} / {host.repo}</span></div>
+        <div className="file-group-title"><span>{host.kind === 'github' ? `${host.org}/${host.repo}` : `${host.project} / ${host.repo}`}</span></div>
       </div>
     </div>
   )
