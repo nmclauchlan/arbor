@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import type { Shell } from '../actions'
 import type { MenuItem } from './ContextMenu'
 import { GROUP_COLORS, type Tab, type TabGroup } from '../tabs'
@@ -19,7 +19,10 @@ export function TabBar({
   onAssignGroup,
   onCreateGroup,
   onUpdateGroup,
-  onUngroup
+  onUngroup,
+  onOpenInto,
+  onClone,
+  onNewGroup
 }: {
   tabs: Tab[]
   groups: TabGroup[]
@@ -34,10 +37,37 @@ export function TabBar({
   onCreateGroup: (name: string, paths: string[]) => void
   onUpdateGroup: (id: string, patch: Partial<TabGroup>) => void
   onUngroup: (id: string) => void
+  onOpenInto: (group?: string) => void
+  onClone: (group?: string) => void
+  onNewGroup: () => void
 }): React.JSX.Element {
   const [dragging, setDragging] = useState<string | null>(null)
   const [hint, setHint] = useState<DropHint>(null)
+  const [openGroup, setOpenGroup] = useState<string | null>(null)
+  const [anchor, setAnchor] = useState<{ x: number; y: number }>({ x: 0, y: 0 })
+  const dropdown = useRef<HTMLDivElement>(null)
   const groupById = new Map(groups.map((g) => [g.id, g]))
+
+  useEffect(() => {
+    if (!openGroup) return
+    const close = (e: MouseEvent): void => {
+      if (dropdown.current && !dropdown.current.contains(e.target as Node)) setOpenGroup(null)
+    }
+    const key = (e: KeyboardEvent): void => {
+      if (e.key === 'Escape') setOpenGroup(null)
+    }
+    window.addEventListener('mousedown', close)
+    window.addEventListener('keydown', key)
+    window.addEventListener('blur', () => setOpenGroup(null))
+    return () => {
+      window.removeEventListener('mousedown', close)
+      window.removeEventListener('keydown', key)
+    }
+  }, [openGroup])
+
+  useEffect(() => {
+    if (openGroup && !groupById.has(openGroup)) setOpenGroup(null)
+  })
 
   const endDrag = (): void => {
     setDragging(null)
@@ -52,9 +82,9 @@ export function TabBar({
     const items: MenuItem[] = [
       ...groups
         .filter((g) => g.id !== tab.group)
-        .map((g) => ({ label: `Add to group "${g.name}"`, onClick: () => onAssignGroup(tab.path, g.id) })),
+        .map((g) => ({ label: `Move to group "${g.name}"`, onClick: () => onAssignGroup(tab.path, g.id) })),
       {
-        label: 'Add to new group…',
+        label: 'Move to new group…',
         onClick: async () => {
           const name = await shell.prompt('New tab group', 'Group name')
           if (name) onCreateGroup(name, [tab.path])
@@ -82,6 +112,8 @@ export function TabBar({
     e.preventDefault()
     const members = tabs.filter((t) => t.group === group.id).map((t) => t.path)
     shell.openMenu(e, [
+      { label: 'Open repository into group…', onClick: () => onOpenInto(group.id) },
+      { label: 'Clone repository into group…', onClick: () => onClone(group.id) },
       {
         label: 'Rename group…',
         onClick: async () => {
@@ -94,46 +126,20 @@ export function TabBar({
         onClick: () => onUpdateGroup(group.id, { color: c.value })
       })),
       { separator: true },
-      { label: group.collapsed ? 'Expand group' : 'Collapse group', onClick: () => onUpdateGroup(group.id, { collapsed: !group.collapsed }) },
       { label: 'Ungroup', onClick: () => onUngroup(group.id) },
       { label: 'Close group', danger: true, onClick: () => onCloseMany(members) }
     ])
   }
 
-  const items: React.ReactNode[] = []
-  let prevGroup: string | undefined
-  for (const tab of tabs) {
-    const group = tab.group ? groupById.get(tab.group) : undefined
-    if (group && tab.group !== prevGroup) {
-      const g = group
-      items.push(
-        <div
-          key={'g:' + g.id}
-          className={`tab-group${g.collapsed ? ' collapsed' : ''}${hint && 'group' in hint && hint.group === g.id ? ' drop-target' : ''}`}
-          style={{ background: g.color }}
-          title={g.collapsed ? 'Expand group' : 'Collapse group'}
-          onClick={() => onUpdateGroup(g.id, { collapsed: !g.collapsed })}
-          onContextMenu={(e) => groupMenu(e, g)}
-          onDragOver={(e) => {
-            if (!dragging) return
-            e.preventDefault()
-            setHint({ group: g.id })
-          }}
-          onDrop={(e) => {
-            e.preventDefault()
-            if (dragging) onAssignGroup(dragging, g.id)
-            endDrag()
-          }}
-        >
-          {g.name}
-          {g.collapsed && <span className="muted">({tabs.filter((t) => t.group === g.id).length})</span>}
-        </div>
-      )
-    }
-    prevGroup = tab.group
-    if (group?.collapsed && tab.path !== activePath) continue
+  const toggleGroup = (e: React.MouseEvent, id: string): void => {
+    const rect = e.currentTarget.getBoundingClientRect()
+    setAnchor({ x: rect.left, y: rect.bottom + 2 })
+    setOpenGroup((cur) => (cur === id ? null : id))
+  }
+
+  const renderTab = (tab: Tab, group: TabGroup | undefined): React.ReactNode => {
     const isHint = hint && 'path' in hint && hint.path === tab.path ? hint : null
-    items.push(
+    return (
       <div
         key={tab.path}
         className={`tab${tab.path === activePath ? ' active' : ''}${group ? ' grouped' : ''}${dragging === tab.path ? ' dragging' : ''}${isHint ? (isHint.after ? ' drop-after' : ' drop-before') : ''}`}
@@ -178,6 +184,86 @@ export function TabBar({
     )
   }
 
+  const items: React.ReactNode[] = []
+  const rendered = new Set<string>()
+  for (const tab of tabs) {
+    const group = tab.group ? groupById.get(tab.group) : undefined
+    if (!group) {
+      items.push(renderTab(tab, undefined))
+      continue
+    }
+    if (rendered.has(group.id)) continue
+    rendered.add(group.id)
+    const members = tabs.filter((t) => t.group === group.id)
+    const activeMember = members.find((t) => t.path === activePath)
+    items.push(
+      <div
+        key={'g:' + group.id}
+        className={`tab-group${openGroup === group.id ? ' open' : ''}${activeMember ? ' has-active' : ''}${hint && 'group' in hint && hint.group === group.id ? ' drop-target' : ''}`}
+        style={{ background: group.color }}
+        title={`${group.name}: ${members.length} repositor${members.length === 1 ? 'y' : 'ies'}`}
+        onClick={(e) => toggleGroup(e, group.id)}
+        onContextMenu={(e) => groupMenu(e, group)}
+        onDragOver={(e) => {
+          if (!dragging) return
+          e.preventDefault()
+          setHint({ group: group.id })
+        }}
+        onDrop={(e) => {
+          e.preventDefault()
+          if (dragging) onAssignGroup(dragging, group.id)
+          endDrag()
+        }}
+      >
+        {group.name}
+        <span className="count">{members.length}</span>
+        <span className="caret">{openGroup === group.id ? '▴' : '▾'}</span>
+      </div>
+    )
+    if (activeMember) items.push(renderTab(activeMember, group))
+  }
+
+  for (const group of groups) {
+    if (rendered.has(group.id)) continue
+    rendered.add(group.id)
+    items.push(
+      <div
+        key={'g:' + group.id}
+        className={`tab-group empty${openGroup === group.id ? ' open' : ''}${hint && 'group' in hint && hint.group === group.id ? ' drop-target' : ''}`}
+        style={{ background: group.color }}
+        title={`${group.name}: empty group`}
+        onClick={(e) => toggleGroup(e, group.id)}
+        onContextMenu={(e) => groupMenu(e, group)}
+        onDragOver={(e) => {
+          if (!dragging) return
+          e.preventDefault()
+          setHint({ group: group.id })
+        }}
+        onDrop={(e) => {
+          e.preventDefault()
+          if (dragging) onAssignGroup(dragging, group.id)
+          endDrag()
+        }}
+      >
+        {group.name}
+        <span className="count">0</span>
+        <span className="caret">{openGroup === group.id ? '▴' : '▾'}</span>
+      </div>
+    )
+  }
+
+  const addMenu = (e: React.MouseEvent): void => {
+    shell.openMenu(e, [
+      { label: 'Open repository…', onClick: () => onOpenInto() },
+      { label: 'Clone repository…', onClick: () => onClone() },
+      { separator: true },
+      { label: 'New group…', onClick: onNewGroup }
+    ])
+  }
+
+  const open = openGroup ? groupById.get(openGroup) : undefined
+  const openMembers = open ? tabs.filter((t) => t.group === open.id) : []
+
   return (
     <div
       className="tabs"
@@ -193,9 +279,53 @@ export function TabBar({
       }}
     >
       {items}
-      <div className="tab tab-add" title="Open repository (Ctrl+O)" onClick={shell.openRepo}>
+      <div className="tab tab-add" title="Open, clone or create a group" onClick={addMenu}>
         +
       </div>
+      {open && (
+        <div
+          ref={dropdown}
+          className="group-dropdown"
+          style={{ left: anchor.x, top: anchor.y, borderTopColor: open.color }}
+          onMouseDown={(e) => e.stopPropagation()}
+        >
+          <div className="group-dropdown-head">
+            <span className="swatch" style={{ background: open.color }} />
+            <span className="name">{open.name}</span>
+            <button className="icon" title="Group options" onClick={(e) => groupMenu(e, open)}>
+              ⋯
+            </button>
+          </div>
+          {openMembers.map((t) => (
+            <div
+              key={t.path}
+              className={`group-row${t.path === activePath ? ' active' : ''}`}
+              title={t.path}
+              onClick={() => {
+                onSelect(t.path)
+                setOpenGroup(null)
+              }}
+              onContextMenu={(e) => tabMenu(e, t)}
+            >
+              <span className="name">{t.name}</span>
+              <span className="path">{t.path}</span>
+              <span
+                className="close"
+                title="Close"
+                onClick={(e) => {
+                  e.stopPropagation()
+                  onClose(t.path)
+                }}
+              >
+                ×
+              </span>
+            </div>
+          ))}
+          <div className="group-row add" onClick={() => { setOpenGroup(null); onOpenInto(open.id) }}>
+            + Open repository into {open.name}…
+          </div>
+        </div>
+      )}
     </div>
   )
 }

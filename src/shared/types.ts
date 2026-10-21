@@ -88,6 +88,8 @@ export interface CommitDetails {
 
 export interface GitApi {
   selectRepo(): Promise<string | null>
+  selectFolder(title: string): Promise<string | null>
+  clone(url: string, dest: string): Promise<string>
   initialRepo(): Promise<string | null>
   openRepo(path: string): Promise<RepoInfo>
   recentRepos(): Promise<RepoInfo[]>

@@ -15,6 +15,11 @@ function git(path: string): SimpleGit {
   return simpleGit({ baseDir: path, binary: 'git', maxConcurrentProcesses: 4 })
 }
 
+export async function clone(url: string, dest: string): Promise<string> {
+  await simpleGit().clone(url, dest)
+  return dest
+}
+
 export async function openRepo(path: string): Promise<RepoInfo> {
   const g = git(path)
   const isRepo = await g.checkIsRepo()
