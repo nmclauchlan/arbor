@@ -1,6 +1,16 @@
-# Arbor
+<p align="center">
+  <img src="build/icon.png" width="128" height="128" alt="Arbor icon">
+</p>
 
-A GitKraken-style desktop git client built with Electron, React and TypeScript. Branches grow in lanes; Arbor keeps them in order.
+<h1 align="center">Arbor</h1>
+
+<p align="center">A GitKraken-style desktop git client built with Electron, React and TypeScript. Branches grow in lanes; Arbor keeps them in order.</p>
+
+![Arbor showing a commit graph with a merge commit selected](docs/screenshot.png)
+
+## Download
+
+Installers for Windows, macOS and Linux are published on the [releases page](https://github.com/nmclauchlan/arbor/releases). Every push to `main` builds and publishes a release for the version in `package.json`, so bump the version to cut a new one.
 
 ## Features
 
@@ -30,7 +40,12 @@ Other scripts:
 
 - `npm run typecheck` runs the TypeScript checks for the main, preload and renderer projects
 - `npm run build` produces `out/`
-- `npm run dist` builds a Windows installer into `release/`
+- `npm run dist` builds installers for the current platform into `release/`
+- `npm run icon` re-renders `build/icon.svg` to `build/icon.png`
+
+## Releases
+
+The [release workflow](.github/workflows/release.yml) runs on every push to `main`. It type-checks and builds, then runs electron-builder on Windows, macOS and Linux and publishes the installers to a GitHub release tagged with the package version. macOS builds are unsigned.
 
 ## Layout
 

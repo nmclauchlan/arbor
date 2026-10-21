@@ -268,7 +268,7 @@ export default function App(): React.JSX.Element {
     <div className="app">
       <div className="titlebar">
         <strong>Arbor</strong>
-        {repo && <span>— {repo.path}</span>}
+        {repo && <span title={repo.path}>— {repo.name}</span>}
       </div>
       {!repo ? (
         <Welcome recent={recent} onOpen={actions.openRepo} onOpenRecent={openPath} />
