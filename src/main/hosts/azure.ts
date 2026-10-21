@@ -173,3 +173,29 @@ export async function createPullRequest(
   })
   return toPr(info, p)
 }
+
+interface AdoRepo {
+  name: string
+  remoteUrl: string
+  sshUrl: string
+  webUrl: string
+  isDisabled?: boolean
+  project: { name: string; description?: string; lastUpdateTime?: string; visibility?: string }
+}
+
+export async function listRepos(baseUrl: string, token: string): Promise<import('@shared/types').HostRepo[]> {
+  const data = await call<{ value: AdoRepo[] }>(token, `${baseUrl.replace(/\/+$/, '')}/_apis/git/repositories?${API}`)
+  return data.value
+    .filter((r) => !r.isDisabled)
+    .map((r) => ({
+      name: r.name,
+      fullName: `${r.project.name}/${r.name}`,
+      description: r.project.description ?? '',
+      httpsUrl: r.remoteUrl,
+      sshUrl: r.sshUrl,
+      updatedAt: r.project.lastUpdateTime ? Date.parse(r.project.lastUpdateTime) : 0,
+      isPrivate: r.project.visibility !== 'public'
+    }))
+}
+
+export const cloneUser = ''

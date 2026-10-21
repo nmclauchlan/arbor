@@ -29,7 +29,7 @@ const updater: UpdaterApi = {
 contextBridge.exposeInMainWorld('updater', updater)
 
 const hostMethods: (keyof HostApi)[] = [
-  'detect', 'accounts', 'hasAccount', 'addAccount', 'removeAccount', 'pullRequests', 'pullRequest', 'createPullRequest'
+  'detect', 'listRepos', 'cloneFromHost', 'accounts', 'hasAccount', 'addAccount', 'removeAccount', 'pullRequests', 'pullRequest', 'createPullRequest'
 ]
 const host: Record<string, (...args: unknown[]) => Promise<unknown>> = {}
 for (const m of hostMethods) {
@@ -48,5 +48,10 @@ contextBridge.exposeInMainWorld('native', {
   platform: process.platform,
   version: () => ipcRenderer.invoke('native:version'),
   setTitleBar: (color: string, symbolColor: string) => ipcRenderer.invoke('native:titleBar', color, symbolColor),
-  showInFolder: (repoPath: string, relative: string | null) => ipcRenderer.invoke('native:showInFolder', repoPath, relative)
+  showInFolder: (repoPath: string, relative: string | null) => ipcRenderer.invoke('native:showInFolder', repoPath, relative),
+  onOpenPath: (cb: (path: string) => void) => {
+    const handler = (_e: Electron.IpcRendererEvent, p: string): void => cb(p)
+    ipcRenderer.on('native:openPath', handler)
+    return () => ipcRenderer.removeListener('native:openPath', handler)
+  }
 })

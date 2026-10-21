@@ -20,6 +20,25 @@ function git(path: string): SimpleGit {
   return simpleGit({ baseDir: path, binary: binary(), maxConcurrentProcesses: 4 })
 }
 
+const GUARDED_NON_GIT = new Set(['EDITOR', 'VISUAL', 'PAGER', 'PREFIX', 'SSH_ASKPASS'])
+
+export function gitWithEnv(extra: Record<string, string>, baseDir?: string): SimpleGit {
+  const env: Record<string, string> = {}
+  for (const [k, v] of Object.entries(process.env)) {
+    if (v === undefined) continue
+    const upper = k.toUpperCase()
+    if (upper.startsWith('GIT_') || GUARDED_NON_GIT.has(upper)) continue
+    env[k] = v
+  }
+  Object.assign(env, extra)
+  return simpleGit({
+    ...(baseDir ? { baseDir } : {}),
+    binary: binary(),
+    allowEnvironment: Object.keys(extra),
+    unsafe: { allowUnsafeEditor: true, allowUnsafeConfigEnvCount: true }
+  }).env(env)
+}
+
 export async function gitVersion(): Promise<string> {
   return simpleGit({ binary: binary() }).raw(['--version'])
 }
@@ -422,6 +441,6 @@ export async function continueOperation(path: string, message: string): Promise<
   if (op.kind === 'merge') {
     await g.raw(message.trim() ? ['commit', '-m', message] : ['commit', '--no-edit'])
   } else {
-    await g.env({ ...process.env, GIT_EDITOR: 'true' }).raw([op.kind, '--continue'])
+    await gitWithEnv({ GIT_EDITOR: 'true' }, path).raw([op.kind, '--continue'])
   }
 }

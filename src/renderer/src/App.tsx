@@ -5,6 +5,7 @@ import { ContextMenu, type MenuState } from './components/ContextMenu'
 import { useDialogs } from './components/Dialog'
 import { TabBar } from './components/TabBar'
 import { SettingsDialog } from './components/SettingsDialog'
+import { CloneDialog } from './components/CloneDialog'
 import { UpdateNotice } from './components/UpdateNotice'
 import { Welcome } from './components/Welcome'
 import { RepoView } from './RepoView'
@@ -33,6 +34,7 @@ export default function App(): React.JSX.Element {
   const restored = useRef(false)
   const theme = useTheme()
   const [settingsOpen, setSettingsOpen] = useState<false | { suggestBaseUrl?: string }>(false)
+  const [cloneOpen, setCloneOpen] = useState<false | { group?: string }>(false)
 
   useEffect(() => {
     applyTheme(currentTheme())
@@ -86,6 +88,8 @@ export default function App(): React.JSX.Element {
       })
       .catch(() => undefined)
   }, [loadRecent, openPath])
+
+  useEffect(() => window.native?.onOpenPath((p) => void openPath(p)), [openPath])
 
   const closeMany = useCallback((paths: string[]) => {
     const gone = new Set(paths)
@@ -173,20 +177,7 @@ export default function App(): React.JSX.Element {
   }
 
   const cloneRepo = async (group?: string): Promise<void> => {
-    const url = await dialogs.prompt('Clone repository', 'Repository URL (https or ssh)')
-    if (!url) return
-    const parent = await window.git.selectFolder('Choose where to clone into')
-    if (!parent) return
-    const name = url.replace(/\/+$/, '').split(/[/:]/).pop()?.replace(/\.git$/, '') || 'repository'
-    const dest = `${parent.replace(/[\\/]+$/, '')}/${name}`
-    showInfo(`Cloning ${url}…`)
-    try {
-      await window.git.clone(url, dest)
-      await openPath(dest, true, group)
-      showInfo(`Cloned into ${dest}`)
-    } catch (e) {
-      showError(errorMessage(e))
-    }
+    setCloneOpen({ group })
   }
 
   const updateGroup = (id: string, patch: Partial<TabGroup>): void =>
@@ -253,6 +244,21 @@ export default function App(): React.JSX.Element {
         ))
       )}
       <ContextMenu menu={menu} onClose={closeMenu} />
+      {cloneOpen && (
+        <CloneDialog
+          onClose={() => setCloneOpen(false)}
+          onOpenSettings={() => {
+            setCloneOpen(false)
+            setSettingsOpen({})
+          }}
+          onCloned={async (dest) => {
+            const group = cloneOpen.group
+            setCloneOpen(false)
+            await openPath(dest, true, group)
+            showInfo(`Cloned into ${dest}`)
+          }}
+        />
+      )}
       {settingsOpen && <SettingsDialog suggestBaseUrl={settingsOpen.suggestBaseUrl} onClose={() => setSettingsOpen(false)} />}
       {dialogs.element}
       {toast && (

@@ -22,11 +22,11 @@ Grab the installer for your platform from the [releases page](https://github.com
 
 **Several repositories at once.** Each repository opens in a tab. Drag tabs to reorder them, or collect them into named colour-coded groups that open as a dropdown list. Open several repositories at once from the file dialog, drag a tab onto a group to file it, or use the + button to open, clone or start a new group. Everything is back where you left it next launch.
 
-**Finding your way.** Filter branches with Ctrl+B. View changed files as a folder tree or a flat list. Resize the sidebar and panels to taste.
+**Finding your way.** Filter branches with Ctrl+B. View changed files as a folder tree or a flat list. Resize the sidebar, panels and the graph's columns to taste.
 
 **Looks and settings.** Ten themes, dark and light, including Dracula, Nord, Solarized, Gruvbox, Monokai and Rosé Pine; the editor follows the theme. Settings (⚙ or Ctrl+,) cover the theme, the default file-list view, how often repositories refresh, how much history to load, which git executable to use, and automatic update checks.
 
-**GitHub, GitLab and Azure DevOps.** Connect an account with a personal access token under Settings → Accounts; self-hosted GitHub Enterprise and GitLab instances work alongside github.com and gitlab.com. Open pull and merge requests then appear in the sidebar and as badges on their branches, each with reviewers and approvals, checks and pipeline jobs, merge state, and a link to open in the browser. Create one for the current branch straight from the toolbar.
+**GitHub, GitLab and Azure DevOps.** Connect an account with a personal access token under Settings → Accounts; self-hosted GitHub Enterprise and GitLab instances work alongside github.com and gitlab.com. Open pull and merge requests then appear in the sidebar and as badges on their branches, each with reviewers and approvals, checks and pipeline jobs, merge state, and a link to open in the browser. Create one for the current branch straight from the toolbar, or clone any repository you have access to from a searchable list under + → Clone.
 
 ## Keyboard shortcuts
 

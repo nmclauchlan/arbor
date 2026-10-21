@@ -8,6 +8,24 @@ import { hostApi } from './hosts'
 import type { MainSettings } from '@shared/types'
 import type { GitApi, RepoInfo } from '@shared/types'
 
+if (!app.isPackaged) app.setPath('userData', join(app.getPath('appData'), 'Arbor Dev'))
+
+const isPrimary = app.requestSingleInstanceLock()
+if (!isPrimary) app.quit()
+
+function pathArg(argv: string[]): string | null {
+  return argv.slice(app.isPackaged ? 1 : 2).find((a) => !a.startsWith('-') && a !== '.') ?? null
+}
+
+app.on('second-instance', (_event, argv) => {
+  const win = BrowserWindow.getAllWindows()[0]
+  if (!win) return
+  if (win.isMinimized()) win.restore()
+  win.focus()
+  const p = pathArg(argv)
+  if (p) win.webContents.send('native:openPath', p)
+})
+
 const recentFile = (): string => join(app.getPath('userData'), 'recent.json')
 
 async function readRecent(): Promise<RepoInfo[]> {
@@ -57,6 +75,7 @@ function createWindow(): void {
           await new Promise((r) => setTimeout(r, 5000))
         }
         const image = await win.webContents.capturePage()
+        win.webContents.session.flushStorageData()
         await writeFile(shot, image.toPNG())
         app.quit()
       }, Number(process.env['ARBOR_SCREENSHOT_DELAY'] ?? 3000))
@@ -96,8 +115,7 @@ const handlers: Handlers = {
   clone: gitService.clone,
   gitVersion: gitService.gitVersion,
   async initialRepo() {
-    const arg = process.argv.slice(app.isPackaged ? 1 : 2).find((a) => !a.startsWith('-'))
-    return arg ?? null
+    return pathArg(process.argv)
   },
   async openRepo(path) {
     const repo = await gitService.openRepo(path)
@@ -180,6 +198,10 @@ app.whenReady().then(() => {
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow()
   })
+})
+
+app.on('before-quit', () => {
+  for (const win of BrowserWindow.getAllWindows()) win.webContents.session.flushStorageData()
 })
 
 app.on('window-all-closed', () => {

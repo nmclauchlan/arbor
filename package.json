@@ -1,7 +1,7 @@
 {
   "name": "arbor",
   "productName": "Arbor",
-  "version": "0.11.0",
+  "version": "0.12.0",
   "description": "A desktop git client with a branching commit graph, built with Electron",
   "main": "./out/main/index.js",
   "private": true,

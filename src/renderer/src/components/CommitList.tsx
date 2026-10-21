@@ -2,11 +2,71 @@ import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import type { Commit, Ref } from '@shared/types'
 import { LANE_COLORS, layoutGraph } from '../graph/layout'
 import { formatDate, shortHash, WIP_HASH } from '../util'
+import { resetLayout, setLayout, useLayout, type Layout } from '../layout'
 
 const ROW_H = 28
 const LANE_W = 16
 const MAX_LANES = 14
 const OVERSCAN = 12
+
+type ColKey = 'colGraph' | 'colAuthor' | 'colDate' | 'colSha'
+
+function ColHandle({ col, width, side }: { col: ColKey; width: number; side: 'left' | 'right' }): React.JSX.Element {
+  return (
+    <span
+      className={`col-resize ${side}`}
+      title="Drag to resize, double-click to reset"
+      onDoubleClick={(e) => {
+        e.stopPropagation()
+        resetLayout(col)
+      }}
+      onMouseDown={(e) => {
+        e.preventDefault()
+        e.stopPropagation()
+        const origin = e.clientX
+        const base = width
+        document.body.style.cursor = 'col-resize'
+        document.body.classList.add('resizing')
+        const move = (ev: MouseEvent): void => {
+          const dx = ev.clientX - origin
+          setLayout(col, side === 'right' ? base + dx : base - dx)
+        }
+        const up = (): void => {
+          document.body.style.cursor = ''
+          document.body.classList.remove('resizing')
+          window.removeEventListener('mousemove', move)
+          window.removeEventListener('mouseup', up)
+        }
+        window.addEventListener('mousemove', move)
+        window.addEventListener('mouseup', up)
+      }}
+    />
+  )
+}
+
+function Header({ graphCol, cols }: { graphCol: number; cols: Layout }): React.JSX.Element {
+  return (
+    <div className="commit-header">
+      <div className="hcell graph" style={{ width: graphCol }}>
+        Graph
+        <ColHandle col="colGraph" width={graphCol} side="right" />
+      </div>
+      <div className="hcell subject">Message</div>
+      <div className="hcell" style={{ width: cols.colAuthor }}>
+        <ColHandle col="colAuthor" width={cols.colAuthor} side="left" />
+        Author
+      </div>
+      <div className="hcell" style={{ width: cols.colDate }}>
+        <ColHandle col="colDate" width={cols.colDate} side="left" />
+        Date
+      </div>
+      <div className="hcell" style={{ width: cols.colSha }}>
+        <ColHandle col="colSha" width={cols.colSha} side="left" />
+        SHA
+      </div>
+    </div>
+  )
+}
 
 function RefBadge({ r, isHead }: { r: Ref; isHead: boolean }): React.JSX.Element {
   const cls = isHead ? 'branch head' : r.kind
@@ -34,8 +94,10 @@ export function CommitList({
   const layout = useMemo(() => layoutGraph(commits), [commits])
   const container = useRef<HTMLDivElement>(null)
   const [range, setRange] = useState({ start: 0, end: 50 })
+  const cols = useLayout()
   const lanes = Math.min(layout.laneCount, MAX_LANES)
   const graphWidth = lanes * LANE_W + 10
+  const graphCol = cols.colGraph || Math.max(graphWidth, 60)
   const total = commits.length
 
   useLayoutEffect(() => {
@@ -100,7 +162,7 @@ export function CommitList({
           if (!isWip) onContextMenu(c, e)
         }}
       >
-        <div className="graph-space" style={{ width: graphWidth }} />
+        <div className="graph-space" style={{ width: graphCol }} />
         <div className="subject">
           {c.refs
             .filter((r) => r.kind !== 'head')
@@ -112,9 +174,9 @@ export function CommitList({
         </div>
         {!isWip && (
           <>
-            <div className="author" title={c.email}>{c.author}</div>
-            <div className="date" title={new Date(c.date).toLocaleString()}>{formatDate(c.date)}</div>
-            <div className="sha">{shortHash(c.hash)}</div>
+            <div className="author" style={{ width: cols.colAuthor }} title={`${c.author} <${c.email}>`}>{c.author}</div>
+            <div className="date" style={{ width: cols.colDate }} title={new Date(c.date).toLocaleString()}>{formatDate(c.date)}</div>
+            <div className="sha" style={{ width: cols.colSha }}>{shortHash(c.hash)}</div>
           </>
         )}
       </div>
@@ -122,8 +184,11 @@ export function CommitList({
   }
 
   return (
-    <div className="commit-list" ref={container}>
+    <div className="commit-list">
+      <Header graphCol={graphCol} cols={cols} />
+      <div className="commit-scroll" ref={container}>
       <div className="rows" style={{ height: total * ROW_H }}>
+        <div className="graph-clip" style={{ width: graphCol, height: total * ROW_H }}>
         <svg className="graph" width={graphWidth} height={total * ROW_H}>
           {visibleEdges.map((e, i) => {
             if (e.fromLane >= MAX_LANES && e.toLane >= MAX_LANES) return null
@@ -168,7 +233,9 @@ export function CommitList({
             )
           })}
         </svg>
+        </div>
         {rows}
+      </div>
       </div>
     </div>
   )

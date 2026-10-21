@@ -233,8 +233,20 @@ export interface PullRequestDetails extends PullRequest {
   checks: PullRequestCheck[]
 }
 
+export interface HostRepo {
+  name: string
+  fullName: string
+  description: string
+  httpsUrl: string
+  sshUrl: string
+  updatedAt: number
+  isPrivate: boolean
+}
+
 export interface HostApi {
   detect(repoPath: string): Promise<HostInfo | null>
+  listRepos(kind: HostKind, baseUrl: string): Promise<HostRepo[]>
+  cloneFromHost(kind: HostKind, baseUrl: string, url: string, dest: string): Promise<string>
   accounts(): Promise<HostAccount[]>
   hasAccount(repoPath: string): Promise<boolean>
   addAccount(kind: HostKind, baseUrl: string, token: string): Promise<HostAccount>
