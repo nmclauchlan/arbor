@@ -441,7 +441,7 @@ export function RepoView({
             {status.staged.length} staged · {status.unstaged.length} unstaged
           </span>
         )}
-        {busy && <span className="spin">{busy}…</span>}
+        {busy && <span className="spin" role="status">{busy}…</span>}
         <span className="spacer" />
         <UpdateNotice />
       </div>

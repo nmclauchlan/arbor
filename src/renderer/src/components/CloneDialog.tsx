@@ -216,7 +216,7 @@ export function CloneDialog({
 
         <div className="buttons">
           <button onClick={onClose} disabled={busy}>Cancel</button>
-          <button className="primary" disabled={busy || !cloneUrl || !dest} onClick={() => void clone()}>
+          <button className="primary" aria-busy={busy} disabled={busy || !cloneUrl || !dest} onClick={() => void clone()}>
             {busy ? 'Cloning…' : 'Clone'}
           </button>
         </div>

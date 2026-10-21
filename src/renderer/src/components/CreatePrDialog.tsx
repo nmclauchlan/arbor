@@ -85,7 +85,7 @@ export function CreatePrDialog({
         {error && <div className="settings-note error">{error}</div>}
         <div className="buttons">
           <button onClick={onClose} disabled={busy}>Cancel</button>
-          <button className="primary" disabled={busy || !title.trim() || !target} onClick={() => void submit()}>
+          <button className="primary" aria-busy={busy} disabled={busy || !title.trim() || !target} onClick={() => void submit()}>
             {busy ? 'Creating…' : `Create ${prNoun(host.kind)}`}
           </button>
         </div>

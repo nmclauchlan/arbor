@@ -8,6 +8,7 @@ import { SettingsDialog } from './components/SettingsDialog'
 import { CloneDialog } from './components/CloneDialog'
 import { UpdateNotice } from './components/UpdateNotice'
 import { Welcome } from './components/Welcome'
+import { BrandIcon } from './components/BrandIcon'
 import { RepoView } from './RepoView'
 import { errorMessage } from './util'
 import { applyTheme, currentTheme, setTheme, THEMES, useTheme } from './themes'
@@ -191,7 +192,10 @@ export default function App(): React.JSX.Element {
   return (
     <div className="app">
       <div className="titlebar">
-        <strong>Arbor</strong>
+        <div className="brand-lockup" title="Arbor">
+          <BrandIcon size={22} />
+          <strong>Arbor</strong>
+        </div>
         <TabBar
           tabs={tabs}
           groups={groups}
@@ -232,7 +236,7 @@ export default function App(): React.JSX.Element {
       </div>
       {tabs.length === 0 ? (
         <>
-          <Welcome recent={recent} onOpen={shell.openRepo} onOpenRecent={openPath} />
+          <Welcome recent={recent} onOpen={shell.openRepo} onClone={() => setCloneOpen({})} onOpenRecent={openPath} />
           <div className="statusbar">
             <span className="spacer" />
             <UpdateNotice />
