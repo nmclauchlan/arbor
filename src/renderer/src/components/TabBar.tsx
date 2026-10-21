@@ -46,7 +46,23 @@ export function TabBar({
   const [openGroup, setOpenGroup] = useState<string | null>(null)
   const [anchor, setAnchor] = useState<{ x: number; y: number }>({ x: 0, y: 0 })
   const dropdown = useRef<HTMLDivElement>(null)
+  const scroller = useRef<HTMLDivElement>(null)
+  const [overflowing, setOverflowing] = useState(false)
   const groupById = new Map(groups.map((g) => [g.id, g]))
+
+  useEffect(() => {
+    const el = scroller.current
+    if (!el) return
+    const check = (): void => setOverflowing(el.scrollWidth > el.clientWidth + 1)
+    check()
+    const ro = new ResizeObserver(check)
+    ro.observe(el)
+    return () => ro.disconnect()
+  }, [tabs, groups])
+
+  useEffect(() => {
+    scroller.current?.querySelector('.tab.active')?.scrollIntoView({ inline: 'nearest', block: 'nearest' })
+  }, [activePath])
 
   useEffect(() => {
     if (!openGroup) return
@@ -267,21 +283,46 @@ export function TabBar({
   const open = openGroup ? groupById.get(openGroup) : undefined
   const openMembers = open ? tabs.filter((t) => t.group === open.id) : []
 
+  const allTabsMenu = (e: React.MouseEvent): void => {
+    const items: MenuItem[] = []
+    const seen = new Set<string>()
+    for (const t of tabs) {
+      const g = t.group ? groupById.get(t.group) : undefined
+      if (g && !seen.has(g.id)) {
+        seen.add(g.id)
+        items.push({ label: `— ${g.name} —`, disabled: true })
+      }
+      items.push({ label: `${t.path === activePath ? '✓ ' : '   '}${t.name}`, onClick: () => onSelect(t.path) })
+    }
+    shell.openMenu(e, items)
+  }
+
   return (
-    <div
-      className="tabs"
-      onDragOver={(e) => {
-        if (dragging && e.target === e.currentTarget) e.preventDefault()
-      }}
-      onDrop={(e) => {
-        if (dragging && e.target === e.currentTarget) {
-          e.preventDefault()
-          onMoveToEnd(dragging)
-        }
-        endDrag()
-      }}
-    >
-      {items}
+    <div className="tabs">
+      <div
+        className="tabs-scroll"
+        ref={scroller}
+        onWheel={(e) => {
+          if (e.deltaY && scroller.current) scroller.current.scrollLeft += e.deltaY
+        }}
+        onDragOver={(e) => {
+          if (dragging && e.target === e.currentTarget) e.preventDefault()
+        }}
+        onDrop={(e) => {
+          if (dragging && e.target === e.currentTarget) {
+            e.preventDefault()
+            onMoveToEnd(dragging)
+          }
+          endDrag()
+        }}
+      >
+        {items}
+      </div>
+      {overflowing && (
+        <div className="tab tab-overflow" title="All tabs" onClick={allTabsMenu}>
+          ⌄
+        </div>
+      )}
       <div className="tab tab-add" title="Open, clone or create a group" onClick={addMenu}>
         +
       </div>

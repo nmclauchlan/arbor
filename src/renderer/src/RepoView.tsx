@@ -13,7 +13,7 @@ import { UpdateNotice } from './components/UpdateNotice'
 import { setLayout, useLayout } from './layout'
 import { errorMessage, shortHash, WIP_HASH } from './util'
 
-const LOG_LIMIT = 1500
+const LOG_LIMIT = 5000
 const POLL_MS = 3000
 
 export function RepoView({
@@ -54,9 +54,13 @@ export function RepoView({
     loadAll().catch((e) => shell.showError(errorMessage(e)))
   }, [loadAll, shell])
 
+  const loaded = useRef(false)
   useEffect(() => {
-    refresh()
-  }, [refresh])
+    if (active && !loaded.current) {
+      loaded.current = true
+      refresh()
+    }
+  }, [active, refresh])
 
   useEffect(() => {
     if (!active) return
@@ -262,10 +266,11 @@ export function RepoView({
     actions.openMenu(e, items)
   }
 
+  if (!active) return <div className="repo-view" hidden />
+
   return (
     <div
       className="repo-view"
-      hidden={!active}
       style={{ gridTemplateColumns: `${layout.sidebar}px 4px 1fr 4px ${layout.panel}px` }}
     >
       <Toolbar repo={repo} refs={refs} busy={!!busy} actions={actions} />
