@@ -2,7 +2,7 @@ import { contextBridge, ipcRenderer } from 'electron'
 import type { GitApi, GitMethod, UpdateStatus, UpdaterApi } from '@shared/types'
 
 const methods: GitMethod[] = [
-  'selectRepo', 'selectFolder', 'clone', 'initialRepo', 'openRepo', 'recentRepos', 'log', 'refs', 'status', 'stage', 'unstage', 'discard',
+  'selectRepos', 'selectFolder', 'clone', 'initialRepo', 'openRepo', 'recentRepos', 'log', 'refs', 'status', 'stage', 'unstage', 'discard',
   'commit', 'fileDiff', 'commitDetails', 'commitFileDiff', 'checkout', 'createBranch', 'deleteBranch',
   'fetch', 'pull', 'push', 'merge', 'stashPush', 'stashPop', 'stashDrop', 'resetTo', 'cherryPick', 'revert', 'readFile', 'writeFile',
   'imageDiff', 'resolveFile', 'abortOperation', 'continueOperation'

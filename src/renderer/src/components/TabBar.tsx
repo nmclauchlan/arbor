@@ -160,6 +160,7 @@ export function TabBar({
         onDragOver={(e) => {
           if (!dragging || dragging === tab.path) return
           e.preventDefault()
+          e.dataTransfer.dropEffect = 'move'
           const rect = e.currentTarget.getBoundingClientRect()
           setHint({ path: tab.path, after: e.clientX > rect.left + rect.width / 2 })
         }}
@@ -207,6 +208,7 @@ export function TabBar({
         onDragOver={(e) => {
           if (!dragging) return
           e.preventDefault()
+          e.dataTransfer.dropEffect = 'move'
           setHint({ group: group.id })
         }}
         onDrop={(e) => {
@@ -237,6 +239,7 @@ export function TabBar({
         onDragOver={(e) => {
           if (!dragging) return
           e.preventDefault()
+          e.dataTransfer.dropEffect = 'move'
           setHint({ group: group.id })
         }}
         onDrop={(e) => {
@@ -288,6 +291,17 @@ export function TabBar({
           className="group-dropdown"
           style={{ left: anchor.x, top: anchor.y, borderTopColor: open.color }}
           onMouseDown={(e) => e.stopPropagation()}
+          onDragOver={(e) => {
+            if (!dragging) return
+            e.preventDefault()
+            e.dataTransfer.dropEffect = 'move'
+            setHint({ group: open.id })
+          }}
+          onDrop={(e) => {
+            e.preventDefault()
+            if (dragging) onAssignGroup(dragging, open.id)
+            endDrag()
+          }}
         >
           <div className="group-dropdown-head">
             <span className="swatch" style={{ background: open.color }} />
