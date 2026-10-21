@@ -1,22 +1,31 @@
 import { useEffect, useState } from 'react'
 import type { CommitDetails, StatusFile } from '@shared/types'
+import type { Shell } from '../actions'
 import { DiffView } from './DiffView'
+import { Editor } from './Editor'
 import { formatFullDate, shortHash } from '../util'
 
 export function FileRow({
   file,
   selected,
   onClick,
+  onDoubleClick,
   children
 }: {
   file: StatusFile
   selected: boolean
   onClick: () => void
+  onDoubleClick?: () => void
   children?: React.ReactNode
 }): React.JSX.Element {
   const label = file.oldPath ? `${file.oldPath} → ${file.path}` : file.path
   return (
-    <div className={`file-item${selected ? ' selected' : ''}`} onClick={onClick} title={label}>
+    <div
+      className={`file-item${selected ? ' selected' : ''}`}
+      onClick={onClick}
+      onDoubleClick={onDoubleClick}
+      title={label}
+    >
       <span className={`status-letter ${file.status}`}>{file.status}</span>
       <span className="path"><span>{label}</span></span>
       {children}
@@ -24,10 +33,21 @@ export function FileRow({
   )
 }
 
-export function CommitPanel({ repoPath, hash }: { repoPath: string; hash: string }): React.JSX.Element {
+export function CommitPanel({
+  repoPath,
+  hash,
+  shell,
+  onFileSaved
+}: {
+  repoPath: string
+  hash: string
+  shell: Shell
+  onFileSaved: () => void
+}): React.JSX.Element {
   const [details, setDetails] = useState<CommitDetails | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [file, setFile] = useState<string | null>(null)
+  const [editing, setEditing] = useState<string | null>(null)
   const [diff, setDiff] = useState('')
   const [loadingDiff, setLoadingDiff] = useState(false)
 
@@ -35,6 +55,7 @@ export function CommitPanel({ repoPath, hash }: { repoPath: string; hash: string
     let cancelled = false
     setDetails(null)
     setFile(null)
+    setEditing(null)
     setDiff('')
     setError(null)
     window.git
@@ -51,7 +72,7 @@ export function CommitPanel({ repoPath, hash }: { repoPath: string; hash: string
   }, [repoPath, hash])
 
   useEffect(() => {
-    if (!file) return
+    if (!file || editing) return
     let cancelled = false
     setLoadingDiff(true)
     window.git
@@ -62,7 +83,7 @@ export function CommitPanel({ repoPath, hash }: { repoPath: string; hash: string
     return () => {
       cancelled = true
     }
-  }, [repoPath, hash, file])
+  }, [repoPath, hash, file, editing])
 
   if (error) return <div className="panel"><div className="center">{error}</div></div>
   if (!details) return <div className="panel"><div className="center">Loading…</div></div>
@@ -91,10 +112,32 @@ export function CommitPanel({ repoPath, hash }: { repoPath: string; hash: string
             <span>{details.files.length} file{details.files.length === 1 ? '' : 's'} changed</span>
           </div>
           {details.files.map((f) => (
-            <FileRow key={f.path} file={f} selected={file === f.path} onClick={() => setFile(f.path)} />
+            <FileRow
+              key={f.path}
+              file={f}
+              selected={file === f.path}
+              onClick={() => setFile(f.path)}
+              onDoubleClick={() => f.status !== 'D' && setEditing(f.path)}
+            >
+              {f.status !== 'D' && (
+                <span className="actions" onClick={(e) => e.stopPropagation()}>
+                  <button title="Edit working copy" onClick={() => setEditing(f.path)}>✎</button>
+                </span>
+              )}
+            </FileRow>
           ))}
         </div>
-        <DiffView text={diff} loading={loadingDiff} empty={file ? 'No textual changes' : 'Select a file'} />
+        {editing ? (
+          <Editor
+            repoPath={repoPath}
+            file={editing}
+            shell={shell}
+            onClose={() => setEditing(null)}
+            onSaved={onFileSaved}
+          />
+        ) : (
+          <DiffView text={diff} loading={loadingDiff} empty={file ? 'No textual changes' : 'Select a file'} />
+        )}
       </div>
     </div>
   )

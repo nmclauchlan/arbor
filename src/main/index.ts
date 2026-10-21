@@ -49,7 +49,7 @@ function createWindow(): void {
       setTimeout(async () => {
         const script = process.env['ARBOR_SCREENSHOT_SCRIPT']
         if (script) {
-          await win.webContents.executeJavaScript(script)
+          await win.webContents.executeJavaScript(script).catch((e) => console.error('screenshot script failed', e))
           await new Promise((r) => setTimeout(r, 5000))
         }
         const image = await win.webContents.capturePage()
@@ -111,7 +111,9 @@ const handlers: Handlers = {
   stashDrop: gitService.stashDrop,
   resetTo: gitService.resetTo,
   cherryPick: gitService.cherryPick,
-  revert: gitService.revert
+  revert: gitService.revert,
+  readFile: gitService.readFileContent,
+  writeFile: gitService.writeFileContent
 }
 
 for (const [name, fn] of Object.entries(handlers)) {

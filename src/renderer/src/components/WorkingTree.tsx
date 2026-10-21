@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import type { RepoStatus, StatusFile } from '@shared/types'
 import type { Actions } from '../actions'
 import { DiffView } from './DiffView'
+import { Editor } from './Editor'
 import { FileRow } from './CommitPanel'
 import { errorMessage } from '../util'
 
@@ -17,6 +18,7 @@ export function WorkingTree({
   actions: Actions
 }): React.JSX.Element {
   const [sel, setSel] = useState<Sel>(null)
+  const [editing, setEditing] = useState<string | null>(null)
   const [diff, setDiff] = useState('')
   const [loadingDiff, setLoadingDiff] = useState(false)
   const [message, setMessage] = useState('')
@@ -30,8 +32,8 @@ export function WorkingTree({
   }, [status, sel])
 
   useEffect(() => {
-    if (!sel) {
-      setDiff('')
+    if (!sel || editing) {
+      if (!sel) setDiff('')
       return
     }
     let cancelled = false
@@ -44,7 +46,7 @@ export function WorkingTree({
     return () => {
       cancelled = true
     }
-  }, [repoPath, sel, status])
+  }, [repoPath, sel, status, editing])
 
   const run = async (fn: () => Promise<void>): Promise<void> => {
     setWorking(true)
@@ -78,6 +80,11 @@ export function WorkingTree({
     })
   }
 
+  const edit = (f: StatusFile): void => {
+    if (f.status === 'D') return
+    setEditing(f.path)
+  }
+
   const unstagedPaths = status.unstaged.map((f) => f.path)
   const stagedPaths = status.staged.map((f) => f.path)
   const canCommit = (status.staged.length > 0 && message.trim().length > 0) || amend
@@ -105,8 +112,10 @@ export function WorkingTree({
               file={f}
               selected={sel?.area === 'unstaged' && sel.file.path === f.path}
               onClick={() => setSel({ area: 'unstaged', file: f })}
+              onDoubleClick={() => edit(f)}
             >
               <span className="actions" onClick={(e) => e.stopPropagation()}>
+                {f.status !== 'D' && <button title="Edit" onClick={() => edit(f)}>✎</button>}
                 <button title="Discard" onClick={() => discard([f.path])}>↶</button>
                 <button title="Stage" onClick={() => stage([f.path])}>+</button>
               </span>
@@ -124,14 +133,30 @@ export function WorkingTree({
               file={f}
               selected={sel?.area === 'staged' && sel.file.path === f.path}
               onClick={() => setSel({ area: 'staged', file: f })}
+              onDoubleClick={() => edit(f)}
             >
               <span className="actions" onClick={(e) => e.stopPropagation()}>
+                {f.status !== 'D' && <button title="Edit" onClick={() => edit(f)}>✎</button>}
                 <button title="Unstage" onClick={() => unstage([f.path])}>−</button>
               </span>
             </FileRow>
           ))}
         </div>
-        <DiffView text={diff} loading={loadingDiff} empty={sel ? 'No textual changes' : 'Select a file to view its diff'} />
+        {editing ? (
+          <Editor
+            repoPath={repoPath}
+            file={editing}
+            shell={actions}
+            onClose={() => setEditing(null)}
+            onSaved={actions.refresh}
+          />
+        ) : (
+          <DiffView
+            text={diff}
+            loading={loadingDiff}
+            empty={sel ? 'No textual changes' : 'Select a file to view its diff, double-click to edit'}
+          />
+        )}
       </div>
       <div className="commit-form">
         <textarea
