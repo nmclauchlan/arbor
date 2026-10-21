@@ -108,6 +108,8 @@ export interface GitApi {
   resetTo(path: string, hash: string, mode: 'soft' | 'mixed' | 'hard'): Promise<void>
   cherryPick(path: string, hash: string): Promise<void>
   revert(path: string, hash: string): Promise<void>
+  readFile(path: string, file: string): Promise<string>
+  writeFile(path: string, file: string, content: string): Promise<void>
 }
 
 export type GitMethod = keyof GitApi

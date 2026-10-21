@@ -14,6 +14,8 @@ Installers for Windows, macOS and Linux are published on the [releases page](htt
 
 ## Features
 
+- Tabs for multiple open repositories, restored on next launch (Ctrl+O open, Ctrl+W close, Ctrl+Tab switch)
+- Inline CodeMirror editor for any file in the working tree or a commit, with syntax highlighting and Ctrl+S to save
 - Commit graph with coloured lanes, merge curves and ref badges (branches, remotes, tags, HEAD)
 - Working tree panel: stage/unstage/discard files, view diffs, commit and amend (Ctrl+Enter)
 - Commit details with changed-file list and unified diff viewer

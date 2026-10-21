@@ -1,5 +1,5 @@
 import { simpleGit, SimpleGit } from 'simple-git'
-import { readFile } from 'fs/promises'
+import { readFile, writeFile } from 'fs/promises'
 import { basename, join } from 'path'
 import type {
   Commit, CommitDetails, FileChange, Ref, RepoInfo, RepoRefs, RepoStatus, StatusFile
@@ -299,4 +299,12 @@ export async function cherryPick(path: string, hash: string): Promise<void> {
 
 export async function revert(path: string, hash: string): Promise<void> {
   await git(path).raw(['revert', '--no-edit', hash])
+}
+
+export async function readFileContent(path: string, file: string): Promise<string> {
+  return readFile(join(path, file), 'utf8')
+}
+
+export async function writeFileContent(path: string, file: string, content: string): Promise<void> {
+  await writeFile(join(path, file), content, 'utf8')
 }
