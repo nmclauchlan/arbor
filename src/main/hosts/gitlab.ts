@@ -172,3 +172,39 @@ export async function createPullRequest(
   })
   return toPr(m)
 }
+
+interface GlProject {
+  name: string
+  path_with_namespace: string
+  description: string | null
+  http_url_to_repo: string
+  ssh_url_to_repo: string
+  last_activity_at: string
+  visibility: string
+  archived?: boolean
+}
+
+export async function listRepos(baseUrl: string, token: string): Promise<import('@shared/types').HostRepo[]> {
+  const out: import('@shared/types').HostRepo[] = []
+  for (let page = 1; page <= 5; page++) {
+    const list = await call<GlProject[]>(
+      token,
+      `${api(baseUrl)}/projects?membership=true&archived=false&simple=true&per_page=100&page=${page}&order_by=last_activity_at`
+    )
+    for (const p of list) {
+      out.push({
+        name: p.name,
+        fullName: p.path_with_namespace,
+        description: p.description ?? '',
+        httpsUrl: p.http_url_to_repo,
+        sshUrl: p.ssh_url_to_repo,
+        updatedAt: Date.parse(p.last_activity_at),
+        isPrivate: p.visibility !== 'public'
+      })
+    }
+    if (list.length < 100) break
+  }
+  return out
+}
+
+export const cloneUser = 'oauth2'

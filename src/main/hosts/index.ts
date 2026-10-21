@@ -1,11 +1,14 @@
 import { simpleGit } from 'simple-git'
-import type { HostAccount, HostApi, HostInfo, HostKind, PullRequest, PullRequestDetails } from '@shared/types'
+import type { HostAccount, HostApi, HostInfo, HostKind, HostRepo, PullRequest, PullRequestDetails } from '@shared/types'
+import { gitWithEnv } from '../git'
 import { deleteAccount, findToken, listAccounts, storeAccount } from './accounts'
 import * as azure from './azure'
 import * as github from './github'
 import * as gitlab from './gitlab'
 
 interface Adapter {
+  cloneUser: string
+  listRepos(baseUrl: string, token: string): Promise<HostRepo[]>
   validateToken(baseUrl: string, token: string): Promise<string>
   listPullRequests(info: HostInfo, token: string): Promise<PullRequest[]>
   getPullRequest(info: HostInfo, token: string, id: number): Promise<PullRequestDetails>
@@ -92,8 +95,38 @@ function normaliseBaseUrl(kind: HostKind, baseUrl: string): string {
   throw new Error(`${kind} is not supported yet`)
 }
 
+function tokenFor(kind: HostKind, baseUrl: string): string {
+  const token = findToken(kind, baseUrl)
+  if (!token) throw new Error(`No account for ${baseUrl}. Add one in Settings.`)
+  return token
+}
+
 export const hostApi: HostApi = {
   detect,
+  async listRepos(kind, baseUrl) {
+    const repos = await adapterFor(kind).listRepos(baseUrl, tokenFor(kind, baseUrl))
+    return repos.sort((a, b) => b.updatedAt - a.updatedAt)
+  },
+  async cloneFromHost(kind, baseUrl, url, dest) {
+    const env: Record<string, string> = { GIT_TERMINAL_PROMPT: '0' }
+    if (/^https?:/i.test(url)) {
+      const adapter = adapterFor(kind)
+      const token = tokenFor(kind, baseUrl)
+      const basic = Buffer.from(`${adapter.cloneUser}:${token}`).toString('base64')
+      env.GIT_CONFIG_COUNT = '1'
+      env.GIT_CONFIG_KEY_0 = 'http.extraHeader'
+      env.GIT_CONFIG_VALUE_0 = `Authorization: Basic ${basic}`
+    }
+    const g = gitWithEnv(env)
+    const cleanUrl = url.replace(/^(https?:\/\/)[^@/]+@/i, '$1')
+    try {
+      await g.clone(cleanUrl, dest)
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e)
+      throw new Error(msg.replace(/Authorization: Basic [A-Za-z0-9+/=]+/g, 'Authorization: Basic ***'))
+    }
+    return dest
+  },
   async accounts() {
     return listAccounts()
   },

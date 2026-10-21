@@ -175,7 +175,19 @@ textarea { resize: vertical; font-family: inherit; }
   background: var(--bg);
 }
 .commit-list .rows { position: relative; }
-.commit-list svg.graph { position: absolute; top: 0; left: 0; pointer-events: none; z-index: 1; }
+.commit-list { display: flex; flex-direction: column; overflow: hidden; }
+.commit-scroll { flex: 1; min-height: 0; overflow-y: auto; overflow-x: hidden; position: relative; scrollbar-gutter: stable; }
+.commit-list .graph-clip { position: absolute; top: 0; left: 0; overflow: hidden; pointer-events: none; z-index: 1; }
+.commit-list svg.graph { position: absolute; top: 0; left: 0; pointer-events: none; }
+.commit-header { display: flex; align-items: center; gap: 8px; height: 26px; padding-right: 12px; flex: none; background: var(--bg-2); border-bottom: 1px solid var(--border); font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em; color: var(--fg-dim); user-select: none; scrollbar-gutter: stable; overflow-y: hidden; }
+.commit-header .hcell { position: relative; flex: none; height: 100%; display: flex; align-items: center; white-space: nowrap; overflow: visible; }
+.commit-header .hcell.graph { padding-left: 8px; overflow: hidden; }
+.commit-header .hcell.subject { flex: 1 1 0; min-width: 80px; }
+.commit-header .col-resize { position: absolute; top: 0; bottom: 0; width: 9px; cursor: col-resize; z-index: 2; }
+.commit-header .col-resize.right { right: -5px; }
+.commit-header .col-resize.left { left: -9px; }
+.commit-header .col-resize::after { content: ''; position: absolute; top: 5px; bottom: 5px; left: 4px; width: 1px; background: var(--border); }
+.commit-header .col-resize:hover::after, body.resizing .commit-header .col-resize:hover::after { background: var(--accent); width: 2px; }
 .commit-row {
   position: absolute;
   left: 0;
@@ -193,19 +205,18 @@ textarea { resize: vertical; font-family: inherit; }
 .commit-row.selected { background: var(--select-bg); }
 .commit-row .graph-space { flex: none; }
 .commit-row .subject {
-  flex: 1 1 200px;
-  min-width: 140px;
+  flex: 1 1 0;
+  min-width: 80px;
   overflow: hidden;
   text-overflow: ellipsis;
   display: flex;
   align-items: center;
   gap: 6px;
-  min-width: 0;
 }
 .commit-row .subject span.text { overflow: hidden; text-overflow: ellipsis; }
-.commit-row .author { flex: 0 2 130px; min-width: 40px; color: var(--fg-dim); overflow: hidden; text-overflow: ellipsis; }
-.commit-row .date { flex: 0 1 110px; min-width: 70px; color: var(--fg-dim); font-size: 12px; white-space: nowrap; overflow: hidden; }
-.commit-row .sha { width: 60px; color: var(--fg-faint); font-family: var(--mono); font-size: 11px; flex: none; }
+.commit-row .author { flex: none; color: var(--fg-dim); overflow: hidden; text-overflow: ellipsis; }
+.commit-row .date { flex: none; color: var(--fg-dim); font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.commit-row .sha { flex: none; color: var(--fg-faint); font-family: var(--mono); font-size: 11px; overflow: hidden; }
 .commit-row.wip .subject { color: var(--fg-dim); font-style: italic; }
 
 .ref-badge {
@@ -436,6 +447,27 @@ textarea { resize: vertical; font-family: inherit; }
 .pr-form-row select { font: inherit; color: var(--fg); background: var(--bg); border: 1px solid var(--border); border-radius: 4px; padding: 4px 8px; flex: 1; }
 .pr-draft-row { display: flex; align-items: center; gap: 6px; color: var(--fg-dim); font-size: 12px; }
 .account-row small { font-family: var(--mono); }
+
+.clone-dialog { width: 720px; max-height: calc(100vh - 80px); display: flex; flex-direction: column; gap: 12px; }
+.clone-tabs { display: flex; gap: 2px; border-bottom: 1px solid var(--border); flex-wrap: wrap; }
+.clone-tabs button { border: none; border-radius: 4px 4px 0 0; background: transparent; color: var(--fg-dim); padding: 6px 12px; }
+.clone-tabs button.active { background: var(--bg-3); color: var(--fg); box-shadow: inset 0 -2px 0 var(--accent); }
+.clone-tabs button small { color: var(--fg-faint); margin-left: 4px; }
+.clone-list { flex: 1; min-height: 220px; max-height: 360px; overflow: auto; border: 1px solid var(--border); border-radius: 4px; background: var(--bg); }
+.clone-row { display: flex; flex-direction: column; gap: 2px; padding: 6px 10px; cursor: pointer; border-bottom: 1px solid var(--border); }
+.clone-row:hover { background: var(--bg-3); }
+.clone-row.selected { background: var(--select-bg); }
+.clone-row .top { display: flex; align-items: center; gap: 8px; }
+.clone-row .full { font-weight: 500; flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.clone-row .lock { font-size: 10px; color: var(--fg-faint); }
+.clone-row .when { font-size: 11px; color: var(--fg-dim); flex: none; }
+.clone-row .desc { font-size: 12px; color: var(--fg-dim); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.clone-dest { display: flex; gap: 8px; align-items: center; }
+.clone-dest input { flex: 1; font-family: var(--mono); font-size: 12px; }
+.clone-proto { display: inline-flex; border: 1px solid var(--border); border-radius: 4px; overflow: hidden; }
+.clone-proto button { border: none; border-radius: 0; padding: 3px 10px; background: transparent; color: var(--fg-dim); font-size: 12px; }
+.clone-proto button.active { background: var(--bg-4); color: var(--fg); }
+.clone-empty { padding: 24px; text-align: center; color: var(--fg-faint); display: flex; flex-direction: column; gap: 10px; align-items: center; }
 
 .toast {
   position: fixed;

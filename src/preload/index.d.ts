@@ -11,6 +11,7 @@ declare global {
       version(): Promise<string>
       setTitleBar(color: string, symbolColor: string): Promise<void>
       showInFolder(repoPath: string, relative: string | null): Promise<void>
+      onOpenPath(cb: (path: string) => void): () => void
     }
   }
 }

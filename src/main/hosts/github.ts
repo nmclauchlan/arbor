@@ -201,3 +201,40 @@ export async function createPullRequest(
   })
   return toPr(p)
 }
+
+interface GhRepo {
+  name: string
+  full_name: string
+  description: string | null
+  clone_url: string
+  ssh_url: string
+  pushed_at: string | null
+  private: boolean
+  archived?: boolean
+}
+
+export async function listRepos(baseUrl: string, token: string): Promise<import('@shared/types').HostRepo[]> {
+  const out: import('@shared/types').HostRepo[] = []
+  for (let page = 1; page <= 5; page++) {
+    const list = await call<GhRepo[]>(
+      token,
+      `${apiBase(baseUrl)}/user/repos?per_page=100&page=${page}&sort=pushed&affiliation=owner,collaborator,organization_member`
+    )
+    for (const r of list) {
+      if (r.archived) continue
+      out.push({
+        name: r.name,
+        fullName: r.full_name,
+        description: r.description ?? '',
+        httpsUrl: r.clone_url,
+        sshUrl: r.ssh_url,
+        updatedAt: r.pushed_at ? Date.parse(r.pushed_at) : 0,
+        isPrivate: r.private
+      })
+    }
+    if (list.length < 100) break
+  }
+  return out
+}
+
+export const cloneUser = 'x-access-token'
