@@ -2,6 +2,7 @@ import { app, BrowserWindow, dialog, ipcMain, shell } from 'electron'
 import { join } from 'path'
 import { readFile, writeFile, mkdir } from 'fs/promises'
 import * as gitService from './git'
+import { setupUpdater } from './updater'
 import type { GitApi, RepoInfo } from '@shared/types'
 
 const recentFile = (): string => join(app.getPath('userData'), 'recent.json')
@@ -128,7 +129,13 @@ for (const [name, fn] of Object.entries(handlers)) {
   })
 }
 
+ipcMain.handle('native:titleBar', (event, color: string, symbolColor: string) => {
+  const win = BrowserWindow.fromWebContents(event.sender)
+  if (win && process.platform === 'win32') win.setTitleBarOverlay({ color, symbolColor, height: 36 })
+})
+
 app.whenReady().then(() => {
+  setupUpdater()
   createWindow()
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow()

@@ -3,10 +3,14 @@ import type { Commit, RepoInfo, RepoRefs, RepoStatus } from '@shared/types'
 import type { Actions, Shell } from './actions'
 import { CommitList } from './components/CommitList'
 import { CommitPanel } from './components/CommitPanel'
+import { FileViewer, type FileViewRequest } from './components/FileViewer'
 import type { MenuItem } from './components/ContextMenu'
 import { Sidebar } from './components/Sidebar'
 import { Toolbar } from './components/Toolbar'
 import { WorkingTree } from './components/WorkingTree'
+import { Splitter } from './components/Splitter'
+import { UpdateNotice } from './components/UpdateNotice'
+import { setLayout, useLayout } from './layout'
 import { errorMessage, shortHash, WIP_HASH } from './util'
 
 const LOG_LIMIT = 1500
@@ -27,9 +31,11 @@ export function RepoView({
   const [selected, setSelected] = useState<string | null>(null)
   const [scrollTarget, setScrollTarget] = useState<{ hash: string; n: number } | null>(null)
   const [busy, setBusy] = useState<string | null>(null)
+  const [viewing, setViewing] = useState<FileViewRequest | null>(null)
   const lastRefsJson = useRef('')
   const lastStatusJson = useRef('')
   const path = repo.path
+  const layout = useLayout()
 
   const loadAll = useCallback(async () => {
     const [log, r, s] = await Promise.all([
@@ -82,6 +88,19 @@ export function RepoView({
       window.removeEventListener('focus', onFocus)
     }
   }, [path, active, busy])
+
+  useEffect(() => {
+    setViewing(null)
+  }, [selected])
+
+  useEffect(() => {
+    if (!active || !viewing) return
+    const key = (e: KeyboardEvent): void => {
+      if (e.key === 'Escape' && !(e.target instanceof HTMLElement && e.target.closest('.cm-editor, input, textarea'))) setViewing(null)
+    }
+    window.addEventListener('keydown', key)
+    return () => window.removeEventListener('keydown', key)
+  }, [active, viewing])
 
   const hasWip = !!status && (status.staged.length > 0 || status.unstaged.length > 0)
 
@@ -222,20 +241,48 @@ export function RepoView({
   }
 
   return (
-    <div className="repo-view" hidden={!active}>
+    <div
+      className="repo-view"
+      hidden={!active}
+      style={{ gridTemplateColumns: `${layout.sidebar}px 4px 1fr 4px ${layout.panel}px` }}
+    >
       <Toolbar repo={repo} refs={refs} busy={!!busy} actions={actions} />
-      {refs ? <Sidebar refs={refs} actions={actions} /> : <div className="sidebar" />}
-      <CommitList
-        commits={rows}
-        selected={selected}
-        onSelect={setSelected}
-        onContextMenu={commitMenu}
-        scrollTarget={scrollTarget}
+      {refs ? <Sidebar refs={refs} actions={actions} active={active} /> : <div className="sidebar" />}
+      <Splitter
+        direction="vertical"
+        value={layout.sidebar}
+        onChange={(v) => setLayout('sidebar', v)}
+        onReset={() => setLayout('sidebar', 250)}
+      />
+      {viewing ? (
+        <FileViewer
+          repoPath={path}
+          request={viewing}
+          shell={shell}
+          onChange={setViewing}
+          onClose={() => setViewing(null)}
+          onSaved={refresh}
+        />
+      ) : (
+        <CommitList
+          commits={rows}
+          selected={selected}
+          onSelect={setSelected}
+          onContextMenu={commitMenu}
+          scrollTarget={scrollTarget}
+        />
+      )}
+      <Splitter
+        direction="vertical"
+        value={layout.panel}
+        onChange={(v) => setLayout('panel', v)}
+        invert
+        onReset={() => setLayout('panel', 440)}
       />
       {selected === WIP_HASH && status ? (
-        <WorkingTree repoPath={path} status={status} actions={actions} />
+        <WorkingTree repoPath={path} status={status} actions={actions} viewing={viewing} onView={setViewing} />
       ) : selected ? (
-        <CommitPanel repoPath={path} hash={selected} shell={shell} onFileSaved={refresh} />
+        <CommitPanel repoPath={path} hash={selected} viewing={viewing} onView={setViewing} />
       ) : (
         <div className="panel">
           <div className="center">{refs && !commits.length ? 'No commits yet' : 'Loading…'}</div>
@@ -251,6 +298,8 @@ export function RepoView({
           </span>
         )}
         {busy && <span className="spin">{busy}…</span>}
+        <span className="spacer" />
+        <UpdateNotice />
       </div>
     </div>
   )
