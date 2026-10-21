@@ -4,13 +4,16 @@ import type { Shell } from './actions'
 import { ContextMenu, type MenuState } from './components/ContextMenu'
 import { useDialogs } from './components/Dialog'
 import { TabBar } from './components/TabBar'
+import { SettingsDialog } from './components/SettingsDialog'
 import { UpdateNotice } from './components/UpdateNotice'
 import { Welcome } from './components/Welcome'
 import { RepoView } from './RepoView'
 import { errorMessage } from './util'
 import { applyTheme, currentTheme, setTheme, THEMES, useTheme } from './themes'
+import { syncSettingsFromMain } from './settings'
 import {
-  assignGroup, loadSavedTabs, moveTab, moveToEnd, newGroupId, nextGroupColor, saveTabs,
+  assignGroup, loadSavedTabs, moveGroupToEnd, moveGroupToGroup, moveGroupToTab, moveTab, moveToEnd,
+  newGroupId, nextGroupColor, reorderGroups, saveTabs,
   type Tab, type TabGroup
 } from './tabs'
 
@@ -29,9 +32,11 @@ export default function App(): React.JSX.Element {
   const dialogs = useDialogs()
   const restored = useRef(false)
   const theme = useTheme()
+  const [settingsOpen, setSettingsOpen] = useState<false | { suggestBaseUrl?: string }>(false)
 
   useEffect(() => {
     applyTheme(currentTheme())
+    void syncSettingsFromMain()
   }, [])
 
   useEffect(() => {
@@ -67,17 +72,19 @@ export default function App(): React.JSX.Element {
 
   useEffect(() => {
     loadRecent()
-    ;(async () => {
-      const saved = loadSavedTabs()
-      setGroups(saved.groups)
-      for (const t of saved.tabs) await openPath(t.path, false, t.group)
-      restored.current = true
-      const paths = saved.tabs.map((t) => t.path)
-      if (saved.active && paths.includes(saved.active)) setActivePath(saved.active)
-      else if (paths.length) setActivePath(paths[0])
-      const initial = await window.git.initialRepo()
-      if (initial) await openPath(initial)
-    })().catch(() => undefined)
+    const saved = loadSavedTabs()
+    setGroups(saved.groups)
+    setTabs(saved.tabs)
+    const paths = saved.tabs.map((t) => t.path)
+    if (saved.active && paths.includes(saved.active)) setActivePath(saved.active)
+    else if (paths.length) setActivePath(paths[0])
+    restored.current = true
+    window.git
+      .initialRepo()
+      .then((initial) => {
+        if (initial) openPath(initial)
+      })
+      .catch(() => undefined)
   }, [loadRecent, openPath])
 
   const closeMany = useCallback((paths: string[]) => {
@@ -106,7 +113,8 @@ export default function App(): React.JSX.Element {
       confirm: dialogs.confirm,
       prompt: dialogs.prompt,
       showError,
-      showInfo
+      showInfo,
+      openSettings: (suggestBaseUrl) => setSettingsOpen({ suggestBaseUrl })
     }),
     [dialogs.confirm, dialogs.prompt, openPath, showError, showInfo]
   )
@@ -122,6 +130,9 @@ export default function App(): React.JSX.Element {
       } else if (e.key === 'o') {
         e.preventDefault()
         shell.openRepo()
+      } else if (e.key === ',') {
+        e.preventDefault()
+        setSettingsOpen({})
       } else if (e.key === 'Tab' && visibleTabs.length > 1) {
         e.preventDefault()
         const idx = visibleTabs.findIndex((t) => t.path === activePath)
@@ -207,10 +218,25 @@ export default function App(): React.JSX.Element {
           onOpenInto={openInto}
           onClone={cloneRepo}
           onNewGroup={newGroup}
+          onMoveGroupToTab={(id, target, after) => setTabs((list) => moveGroupToTab(list, id, target, after))}
+          onMoveGroupToGroup={(id, target, after) => {
+            setTabs((list) => moveGroupToGroup(list, id, target, after))
+            setGroups((gs) => reorderGroups(gs, id, target, after))
+          }}
+          onMoveGroupToEnd={(id) => {
+            setTabs((list) => moveGroupToEnd(list, id))
+            setGroups((gs) => {
+              const g = gs.find((x) => x.id === id)
+              return g ? [...gs.filter((x) => x.id !== id), g] : gs
+            })
+          }}
         />
         <div className="titlebar-spacer" />
         <button className="icon titlebar-btn" title={`Theme: ${theme.name}`} onClick={themeMenu}>
           ◐ {theme.name}
+        </button>
+        <button className="icon titlebar-btn" title="Settings (Ctrl+,)" onClick={() => setSettingsOpen({})}>
+          ⚙
         </button>
       </div>
       {tabs.length === 0 ? (
@@ -222,9 +248,12 @@ export default function App(): React.JSX.Element {
           </div>
         </>
       ) : (
-        tabs.map((t) => <RepoView key={t.path} repo={t} active={t.path === activePath} shell={shell} />)
+        tabs.map((t) => (
+          <RepoView key={t.path} repo={t} active={t.path === activePath} shell={shell} onClose={() => closeTab(t.path)} />
+        ))
       )}
       <ContextMenu menu={menu} onClose={closeMenu} />
+      {settingsOpen && <SettingsDialog suggestBaseUrl={settingsOpen.suggestBaseUrl} onClose={() => setSettingsOpen(false)} />}
       {dialogs.element}
       {toast && (
         <div className={`toast ${toast.kind}`} onClick={() => setToast(null)}>

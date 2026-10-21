@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import type { Branch, RemoteBranch, RepoRefs, Stash, Tag } from '@shared/types'
+import type { Branch, HostInfo, PullRequest, RemoteBranch, RepoRefs, Stash, Tag } from '@shared/types'
 import type { Actions } from '../actions'
 
 function Section({
@@ -42,11 +42,23 @@ function Highlight({ text, query }: { text: string; query: string }): React.JSX.
 export function Sidebar({
   refs,
   actions,
-  active
+  active,
+  host,
+  hasAccount,
+  prs,
+  prError,
+  selectedPr,
+  onSelectPr
 }: {
   refs: RepoRefs
   actions: Actions
   active: boolean
+  host: HostInfo | null
+  hasAccount: boolean
+  prs: PullRequest[]
+  prError: string | null
+  selectedPr: number | null
+  onSelectPr: (pr: PullRequest) => void
 }): React.JSX.Element {
   const [query, setQuery] = useState('')
   const input = useRef<HTMLInputElement>(null)
@@ -71,6 +83,8 @@ export function Sidebar({
   const remotes = useMemo(() => refs.remotes.filter((r) => matches(`${r.remote}/${r.name}`)), [refs.remotes, q])
   const tags = useMemo(() => refs.tags.filter((t) => matches(t.name)), [refs.tags, q])
   const stashes = useMemo(() => refs.stashes.filter((s) => matches(s.message)), [refs.stashes, q])
+  const shownPrs = useMemo(() => prs.filter((p) => matches(p.title) || matches(p.sourceBranch) || matches(String(p.id))), [prs, q])
+  const prByBranch = useMemo(() => new Map(prs.map((p) => [p.sourceBranch, p])), [prs])
 
   const branchMenu = (e: React.MouseEvent, b: Branch): void => {
     e.preventDefault()
@@ -129,7 +143,7 @@ export function Sidebar({
   }
 
   const filtering = q.length > 0
-  const total = branches.length + remotes.length + tags.length + stashes.length
+  const total = branches.length + remotes.length + tags.length + stashes.length + shownPrs.length
 
   return (
     <div className="sidebar">
@@ -160,6 +174,18 @@ export function Sidebar({
             onContextMenu={(e) => branchMenu(e, b)}
           >
             <span className="name"><Highlight text={b.name} query={q} /></span>
+            {prByBranch.has(b.name) && (
+              <span
+                className="pr-pill"
+                title={prByBranch.get(b.name)!.title}
+                onClick={(e) => {
+                  e.stopPropagation()
+                  onSelectPr(prByBranch.get(b.name)!)
+                }}
+              >
+                !{prByBranch.get(b.name)!.id}
+              </span>
+            )}
             {(b.ahead || b.behind) ? (
               <span className="track">
                 {b.ahead ? `↑${b.ahead}` : ''} {b.behind ? `↓${b.behind}` : ''}
@@ -169,6 +195,33 @@ export function Sidebar({
         ))}
         {branches.length === 0 && !filtering && <div className="empty">No branches</div>}
       </Section>
+      {host && (
+        <Section title="Pull requests" count={hasAccount ? shownPrs.length : 0} forceOpen={filtering}>
+          {!hasAccount ? (
+            <div className="connect-row">
+              <button onClick={() => actions.openSettings(host.baseUrl)}>Connect to Azure DevOps</button>
+              <small className="muted">{host.org} / {host.project}</small>
+            </div>
+          ) : (
+            <>
+              {prError && <div className="empty error-text" title={prError}>{prError}</div>}
+              {shownPrs.map((p) => (
+                <div
+                  key={p.id}
+                  className={`ref-item pr-item${selectedPr === p.id ? ' current' : ''}`}
+                  title={`!${p.id} ${p.title}\n${p.sourceBranch} → ${p.targetBranch}`}
+                  onClick={() => onSelectPr(p)}
+                  onDoubleClick={() => actions.checkout(p.sourceBranch)}
+                >
+                  <span className="pr-id">!{p.id}</span>
+                  <span className="name">{p.isDraft ? '[Draft] ' : ''}<Highlight text={p.title} query={q} /></span>
+                </div>
+              ))}
+              {shownPrs.length === 0 && !filtering && !prError && <div className="empty">No open pull requests</div>}
+            </>
+          )}
+        </Section>
+      )}
       <Section title="Remote" count={remotes.length} forceOpen={filtering}>
         {[...remoteGroups.entries()].map(([remote, list]) => (
           <div key={remote}>

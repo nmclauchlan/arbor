@@ -88,6 +88,7 @@ export interface CommitDetails {
 
 export interface GitApi {
   selectRepos(): Promise<string[]>
+  gitVersion(): Promise<string>
   selectFolder(title: string): Promise<string | null>
   clone(url: string, dest: string): Promise<string>
   initialRepo(): Promise<string | null>
@@ -165,9 +166,87 @@ export interface UpdateStatus {
   message?: string
 }
 
+export interface MainSettings {
+  gitPath: string
+  autoUpdate: boolean
+}
+
+export interface SettingsApi {
+  get(): Promise<MainSettings>
+  set(patch: Partial<MainSettings>): Promise<MainSettings>
+}
+
 export interface UpdaterApi {
   status(): Promise<UpdateStatus>
   check(): Promise<void>
   install(): Promise<void>
   onStatus(cb: (status: UpdateStatus) => void): () => void
+}
+
+export type HostKind = 'azure' | 'github' | 'gitlab'
+
+export interface HostInfo {
+  kind: HostKind
+  baseUrl: string
+  org: string
+  project: string
+  repo: string
+  webUrl: string
+  remote: string
+}
+
+export interface HostAccount {
+  kind: HostKind
+  baseUrl: string
+  user: string
+  encrypted: boolean
+}
+
+export interface PullRequestReviewer {
+  name: string
+  vote: number
+  required: boolean
+}
+
+export interface PullRequest {
+  id: number
+  title: string
+  author: string
+  sourceBranch: string
+  targetBranch: string
+  status: 'active' | 'completed' | 'abandoned'
+  isDraft: boolean
+  createdAt: number
+  url: string
+  reviewers: PullRequestReviewer[]
+}
+
+export interface PullRequestCheck {
+  name: string
+  state: 'succeeded' | 'failed' | 'pending' | 'unknown'
+  url?: string
+}
+
+export interface PullRequestDetails extends PullRequest {
+  description: string
+  mergeStatus: string
+  checks: PullRequestCheck[]
+}
+
+export interface HostApi {
+  detect(repoPath: string): Promise<HostInfo | null>
+  accounts(): Promise<HostAccount[]>
+  hasAccount(repoPath: string): Promise<boolean>
+  addAccount(kind: HostKind, baseUrl: string, token: string): Promise<HostAccount>
+  removeAccount(kind: HostKind, baseUrl: string): Promise<void>
+  pullRequests(repoPath: string): Promise<PullRequest[]>
+  pullRequest(repoPath: string, id: number): Promise<PullRequestDetails>
+  createPullRequest(
+    repoPath: string,
+    source: string,
+    target: string,
+    title: string,
+    description: string,
+    draft: boolean
+  ): Promise<PullRequest>
 }

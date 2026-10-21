@@ -3,6 +3,9 @@ import { join } from 'path'
 import { readFile, writeFile, mkdir, stat } from 'fs/promises'
 import * as gitService from './git'
 import { setupUpdater } from './updater'
+import { getSettings, setSettings } from './settings'
+import { hostApi } from './hosts'
+import type { MainSettings } from '@shared/types'
 import type { GitApi, RepoInfo } from '@shared/types'
 
 const recentFile = (): string => join(app.getPath('userData'), 'recent.json')
@@ -91,6 +94,7 @@ const handlers: Handlers = {
     return result.filePaths[0]
   },
   clone: gitService.clone,
+  gitVersion: gitService.gitVersion,
   async initialRepo() {
     const arg = process.argv.slice(app.isPackaged ? 1 : 2).find((a) => !a.startsWith('-'))
     return arg ?? null
@@ -142,6 +146,21 @@ for (const [name, fn] of Object.entries(handlers)) {
     }
   })
 }
+
+for (const [name, fn] of Object.entries(hostApi)) {
+  ipcMain.handle(`host:${name}`, async (_event, ...args: unknown[]) => {
+    try {
+      return await (fn as (...a: unknown[]) => Promise<unknown>)(...args)
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err)
+      throw new Error(message.replace(/^Error: /, '').trim())
+    }
+  })
+}
+
+ipcMain.handle('settings:get', () => getSettings())
+ipcMain.handle('settings:set', (_event, patch: Partial<MainSettings>) => setSettings(patch))
+ipcMain.handle('native:version', () => app.getVersion())
 
 ipcMain.handle('native:showInFolder', async (_event, repoPath: string, relative: string | null) => {
   const target = relative ? join(repoPath, relative) : repoPath

@@ -1,6 +1,7 @@
 import { app, BrowserWindow, ipcMain } from 'electron'
 import { autoUpdater } from 'electron-updater'
 import type { UpdateStatus } from '@shared/types'
+import { getSettings } from './settings'
 
 const CHECK_INTERVAL_MS = 6 * 60 * 60 * 1000
 
@@ -49,6 +50,9 @@ export function setupUpdater(): void {
     autoUpdater.checkForUpdates().catch(() => undefined)
   }
   ipcMain.handle('update:check', () => check())
-  setTimeout(check, 5000)
-  setInterval(check, CHECK_INTERVAL_MS)
+  const auto = (): void => {
+    if (getSettings().autoUpdate) check()
+  }
+  setTimeout(auto, 5000)
+  setInterval(auto, CHECK_INTERVAL_MS)
 }
