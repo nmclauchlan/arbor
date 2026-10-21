@@ -24,13 +24,16 @@ Grab the installer for your platform from the [releases page](https://github.com
 
 **Finding your way.** Filter branches with Ctrl+B. View changed files as a folder tree or a flat list. Resize the sidebar and panels to taste.
 
-**Looks.** Ten themes, dark and light, including Dracula, Nord, Solarized, Gruvbox, Monokai and Rosé Pine. The editor follows the theme.
+**Looks and settings.** Ten themes, dark and light, including Dracula, Nord, Solarized, Gruvbox, Monokai and Rosé Pine; the editor follows the theme. Settings (⚙ or Ctrl+,) cover the theme, the default file-list view, how often repositories refresh, how much history to load, which git executable to use, and automatic update checks.
+
+**Azure DevOps.** For repositories hosted on Azure DevOps, connect your organisation with a personal access token under Settings → Accounts. Open pull requests then appear in the sidebar and as badges on their branches, each with reviewers, votes, policy and build checks, and a link to open in the browser. Create a pull request for the current branch straight from the toolbar. GitHub and GitLab are next.
 
 ## Keyboard shortcuts
 
 | Shortcut | Action |
 | --- | --- |
 | Ctrl+O | Open a repository |
+| Ctrl+, | Settings |
 | Ctrl+W | Close the current tab |
 | Ctrl+Tab / Ctrl+Shift+Tab | Next / previous tab |
 | Ctrl+B | Filter branches |

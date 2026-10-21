@@ -1,18 +1,27 @@
-import type { RepoInfo, RepoRefs } from '@shared/types'
+import type { HostInfo, PullRequest, RepoInfo, RepoRefs } from '@shared/types'
 import type { Actions } from '../actions'
 
 export function Toolbar({
   repo,
   refs,
   busy,
-  actions
+  actions,
+  host,
+  prs,
+  onCreatePr,
+  onViewPr
 }: {
   repo: RepoInfo
   refs: RepoRefs | null
   busy: boolean
   actions: Actions
+  host: HostInfo | null
+  prs: PullRequest[]
+  onCreatePr: () => void
+  onViewPr: (pr: PullRequest) => void
 }): React.JSX.Element {
   const current = refs?.branches.find((b) => b.current)
+  const currentPr = current ? prs.find((p) => p.sourceBranch === current.name) : undefined
   return (
     <div className="toolbar">
       <button onClick={actions.openRepo} title="Open another repository">
@@ -42,6 +51,17 @@ export function Toolbar({
       >
         ▢ Pop
       </button>
+      {host && current && (
+        currentPr ? (
+          <button disabled={busy} onClick={() => onViewPr(currentPr)} title={currentPr.title}>
+            ⇄ PR !{currentPr.id}
+          </button>
+        ) : (
+          <button disabled={busy || !current.upstream} onClick={onCreatePr} title={current.upstream ? 'Create a pull request for this branch' : 'Push the branch first'}>
+            ⇄ Pull request
+          </button>
+        )
+      )}
       <div className="spacer" />
       <span className="muted">
         {refs?.detached ? 'HEAD detached' : current ? `on ${current.name}` : ''}

@@ -1,6 +1,7 @@
 import { simpleGit, SimpleGit } from 'simple-git'
 import { readFile, writeFile, access } from 'fs/promises'
 import { basename, join } from 'path'
+import { getSettings } from './settings'
 import {
   imageMime,
   type Commit, type CommitDetails, type FileChange, type ImageDiffResult, type ImageSource,
@@ -11,12 +12,20 @@ const FIELD = '\x1f'
 const RECORD = '\x1e'
 const EMPTY_TREE = '4b825dc642cb6eb9a060e54bf8d69288fbee4904'
 
+function binary(): string {
+  return getSettings().gitPath.trim() || 'git'
+}
+
 function git(path: string): SimpleGit {
-  return simpleGit({ baseDir: path, binary: 'git', maxConcurrentProcesses: 4 })
+  return simpleGit({ baseDir: path, binary: binary(), maxConcurrentProcesses: 4 })
+}
+
+export async function gitVersion(): Promise<string> {
+  return simpleGit({ binary: binary() }).raw(['--version'])
 }
 
 export async function clone(url: string, dest: string): Promise<string> {
-  await simpleGit().clone(url, dest)
+  await simpleGit({ binary: binary() }).clone(url, dest)
   return dest
 }
 

@@ -4,7 +4,8 @@ import type { MenuItem } from './ContextMenu'
 import { GROUP_COLORS, type Tab, type TabGroup } from '../tabs'
 import { revealInFolder, revealLabel } from '../util'
 
-type DropHint = { path: string; after: boolean } | { group: string } | null
+type DropHint = { path: string; after: boolean } | { group: string; after?: boolean } | null
+type Dragging = { kind: 'tab'; path: string } | { kind: 'group'; id: string } | null
 
 export function TabBar({
   tabs,
@@ -22,7 +23,10 @@ export function TabBar({
   onUngroup,
   onOpenInto,
   onClone,
-  onNewGroup
+  onNewGroup,
+  onMoveGroupToTab,
+  onMoveGroupToGroup,
+  onMoveGroupToEnd
 }: {
   tabs: Tab[]
   groups: TabGroup[]
@@ -40,8 +44,11 @@ export function TabBar({
   onOpenInto: (group?: string) => void
   onClone: (group?: string) => void
   onNewGroup: () => void
+  onMoveGroupToTab: (id: string, targetPath: string, after: boolean) => void
+  onMoveGroupToGroup: (id: string, targetId: string, after: boolean) => void
+  onMoveGroupToEnd: (id: string) => void
 }): React.JSX.Element {
-  const [dragging, setDragging] = useState<string | null>(null)
+  const [dragging, setDragging] = useState<Dragging>(null)
   const [hint, setHint] = useState<DropHint>(null)
   const [openGroup, setOpenGroup] = useState<string | null>(null)
   const [anchor, setAnchor] = useState<{ x: number; y: number }>({ x: 0, y: 0 })
@@ -72,12 +79,14 @@ export function TabBar({
     const key = (e: KeyboardEvent): void => {
       if (e.key === 'Escape') setOpenGroup(null)
     }
+    const blur = (): void => setOpenGroup(null)
     window.addEventListener('mousedown', close)
     window.addEventListener('keydown', key)
-    window.addEventListener('blur', () => setOpenGroup(null))
+    window.addEventListener('blur', blur)
     return () => {
       window.removeEventListener('mousedown', close)
       window.removeEventListener('keydown', key)
+      window.removeEventListener('blur', blur)
     }
   }, [openGroup])
 
@@ -143,7 +152,7 @@ export function TabBar({
       })),
       { separator: true },
       { label: 'Ungroup', onClick: () => onUngroup(group.id) },
-      { label: 'Close group', danger: true, onClick: () => onCloseMany(members) }
+      { label: 'Close group', danger: true, disabled: !members.length, onClick: () => onCloseMany(members) }
     ])
   }
 
@@ -155,10 +164,11 @@ export function TabBar({
 
   const renderTab = (tab: Tab, group: TabGroup | undefined): React.ReactNode => {
     const isHint = hint && 'path' in hint && hint.path === tab.path ? hint : null
+    const isDragging = dragging?.kind === 'tab' && dragging.path === tab.path
     return (
       <div
         key={tab.path}
-        className={`tab${tab.path === activePath ? ' active' : ''}${group ? ' grouped' : ''}${dragging === tab.path ? ' dragging' : ''}${isHint ? (isHint.after ? ' drop-after' : ' drop-before') : ''}`}
+        className={`tab${tab.path === activePath ? ' active' : ''}${group ? ' grouped' : ''}${isDragging ? ' dragging' : ''}${isHint ? (isHint.after ? ' drop-after' : ' drop-before') : ''}`}
         style={group ? ({ '--group-color': group.color } as React.CSSProperties) : undefined}
         title={tab.path}
         draggable
@@ -170,11 +180,13 @@ export function TabBar({
         onDragStart={(e) => {
           e.dataTransfer.effectAllowed = 'move'
           e.dataTransfer.setData('text/plain', tab.path)
-          setDragging(tab.path)
+          setDragging({ kind: 'tab', path: tab.path })
         }}
         onDragEnd={endDrag}
         onDragOver={(e) => {
-          if (!dragging || dragging === tab.path) return
+          if (!dragging) return
+          if (dragging.kind === 'tab' && dragging.path === tab.path) return
+          if (dragging.kind === 'group' && tab.group === dragging.id) return
           e.preventDefault()
           e.dataTransfer.dropEffect = 'move'
           const rect = e.currentTarget.getBoundingClientRect()
@@ -182,7 +194,10 @@ export function TabBar({
         }}
         onDrop={(e) => {
           e.preventDefault()
-          if (dragging && isHint) onMove(dragging, tab.path, isHint.after)
+          if (dragging && isHint) {
+            if (dragging.kind === 'tab') onMove(dragging.path, tab.path, isHint.after)
+            else onMoveGroupToTab(dragging.id, tab.path, isHint.after)
+          }
           endDrag()
         }}
       >
@@ -201,6 +216,54 @@ export function TabBar({
     )
   }
 
+  const renderChip = (group: TabGroup, count: number, hasActive: boolean): React.ReactNode => {
+    const isOpen = openGroup === group.id
+    const groupHint = hint && 'group' in hint && hint.group === group.id ? hint : null
+    const hintCls = groupHint ? (groupHint.after === undefined ? ' drop-target' : groupHint.after ? ' drop-after' : ' drop-before') : ''
+    const isDragging = dragging?.kind === 'group' && dragging.id === group.id
+    return (
+      <div
+        key={'g:' + group.id}
+        className={`tab-group${count === 0 ? ' empty' : ''}${isOpen ? ' open' : ''}${hasActive ? ' has-active' : ''}${isDragging ? ' dragging' : ''}${hintCls}`}
+        style={{ background: group.color }}
+        title={count === 0 ? `${group.name}: empty group` : `${group.name}: ${count} repositor${count === 1 ? 'y' : 'ies'}`}
+        draggable
+        onClick={(e) => toggleGroup(e, group.id)}
+        onContextMenu={(e) => groupMenu(e, group)}
+        onDragStart={(e) => {
+          e.dataTransfer.effectAllowed = 'move'
+          e.dataTransfer.setData('text/plain', 'group:' + group.id)
+          setDragging({ kind: 'group', id: group.id })
+          setOpenGroup(null)
+        }}
+        onDragEnd={endDrag}
+        onDragOver={(e) => {
+          if (!dragging) return
+          if (dragging.kind === 'group' && dragging.id === group.id) return
+          e.preventDefault()
+          e.dataTransfer.dropEffect = 'move'
+          if (dragging.kind === 'tab') setHint({ group: group.id })
+          else {
+            const rect = e.currentTarget.getBoundingClientRect()
+            setHint({ group: group.id, after: e.clientX > rect.left + rect.width / 2 })
+          }
+        }}
+        onDrop={(e) => {
+          e.preventDefault()
+          if (dragging?.kind === 'tab') onAssignGroup(dragging.path, group.id)
+          else if (dragging?.kind === 'group' && groupHint && groupHint.after !== undefined) {
+            onMoveGroupToGroup(dragging.id, group.id, groupHint.after)
+          }
+          endDrag()
+        }}
+      >
+        {group.name}
+        <span className="count">{count}</span>
+        <span className="caret">{isOpen ? '▴' : '▾'}</span>
+      </div>
+    )
+  }
+
   const items: React.ReactNode[] = []
   const rendered = new Set<string>()
   for (const tab of tabs) {
@@ -213,62 +276,13 @@ export function TabBar({
     rendered.add(group.id)
     const members = tabs.filter((t) => t.group === group.id)
     const activeMember = members.find((t) => t.path === activePath)
-    items.push(
-      <div
-        key={'g:' + group.id}
-        className={`tab-group${openGroup === group.id ? ' open' : ''}${activeMember ? ' has-active' : ''}${hint && 'group' in hint && hint.group === group.id ? ' drop-target' : ''}`}
-        style={{ background: group.color }}
-        title={`${group.name}: ${members.length} repositor${members.length === 1 ? 'y' : 'ies'}`}
-        onClick={(e) => toggleGroup(e, group.id)}
-        onContextMenu={(e) => groupMenu(e, group)}
-        onDragOver={(e) => {
-          if (!dragging) return
-          e.preventDefault()
-          e.dataTransfer.dropEffect = 'move'
-          setHint({ group: group.id })
-        }}
-        onDrop={(e) => {
-          e.preventDefault()
-          if (dragging) onAssignGroup(dragging, group.id)
-          endDrag()
-        }}
-      >
-        {group.name}
-        <span className="count">{members.length}</span>
-        <span className="caret">{openGroup === group.id ? '▴' : '▾'}</span>
-      </div>
-    )
+    items.push(renderChip(group, members.length, !!activeMember))
     if (activeMember) items.push(renderTab(activeMember, group))
   }
-
   for (const group of groups) {
     if (rendered.has(group.id)) continue
     rendered.add(group.id)
-    items.push(
-      <div
-        key={'g:' + group.id}
-        className={`tab-group empty${openGroup === group.id ? ' open' : ''}${hint && 'group' in hint && hint.group === group.id ? ' drop-target' : ''}`}
-        style={{ background: group.color }}
-        title={`${group.name}: empty group`}
-        onClick={(e) => toggleGroup(e, group.id)}
-        onContextMenu={(e) => groupMenu(e, group)}
-        onDragOver={(e) => {
-          if (!dragging) return
-          e.preventDefault()
-          e.dataTransfer.dropEffect = 'move'
-          setHint({ group: group.id })
-        }}
-        onDrop={(e) => {
-          e.preventDefault()
-          if (dragging) onAssignGroup(dragging, group.id)
-          endDrag()
-        }}
-      >
-        {group.name}
-        <span className="count">0</span>
-        <span className="caret">{openGroup === group.id ? '▴' : '▾'}</span>
-      </div>
-    )
+    items.push(renderChip(group, 0, false))
   }
 
   const addMenu = (e: React.MouseEvent): void => {
@@ -280,22 +294,22 @@ export function TabBar({
     ])
   }
 
-  const open = openGroup ? groupById.get(openGroup) : undefined
-  const openMembers = open ? tabs.filter((t) => t.group === open.id) : []
-
   const allTabsMenu = (e: React.MouseEvent): void => {
-    const items: MenuItem[] = []
+    const menu: MenuItem[] = []
     const seen = new Set<string>()
     for (const t of tabs) {
       const g = t.group ? groupById.get(t.group) : undefined
       if (g && !seen.has(g.id)) {
         seen.add(g.id)
-        items.push({ label: `— ${g.name} —`, disabled: true })
+        menu.push({ label: `— ${g.name} —`, disabled: true })
       }
-      items.push({ label: `${t.path === activePath ? '✓ ' : '   '}${t.name}`, onClick: () => onSelect(t.path) })
+      menu.push({ label: `${t.path === activePath ? '✓ ' : '   '}${t.name}`, onClick: () => onSelect(t.path) })
     }
-    shell.openMenu(e, items)
+    shell.openMenu(e, menu)
   }
+
+  const open = openGroup ? groupById.get(openGroup) : undefined
+  const openMembers = open ? tabs.filter((t) => t.group === open.id) : []
 
   return (
     <div className="tabs">
@@ -311,7 +325,8 @@ export function TabBar({
         onDrop={(e) => {
           if (dragging && e.target === e.currentTarget) {
             e.preventDefault()
-            onMoveToEnd(dragging)
+            if (dragging.kind === 'tab') onMoveToEnd(dragging.path)
+            else onMoveGroupToEnd(dragging.id)
           }
           endDrag()
         }}
@@ -333,14 +348,14 @@ export function TabBar({
           style={{ left: anchor.x, top: anchor.y, borderTopColor: open.color }}
           onMouseDown={(e) => e.stopPropagation()}
           onDragOver={(e) => {
-            if (!dragging) return
+            if (dragging?.kind !== 'tab') return
             e.preventDefault()
             e.dataTransfer.dropEffect = 'move'
             setHint({ group: open.id })
           }}
           onDrop={(e) => {
             e.preventDefault()
-            if (dragging) onAssignGroup(dragging, open.id)
+            if (dragging?.kind === 'tab') onAssignGroup(dragging.path, open.id)
             endDrag()
           }}
         >
@@ -376,7 +391,13 @@ export function TabBar({
               </span>
             </div>
           ))}
-          <div className="group-row add" onClick={() => { setOpenGroup(null); onOpenInto(open.id) }}>
+          <div
+            className="group-row add"
+            onClick={() => {
+              setOpenGroup(null)
+              onOpenInto(open.id)
+            }}
+          >
             + Open repository into {open.name}…
           </div>
         </div>

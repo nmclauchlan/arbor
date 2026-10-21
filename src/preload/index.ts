@@ -1,8 +1,8 @@
 import { contextBridge, ipcRenderer } from 'electron'
-import type { GitApi, GitMethod, UpdateStatus, UpdaterApi } from '@shared/types'
+import type { GitApi, GitMethod, HostApi, MainSettings, SettingsApi, UpdateStatus, UpdaterApi } from '@shared/types'
 
 const methods: GitMethod[] = [
-  'selectRepos', 'selectFolder', 'clone', 'initialRepo', 'openRepo', 'recentRepos', 'log', 'refs', 'status', 'stage', 'unstage', 'discard',
+  'selectRepos', 'selectFolder', 'clone', 'gitVersion', 'initialRepo', 'openRepo', 'recentRepos', 'log', 'refs', 'status', 'stage', 'unstage', 'discard',
   'commit', 'fileDiff', 'commitDetails', 'commitFileDiff', 'checkout', 'createBranch', 'deleteBranch',
   'fetch', 'pull', 'push', 'merge', 'stashPush', 'stashPop', 'stashDrop', 'resetTo', 'cherryPick', 'revert', 'readFile', 'writeFile',
   'imageDiff', 'resolveFile', 'abortOperation', 'continueOperation'
@@ -28,8 +28,25 @@ const updater: UpdaterApi = {
 
 contextBridge.exposeInMainWorld('updater', updater)
 
+const hostMethods: (keyof HostApi)[] = [
+  'detect', 'accounts', 'hasAccount', 'addAccount', 'removeAccount', 'pullRequests', 'pullRequest', 'createPullRequest'
+]
+const host: Record<string, (...args: unknown[]) => Promise<unknown>> = {}
+for (const m of hostMethods) {
+  host[m] = (...args: unknown[]) => ipcRenderer.invoke(`host:${m}`, ...args)
+}
+contextBridge.exposeInMainWorld('host', host as unknown as HostApi)
+
+const settings: SettingsApi = {
+  get: () => ipcRenderer.invoke('settings:get'),
+  set: (patch: Partial<MainSettings>) => ipcRenderer.invoke('settings:set', patch)
+}
+
+contextBridge.exposeInMainWorld('settings', settings)
+
 contextBridge.exposeInMainWorld('native', {
   platform: process.platform,
+  version: () => ipcRenderer.invoke('native:version'),
   setTitleBar: (color: string, symbolColor: string) => ipcRenderer.invoke('native:titleBar', color, symbolColor),
   showInFolder: (repoPath: string, relative: string | null) => ipcRenderer.invoke('native:showInFolder', repoPath, relative)
 })

@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import type { Commit, RepoInfo, RepoRefs, RepoStatus } from '@shared/types'
+import type { Commit, HostInfo, PullRequest, RepoInfo, RepoRefs, RepoStatus } from '@shared/types'
+import { CreatePrDialog } from './components/CreatePrDialog'
+import { PrPanel } from './components/PrPanel'
 import type { Actions, Shell } from './actions'
 import { CommitList } from './components/CommitList'
 import { CommitPanel } from './components/CommitPanel'
@@ -12,19 +14,24 @@ import { Splitter } from './components/Splitter'
 import { UpdateNotice } from './components/UpdateNotice'
 import { setLayout, useLayout } from './layout'
 import { errorMessage, shortHash, WIP_HASH } from './util'
+import { useSettings } from './settings'
 
-const LOG_LIMIT = 5000
-const POLL_MS = 3000
 
 export function RepoView({
   repo,
   active,
-  shell
+  shell,
+  onClose
 }: {
   repo: RepoInfo
   active: boolean
   shell: Shell
+  onClose: () => void
 }): React.JSX.Element {
+  const [loadError, setLoadError] = useState<string | null>(null)
+  const { pollInterval, logLimit } = useSettings()
+  const LOG_LIMIT = logLimit
+  const POLL_MS = pollInterval * 1000
   const [commits, setCommits] = useState<Commit[]>([])
   const [refs, setRefs] = useState<RepoRefs | null>(null)
   const [status, setStatus] = useState<RepoStatus | null>(null)
@@ -32,6 +39,29 @@ export function RepoView({
   const [scrollTarget, setScrollTarget] = useState<{ hash: string; n: number } | null>(null)
   const [busy, setBusy] = useState<string | null>(null)
   const [viewing, setViewing] = useState<FileViewRequest | null>(null)
+  const [host, setHost] = useState<HostInfo | null>(null)
+  const [hasAccount, setHasAccount] = useState(false)
+  const [prs, setPrs] = useState<PullRequest[]>([])
+  const [prError, setPrError] = useState<string | null>(null)
+  const [selectedPr, setSelectedPr] = useState<PullRequest | null>(null)
+  const [prRefresh, setPrRefresh] = useState(0)
+  const [creatingPr, setCreatingPr] = useState(false)
+
+  const refreshPrs = useCallback(async () => {
+    try {
+      const info = await window.host.detect(repo.path)
+      setHost(info)
+      if (!info) return
+      const ok = await window.host.hasAccount(repo.path)
+      setHasAccount(ok)
+      if (!ok) return
+      setPrs(await window.host.pullRequests(repo.path))
+      setPrError(null)
+      setPrRefresh((n) => n + 1)
+    } catch (e) {
+      setPrError(errorMessage(e))
+    }
+  }, [repo.path])
   const lastRefsJson = useRef('')
   const lastStatusJson = useRef('')
   const path = repo.path
@@ -48,10 +78,15 @@ export function RepoView({
     setCommits(log)
     setRefs(r)
     setStatus(s)
-  }, [path])
+  }, [path, LOG_LIMIT])
 
   const refresh = useCallback(() => {
-    loadAll().catch((e) => shell.showError(errorMessage(e)))
+    loadAll()
+      .then(() => setLoadError(null))
+      .catch((e) => {
+        if (!lastRefsJson.current) setLoadError(errorMessage(e))
+        else shell.showError(errorMessage(e))
+      })
   }, [loadAll, shell])
 
   const loaded = useRef(false)
@@ -59,11 +94,30 @@ export function RepoView({
     if (active && !loaded.current) {
       loaded.current = true
       refresh()
+      void refreshPrs()
     }
-  }, [active, refresh])
+  }, [active, refresh, refreshPrs])
+
+  useEffect(() => {
+    if (!active || !host || !hasAccount) return
+    const id = setInterval(() => void refreshPrs(), 60000)
+    const onFocus = (): void => void refreshPrs()
+    window.addEventListener('focus', onFocus)
+    return () => {
+      clearInterval(id)
+      window.removeEventListener('focus', onFocus)
+    }
+  }, [active, host, hasAccount, refreshPrs])
 
   useEffect(() => {
     if (!active) return
+    const onSettings = (): void => void refreshPrs()
+    window.addEventListener('arbor:accounts-changed', onSettings)
+    return () => window.removeEventListener('arbor:accounts-changed', onSettings)
+  }, [active, refreshPrs])
+
+  useEffect(() => {
+    if (!active || loadError) return
     const tick = async (): Promise<void> => {
       if (busy) return
       try {
@@ -91,7 +145,7 @@ export function RepoView({
       clearInterval(id)
       window.removeEventListener('focus', onFocus)
     }
-  }, [path, active, busy])
+  }, [path, active, busy, loadError, LOG_LIMIT, POLL_MS])
 
   useEffect(() => {
     setViewing(null)
@@ -141,9 +195,10 @@ export function RepoView({
       } finally {
         setBusy(null)
         refresh()
+        if (/Push|Fetch|Pull/.test(label)) void refreshPrs()
       }
     },
-    [refresh, shell]
+    [refresh, refreshPrs, shell]
   )
 
   const conflictAware = async (fn: () => Promise<void>): Promise<void> => {
@@ -268,13 +323,54 @@ export function RepoView({
 
   if (!active) return <div className="repo-view" hidden />
 
+  if (loadError) {
+    return (
+      <div className="repo-view error-view">
+        <div className="center">
+          <div className="error-box">
+            <h3>Could not open {repo.name}</h3>
+            <p className="muted" title={repo.path}>{repo.path}</p>
+            <pre>{loadError}</pre>
+            <div className="row">
+              <button onClick={() => { loaded.current = true; refresh() }}>Try again</button>
+              <button className="danger" onClick={onClose}>Close tab</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div
       className="repo-view"
       style={{ gridTemplateColumns: `${layout.sidebar}px 4px 1fr 4px ${layout.panel}px` }}
     >
-      <Toolbar repo={repo} refs={refs} busy={!!busy} actions={actions} />
-      {refs ? <Sidebar refs={refs} actions={actions} active={active} /> : <div className="sidebar" />}
+      <Toolbar
+        repo={repo}
+        refs={refs}
+        busy={!!busy}
+        actions={actions}
+        host={host}
+        prs={prs}
+        onCreatePr={() => setCreatingPr(true)}
+        onViewPr={(pr) => setSelectedPr(pr)}
+      />
+      {refs ? (
+        <Sidebar
+          refs={refs}
+          actions={actions}
+          active={active}
+          host={host}
+          hasAccount={hasAccount}
+          prs={prs}
+          prError={prError}
+          selectedPr={selectedPr?.id ?? null}
+          onSelectPr={(pr) => setSelectedPr(pr)}
+        />
+      ) : (
+        <div className="sidebar" />
+      )}
       <Splitter
         direction="vertical"
         value={layout.sidebar}
@@ -294,7 +390,10 @@ export function RepoView({
         <CommitList
           commits={rows}
           selected={selected}
-          onSelect={setSelected}
+          onSelect={(hash) => {
+            setSelectedPr(null)
+            setSelected(hash)
+          }}
           onContextMenu={commitMenu}
           scrollTarget={scrollTarget}
         />
@@ -306,7 +405,9 @@ export function RepoView({
         invert
         onReset={() => setLayout('panel', 440)}
       />
-      {selected === WIP_HASH && status ? (
+      {selectedPr && host ? (
+        <PrPanel repoPath={path} host={host} pr={selectedPr} actions={actions} refreshKey={prRefresh} />
+      ) : selected === WIP_HASH && status ? (
         <WorkingTree repoPath={path} status={status} actions={actions} viewing={viewing} onView={setViewing} />
       ) : selected ? (
         <CommitPanel repoPath={path} hash={selected} shell={shell} viewing={viewing} onView={setViewing} />
@@ -314,6 +415,22 @@ export function RepoView({
         <div className="panel">
           <div className="center">{refs && !commits.length ? 'No commits yet' : 'Loading…'}</div>
         </div>
+      )}
+      {creatingPr && host && refs && (
+        <CreatePrDialog
+          repoPath={path}
+          host={host}
+          refs={refs}
+          source={refs.branches.find((b) => b.current)?.name ?? ''}
+          defaultTitle={commits.find((c) => c.refs.some((r) => r.kind === 'head'))?.subject ?? ''}
+          onCreated={(pr) => {
+            setCreatingPr(false)
+            shell.showInfo(`Created pull request !${pr.id}`)
+            setPrs((list) => [pr, ...list])
+            setSelectedPr(pr)
+          }}
+          onClose={() => setCreatingPr(false)}
+        />
       )}
       <div className="statusbar">
         <span>

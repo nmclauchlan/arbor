@@ -7,6 +7,7 @@ export interface Shell {
   prompt(title: string, label: string, defaultValue?: string): Promise<string | null>
   showError(message: string): void
   showInfo(message: string): void
+  openSettings(suggestBaseUrl?: string): void
 }
 
 export interface Actions extends Shell {
