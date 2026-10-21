@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import type { HostInfo, PullRequest, PullRequestDetails } from '@shared/types'
 import type { Actions } from '../actions'
-import { errorMessage, formatFullDate, prPrefix } from '../util'
+import { errorMessage, formatFullDate, hostPath, prPrefix } from '../util'
 
 function voteLabel(vote: number): { text: string; cls: string } {
   if (vote >= 10) return { text: 'Approved', cls: 'ok' }
@@ -67,7 +67,7 @@ export function PrPanel({
         {error && <div className="settings-note error">{error}</div>}
         {details?.mergeStatus && details.mergeStatus !== 'unknown' && (
           <div className={`pr-merge ${details.mergeStatus === 'succeeded' ? 'ok' : details.mergeStatus === 'conflicts' ? 'bad' : ''}`}>
-            {details.mergeStatus === 'succeeded' ? 'No merge conflicts' : details.mergeStatus === 'conflicts' ? 'Has merge conflicts' : `Merge status: ${details.mergeStatus}`}
+            {details.mergeStatus === 'succeeded' ? 'No merge conflicts' : details.mergeStatus === 'conflicts' ? 'Has merge conflicts' : `Merge status: ${details.mergeStatus.replace(/_/g, ' ')}`}
           </div>
         )}
         <div className="file-group-title"><span>Reviewers ({d.reviewers.length})</span></div>
@@ -97,7 +97,7 @@ export function PrPanel({
             <div className="pr-description">{d.description}</div>
           </>
         )}
-        <div className="file-group-title"><span>{host.kind === 'github' ? `${host.org}/${host.repo}` : `${host.project} / ${host.repo}`}</span></div>
+        <div className="file-group-title"><span>{hostPath(host)}</span></div>
       </div>
     </div>
   )

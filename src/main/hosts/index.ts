@@ -3,6 +3,7 @@ import type { HostAccount, HostApi, HostInfo, HostKind, PullRequest, PullRequest
 import { deleteAccount, findToken, listAccounts, storeAccount } from './accounts'
 import * as azure from './azure'
 import * as github from './github'
+import * as gitlab from './gitlab'
 
 interface Adapter {
   validateToken(baseUrl: string, token: string): Promise<string>
@@ -19,7 +20,7 @@ interface Adapter {
   ): Promise<PullRequest>
 }
 
-const adapters: Record<HostKind, Adapter | null> = { azure, github, gitlab: null }
+const adapters: Record<HostKind, Adapter | null> = { azure, github, gitlab }
 
 const detected = new Map<string, HostInfo | null>()
 
@@ -34,15 +35,19 @@ async function remoteUrl(repoPath: string): Promise<string | null> {
   }
 }
 
-function enterpriseHosts(): string[] {
+function selfHosted(kind: HostKind, publicHost: string): string[] {
   return listAccounts()
-    .filter((a) => a.kind === 'github')
+    .filter((a) => a.kind === kind)
     .map((a) => a.baseUrl.replace(/^https?:\/\//i, ''))
-    .filter((h) => h !== 'github.com')
+    .filter((h) => h !== publicHost)
 }
 
 export function parseRemote(remote: string): HostInfo | null {
-  return azure.parseAzureRemote(remote) ?? github.parseGithubRemote(remote, enterpriseHosts())
+  return (
+    azure.parseAzureRemote(remote) ??
+    github.parseGithubRemote(remote, selfHosted('github', 'github.com')) ??
+    gitlab.parseGitlabRemote(remote, selfHosted('gitlab', 'gitlab.com'))
+  )
 }
 
 export async function detect(repoPath: string): Promise<HostInfo | null> {
@@ -77,6 +82,11 @@ function normaliseBaseUrl(kind: HostKind, baseUrl: string): string {
   if (kind === 'github') {
     const u = url || 'https://github.com'
     if (!/^https:\/\/[^/]+$/i.test(u)) throw new Error('Enter the host URL, for example https://github.com or https://github.my-company.com')
+    return u
+  }
+  if (kind === 'gitlab') {
+    const u = url || 'https://gitlab.com'
+    if (!/^https:\/\/[^/]+$/i.test(u)) throw new Error('Enter the host URL, for example https://gitlab.com or https://gitlab.my-company.com')
     return u
   }
   throw new Error(`${kind} is not supported yet`)

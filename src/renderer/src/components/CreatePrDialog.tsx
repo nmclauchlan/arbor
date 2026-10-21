@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import type { HostInfo, PullRequest, RepoRefs } from '@shared/types'
-import { errorMessage } from '../util'
+import { errorMessage, hostPath, prNoun } from '../util'
 
 function defaultTarget(refs: RepoRefs, source: string): string {
   const names = refs.remotes.map((r) => r.name)
@@ -58,8 +58,8 @@ export function CreatePrDialog({
   return (
     <div className="overlay" onMouseDown={onClose}>
       <div className="dialog pr-dialog" onMouseDown={(e) => e.stopPropagation()}>
-        <h3>New pull request</h3>
-        <p className="muted">{host.kind === 'github' ? `${host.org}/${host.repo}` : `${host.project} / ${host.repo}`}</p>
+        <h3>New {prNoun(host.kind)}</h3>
+        <p className="muted">{hostPath(host)}</p>
         <div className="pr-form-row">
           <span className="ref-badge branch">{source}</span>
           <span className="muted">into</span>
@@ -86,7 +86,7 @@ export function CreatePrDialog({
         <div className="buttons">
           <button onClick={onClose} disabled={busy}>Cancel</button>
           <button className="primary" disabled={busy || !title.trim() || !target} onClick={() => void submit()}>
-            {busy ? 'Creating…' : 'Create pull request'}
+            {busy ? 'Creating…' : `Create ${prNoun(host.kind)}`}
           </button>
         </div>
       </div>
