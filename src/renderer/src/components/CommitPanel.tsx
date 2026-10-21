@@ -2,16 +2,19 @@ import { useEffect, useState } from 'react'
 import type { CommitDetails, StatusFile } from '@shared/types'
 import { FileList, FileViewToggle } from './FileList'
 import { canEdit, type FileViewRequest } from './FileViewer'
-import { formatFullDate, shortHash } from '../util'
+import { formatFullDate, revealInFolder, revealLabel, shortHash } from '../util'
+import type { Shell } from '../actions'
 
 export function CommitPanel({
   repoPath,
   hash,
+  shell,
   viewing,
   onView
 }: {
   repoPath: string
   hash: string
+  shell: Shell
   viewing: FileViewRequest | null
   onView: (request: FileViewRequest | null) => void
 }): React.JSX.Element {
@@ -69,6 +72,21 @@ export function CommitPanel({
           selectedPath={selected}
           onSelect={(f) => view(f, 'diff')}
           onDoubleClick={(f) => view(f, 'edit')}
+          onContextMenu={(e, files, folder) => {
+            e.preventDefault()
+            const target = folder ?? files[0].path
+            shell.openMenu(e, [
+              ...(!folder && canEdit(files[0]) ? [{ label: 'Edit working copy', onClick: () => view(files[0], 'edit') }] : []),
+              { label: revealLabel(), onClick: () => revealInFolder(repoPath, target) },
+              {
+                label: 'Copy path',
+                onClick: () => {
+                  navigator.clipboard.writeText(target)
+                  shell.showInfo(`Copied ${target}`)
+                }
+              }
+            ])
+          }}
           actions={(f) =>
             canEdit(f) ? (
               <span className="actions" onClick={(e) => e.stopPropagation()}>

@@ -1,10 +1,10 @@
 import { simpleGit, SimpleGit } from 'simple-git'
-import { readFile, writeFile } from 'fs/promises'
+import { readFile, writeFile, access } from 'fs/promises'
 import { basename, join } from 'path'
 import {
   imageMime,
   type Commit, type CommitDetails, type FileChange, type ImageDiffResult, type ImageSource,
-  type Ref, type RepoInfo, type RepoRefs, type RepoStatus, type StatusFile
+  type OperationState, type Ref, type RepoInfo, type RepoRefs, type RepoStatus, type StatusFile
 } from '@shared/types'
 
 const FIELD = '\x1f'
@@ -125,9 +125,28 @@ function mapStatus(code: string): FileChange {
   }
 }
 
+async function exists(p: string): Promise<boolean> {
+  return access(p).then(() => true, () => false)
+}
+
+async function operationState(path: string): Promise<OperationState | null> {
+  const g = git(path)
+  const gitDir = (await g.revparse(['--git-dir'])).trim()
+  const abs = (p: string): string => join(path, gitDir, p)
+  const firstLine = async (p: string): Promise<string> =>
+    readFile(abs(p), 'utf8').then((s) => s.split('\n').find((l) => l.trim() && !l.startsWith('#')) ?? '', () => '')
+  if (await exists(abs('MERGE_HEAD'))) return { kind: 'merge', message: await firstLine('MERGE_MSG') }
+  if (await exists(abs('CHERRY_PICK_HEAD'))) return { kind: 'cherry-pick', message: await firstLine('MERGE_MSG') }
+  if (await exists(abs('REVERT_HEAD'))) return { kind: 'revert', message: await firstLine('MERGE_MSG') }
+  if ((await exists(abs('rebase-merge'))) || (await exists(abs('rebase-apply')))) {
+    return { kind: 'rebase', message: await firstLine('rebase-merge/message') }
+  }
+  return null
+}
+
 export async function status(path: string): Promise<RepoStatus> {
   const out = await git(path).raw(['status', '--porcelain=v1', '-z', '--untracked-files=all'])
-  const result: RepoStatus = { staged: [], unstaged: [], conflicted: [] }
+  const result: RepoStatus = { staged: [], unstaged: [], conflicted: [], operation: await operationState(path) }
   const entries = out.split('\0')
   for (let i = 0; i < entries.length; i++) {
     const entry = entries[i]
@@ -358,5 +377,37 @@ export async function imageDiff(
     mime,
     oldData: source.status === '?' ? null : await blob(`:${before}`),
     newData: source.status === 'D' ? null : await worktree()
+  }
+}
+
+export async function resolveFile(
+  path: string,
+  file: string,
+  content: string | null,
+  side: 'ours' | 'theirs' | null
+): Promise<void> {
+  const g = git(path)
+  if (side) {
+    await g.raw(['checkout', '--' + side, '--', file])
+  } else if (content !== null) {
+    await writeFile(join(path, file), content, 'utf8')
+  }
+  await g.raw(['add', '--', file])
+}
+
+export async function abortOperation(path: string): Promise<void> {
+  const op = await operationState(path)
+  if (!op) return
+  await git(path).raw([op.kind, '--abort'])
+}
+
+export async function continueOperation(path: string, message: string): Promise<void> {
+  const op = await operationState(path)
+  if (!op) return
+  const g = git(path)
+  if (op.kind === 'merge') {
+    await g.raw(message.trim() ? ['commit', '-m', message] : ['commit', '--no-edit'])
+  } else {
+    await g.env({ ...process.env, GIT_EDITOR: 'true' }).raw([op.kind, '--continue'])
   }
 }

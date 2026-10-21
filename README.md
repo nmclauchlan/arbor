@@ -16,7 +16,9 @@ Grab the installer for your platform from the [releases page](https://github.com
 
 **The graph.** Every branch, remote, tag and stash on one commit graph with coloured lanes and merge curves. Click a commit to see its files; right-click for checkout, branch, cherry-pick, revert, reset and more.
 
-**Working with changes.** Stage, unstage and discard per file or all at once. Click any file to see its diff in the main view, double-click to edit it in place with syntax highlighting, and commit with Ctrl+Enter. Changed images get side-by-side, swipe, onion-skin and difference comparisons.
+**Working with changes.** Stage, unstage and discard per file, per folder or all at once, and jump to any file or folder in Explorer or Finder. Click any file to see its diff in the main view, double-click to edit it in place with syntax highlighting, and commit with Ctrl+Enter. Changed images get side-by-side, swipe, onion-skin and difference comparisons.
+
+**Merge conflicts.** When a merge, cherry-pick, revert or rebase stops on conflicts, the changes panel lists them with one-click ours/theirs, and opening a file shows each conflict side by side with Use ours, Use theirs or Use both and an editable result. Abort or continue from the same banner.
 
 **Several repositories at once.** Each repository opens in a tab. Drag tabs to reorder them, collect them into named colour-coded groups, and pick up where you left off next launch.
 

@@ -5,7 +5,7 @@ const methods: GitMethod[] = [
   'selectRepo', 'initialRepo', 'openRepo', 'recentRepos', 'log', 'refs', 'status', 'stage', 'unstage', 'discard',
   'commit', 'fileDiff', 'commitDetails', 'commitFileDiff', 'checkout', 'createBranch', 'deleteBranch',
   'fetch', 'pull', 'push', 'merge', 'stashPush', 'stashPop', 'stashDrop', 'resetTo', 'cherryPick', 'revert', 'readFile', 'writeFile',
-  'imageDiff'
+  'imageDiff', 'resolveFile', 'abortOperation', 'continueOperation'
 ]
 
 const api: Record<string, (...args: unknown[]) => Promise<unknown>> = {}
@@ -29,5 +29,7 @@ const updater: UpdaterApi = {
 contextBridge.exposeInMainWorld('updater', updater)
 
 contextBridge.exposeInMainWorld('native', {
-  setTitleBar: (color: string, symbolColor: string) => ipcRenderer.invoke('native:titleBar', color, symbolColor)
+  platform: process.platform,
+  setTitleBar: (color: string, symbolColor: string) => ipcRenderer.invoke('native:titleBar', color, symbolColor),
+  showInFolder: (repoPath: string, relative: string | null) => ipcRenderer.invoke('native:showInFolder', repoPath, relative)
 })

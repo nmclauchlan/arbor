@@ -7,6 +7,7 @@ export function FileRow({
   selected,
   onClick,
   onDoubleClick,
+  onContextMenu,
   depth = 0,
   label,
   children
@@ -15,6 +16,7 @@ export function FileRow({
   selected: boolean
   onClick: () => void
   onDoubleClick?: () => void
+  onContextMenu?: (e: React.MouseEvent) => void
   depth?: number
   label?: string
   children?: React.ReactNode
@@ -26,6 +28,7 @@ export function FileRow({
       style={{ paddingLeft: 12 + depth * 14 }}
       onClick={onClick}
       onDoubleClick={onDoubleClick}
+      onContextMenu={onContextMenu}
       title={full}
     >
       <span className={`status-letter ${file.status}`}>{file.status}</span>
@@ -84,6 +87,12 @@ function compact(node: DirNode): DirNode {
   return { ...n, dirs: new Map([...n.dirs].map(([k, v]) => [k, compact(v)])) }
 }
 
+function collectFiles(node: DirNode): StatusFile[] {
+  const out = [...node.files]
+  for (const d of node.dirs.values()) out.push(...collectFiles(d))
+  return out
+}
+
 function sortedDirs(node: DirNode): DirNode[] {
   return [...node.dirs.values()].sort((a, b) => a.name.localeCompare(b.name))
 }
@@ -97,12 +106,14 @@ export function FileList({
   selectedPath,
   onSelect,
   onDoubleClick,
+  onContextMenu,
   actions
 }: {
   files: StatusFile[]
   selectedPath: string | null
   onSelect: (f: StatusFile) => void
   onDoubleClick?: (f: StatusFile) => void
+  onContextMenu?: (e: React.MouseEvent, files: StatusFile[], folder: string | null) => void
   actions?: (f: StatusFile) => React.ReactNode
 }): React.JSX.Element {
   const view = useFileView()
@@ -128,6 +139,7 @@ export function FileList({
             selected={selectedPath === f.path}
             onClick={() => onSelect(f)}
             onDoubleClick={onDoubleClick ? () => onDoubleClick(f) : undefined}
+            onContextMenu={onContextMenu ? (e) => onContextMenu(e, [f], null) : undefined}
           >
             {actions?.(f)}
           </FileRow>
@@ -146,6 +158,7 @@ export function FileList({
           className="dir-item"
           style={{ paddingLeft: 12 + depth * 14 }}
           onClick={() => toggle(dir.path)}
+          onContextMenu={onContextMenu ? (e) => onContextMenu(e, collectFiles(dir), dir.path) : undefined}
           title={dir.path}
         >
           <span className="chevron">{open ? '▾' : '▸'}</span>
@@ -166,6 +179,7 @@ export function FileList({
           selected={selectedPath === f.path}
           onClick={() => onSelect(f)}
           onDoubleClick={onDoubleClick ? () => onDoubleClick(f) : undefined}
+          onContextMenu={onContextMenu ? (e) => onContextMenu(e, [f], null) : undefined}
         >
           {actions?.(f)}
         </FileRow>

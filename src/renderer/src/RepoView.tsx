@@ -102,7 +102,7 @@ export function RepoView({
     return () => window.removeEventListener('keydown', key)
   }, [active, viewing])
 
-  const hasWip = !!status && (status.staged.length > 0 || status.unstaged.length > 0)
+  const hasWip = !!status && (status.staged.length > 0 || status.unstaged.length > 0 || !!status.operation)
 
   const rows = useMemo<Commit[]>(() => {
     if (!hasWip || !refs) return commits
@@ -112,7 +112,9 @@ export function RepoView({
       author: '',
       email: '',
       date: Date.now(),
-      subject: `${(status?.staged.length ?? 0) + (status?.unstaged.length ?? 0)} uncommitted changes`,
+      subject: status?.operation
+        ? `${{ merge: 'Merging', 'cherry-pick': 'Cherry-picking', revert: 'Reverting', rebase: 'Rebasing' }[status.operation.kind]}${status.conflicted.length ? ` · ${status.conflicted.length} conflict${status.conflicted.length === 1 ? '' : 's'}` : ''}`
+        : `${(status?.staged.length ?? 0) + (status?.unstaged.length ?? 0)} uncommitted changes`,
       refs: []
     }
     return [wip, ...commits]
@@ -139,6 +141,16 @@ export function RepoView({
     },
     [refresh, shell]
   )
+
+  const conflictAware = async (fn: () => Promise<void>): Promise<void> => {
+    try {
+      await fn()
+    } catch (e) {
+      if (!/CONFLICT|could not apply/i.test(errorMessage(e))) throw e
+      shell.showInfo('There are conflicts to resolve')
+      setSelected(WIP_HASH)
+    }
+  }
 
   const actions = useMemo<Actions>(
     () => ({
@@ -172,7 +184,17 @@ export function RepoView({
           }
         })
       },
-      merge: (ref) => run('Merging', () => window.git.merge(path, ref), `Merged ${ref}`),
+      merge: (ref) =>
+        run('Merging', async () => {
+          try {
+            await window.git.merge(path, ref)
+            shell.showInfo(`Merged ${ref}`)
+          } catch (e) {
+            if (!/CONFLICT/.test(errorMessage(e))) throw e
+            shell.showInfo(`Merge of ${ref} has conflicts to resolve`)
+            setSelected(WIP_HASH)
+          }
+        }),
       fetch: () => run('Fetching', () => window.git.fetch(path), 'Fetched'),
       pull: () => run('Pulling', () => window.git.pull(path), 'Pulled'),
       push: () =>
@@ -203,8 +225,8 @@ export function RepoView({
         const ok = await shell.confirm('Drop stash', `Drop stash@{${index}}?`, true)
         if (ok) run('Dropping stash', () => window.git.stashDrop(path, index))
       },
-      cherryPick: (hash) => run('Cherry-picking', () => window.git.cherryPick(path, hash)),
-      revert: (hash) => run('Reverting', () => window.git.revert(path, hash)),
+      cherryPick: (hash) => run('Cherry-picking', () => conflictAware(() => window.git.cherryPick(path, hash))),
+      revert: (hash) => run('Reverting', () => conflictAware(() => window.git.revert(path, hash))),
       resetTo: async (hash, mode) => {
         const ok = await shell.confirm(
           `Reset (${mode})`,
@@ -282,7 +304,7 @@ export function RepoView({
       {selected === WIP_HASH && status ? (
         <WorkingTree repoPath={path} status={status} actions={actions} viewing={viewing} onView={setViewing} />
       ) : selected ? (
-        <CommitPanel repoPath={path} hash={selected} viewing={viewing} onView={setViewing} />
+        <CommitPanel repoPath={path} hash={selected} shell={shell} viewing={viewing} onView={setViewing} />
       ) : (
         <div className="panel">
           <div className="center">{refs && !commits.length ? 'No commits yet' : 'Loading…'}</div>

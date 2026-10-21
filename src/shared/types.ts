@@ -67,6 +67,12 @@ export interface RepoStatus {
   staged: StatusFile[]
   unstaged: StatusFile[]
   conflicted: string[]
+  operation: OperationState | null
+}
+
+export interface OperationState {
+  kind: 'merge' | 'cherry-pick' | 'revert' | 'rebase'
+  message: string
 }
 
 export interface CommitDetails {
@@ -111,6 +117,9 @@ export interface GitApi {
   readFile(path: string, file: string): Promise<string>
   writeFile(path: string, file: string, content: string): Promise<void>
   imageDiff(path: string, file: string, oldPath: string | undefined, source: ImageSource): Promise<ImageDiffResult>
+  resolveFile(path: string, file: string, content: string | null, side: 'ours' | 'theirs' | null): Promise<void>
+  abortOperation(path: string): Promise<void>
+  continueOperation(path: string, message: string): Promise<void>
 }
 
 export type ImageSource =

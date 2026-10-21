@@ -1,6 +1,6 @@
 import { app, BrowserWindow, dialog, ipcMain, shell } from 'electron'
 import { join } from 'path'
-import { readFile, writeFile, mkdir } from 'fs/promises'
+import { readFile, writeFile, mkdir, stat } from 'fs/promises'
 import * as gitService from './git'
 import { setupUpdater } from './updater'
 import type { GitApi, RepoInfo } from '@shared/types'
@@ -115,7 +115,10 @@ const handlers: Handlers = {
   revert: gitService.revert,
   readFile: gitService.readFileContent,
   writeFile: gitService.writeFileContent,
-  imageDiff: gitService.imageDiff
+  imageDiff: gitService.imageDiff,
+  resolveFile: gitService.resolveFile,
+  abortOperation: gitService.abortOperation,
+  continueOperation: gitService.continueOperation
 }
 
 for (const [name, fn] of Object.entries(handlers)) {
@@ -128,6 +131,13 @@ for (const [name, fn] of Object.entries(handlers)) {
     }
   })
 }
+
+ipcMain.handle('native:showInFolder', async (_event, repoPath: string, relative: string | null) => {
+  const target = relative ? join(repoPath, relative) : repoPath
+  const isDir = await stat(target).then((s) => s.isDirectory(), () => false)
+  if (isDir) await shell.openPath(target)
+  else shell.showItemInFolder(target)
+})
 
 ipcMain.handle('native:titleBar', (event, color: string, symbolColor: string) => {
   const win = BrowserWindow.fromWebContents(event.sender)

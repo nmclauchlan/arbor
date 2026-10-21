@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { isImageFile, type ImageSource, type StatusFile } from '@shared/types'
 import type { Shell } from '../actions'
+import { ConflictResolver } from './ConflictResolver'
 import { DiffView } from './DiffView'
 import { Editor } from './Editor'
 import { ImageDiff } from './ImageDiff'
@@ -9,7 +10,7 @@ import { errorMessage, shortHash } from '../util'
 export interface FileViewRequest {
   file: StatusFile
   source: ImageSource
-  mode: 'diff' | 'edit'
+  mode: 'diff' | 'edit' | 'conflict'
 }
 
 export function canEdit(file: StatusFile): boolean {
@@ -79,7 +80,9 @@ export function FileViewer({
           ✕ Close
         </button>
       </div>
-      {mode === 'edit' ? (
+      {mode === 'conflict' ? (
+        <ConflictResolver key={file.path} repoPath={repoPath} file={file.path} shell={shell} onResolved={onSaved} />
+      ) : mode === 'edit' ? (
         <Editor
           key={file.path}
           repoPath={repoPath}
