@@ -30,6 +30,7 @@ function createWindow(): void {
     show: false,
     backgroundColor: '#1b1d23',
     autoHideMenuBar: true,
+    icon: join(app.getAppPath(), 'build/icon.png'),
     titleBarStyle: 'hidden',
     titleBarOverlay: { color: '#1b1d23', symbolColor: '#c9ccd3', height: 36 },
     webPreferences: {
