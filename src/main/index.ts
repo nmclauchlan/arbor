@@ -73,12 +73,15 @@ function createWindow(): void {
 type Handlers = { [K in keyof GitApi]: (...args: Parameters<GitApi[K]>) => ReturnType<GitApi[K]> }
 
 const handlers: Handlers = {
-  async selectRepo() {
+  async selectRepos() {
     const win = BrowserWindow.getFocusedWindow()
-    const opts = { properties: ['openDirectory' as const], title: 'Open repository' }
+    const opts = {
+      properties: ['openDirectory' as const, 'multiSelections' as const],
+      title: 'Open repositories',
+      buttonLabel: 'Open'
+    }
     const result = win ? await dialog.showOpenDialog(win, opts) : await dialog.showOpenDialog(opts)
-    if (result.canceled || !result.filePaths.length) return null
-    return result.filePaths[0]
+    return result.canceled ? [] : result.filePaths
   },
   async selectFolder(title) {
     const win = BrowserWindow.getFocusedWindow()

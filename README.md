@@ -20,7 +20,7 @@ Grab the installer for your platform from the [releases page](https://github.com
 
 **Merge conflicts.** When a merge, cherry-pick, revert or rebase stops on conflicts, the changes panel lists them with one-click ours/theirs, and opening a file shows each conflict side by side with Use ours, Use theirs or Use both and an editable result. Abort or continue from the same banner.
 
-**Several repositories at once.** Each repository opens in a tab. Drag tabs to reorder them, or collect them into named colour-coded groups that open as a dropdown list. The + button opens, clones or starts a new group. Everything is back where you left it next launch.
+**Several repositories at once.** Each repository opens in a tab. Drag tabs to reorder them, or collect them into named colour-coded groups that open as a dropdown list. Open several repositories at once from the file dialog, drag a tab onto a group to file it, or use the + button to open, clone or start a new group. Everything is back where you left it next launch.
 
 **Finding your way.** Filter branches with Ctrl+B. View changed files as a folder tree or a flat list. Resize the sidebar and panels to taste.
 

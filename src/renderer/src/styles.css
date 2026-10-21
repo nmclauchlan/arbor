@@ -535,7 +535,8 @@ html[data-dark="false"] .ref-badge.branch.head { color: #fff; }
 .tab.dragging { opacity: 0.4; }
 .tab.drop-before { box-shadow: inset 2px 0 0 var(--accent); }
 .tab.drop-after { box-shadow: inset -2px 0 0 var(--accent); }
-.tab-group.drop-target { outline: 2px solid var(--fg); }
+.tab-group.drop-target { outline: 2px solid var(--fg); opacity: 1; transform: scale(1.05); }
+.group-dropdown.drop-target { outline: 2px solid var(--accent); }
 
 .operation-banner { display: flex; align-items: center; gap: 8px; padding: 8px 12px; background: var(--bg-3); border-bottom: 1px solid var(--border); border-left: 3px solid var(--accent); }
 .operation-banner.conflicted { border-left-color: var(--red); }

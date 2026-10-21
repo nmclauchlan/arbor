@@ -99,8 +99,8 @@ export default function App(): React.JSX.Element {
   const shell = useMemo<Shell>(
     () => ({
       openRepo: async () => {
-        const p = await window.git.selectRepo()
-        if (p) openPath(p)
+        const paths = await window.git.selectRepos()
+        for (const p of paths) await openPath(p, p === paths[paths.length - 1])
       },
       openMenu: (e, items) => setMenu({ x: e.clientX, y: e.clientY, items }),
       confirm: dialogs.confirm,
@@ -157,8 +157,8 @@ export default function App(): React.JSX.Element {
   }
 
   const openInto = async (group?: string): Promise<void> => {
-    const p = await window.git.selectRepo()
-    if (p) openPath(p, true, group)
+    const paths = await window.git.selectRepos()
+    for (const p of paths) await openPath(p, p === paths[paths.length - 1], group)
   }
 
   const cloneRepo = async (group?: string): Promise<void> => {
