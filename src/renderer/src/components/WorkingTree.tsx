@@ -1,8 +1,9 @@
 import { useEffect, useState } from 'react'
-import type { RepoStatus, StatusFile } from '@shared/types'
+import { isImageFile, type RepoStatus, type StatusFile } from '@shared/types'
 import type { Actions } from '../actions'
 import { DiffView } from './DiffView'
 import { Editor } from './Editor'
+import { ImageDiff } from './ImageDiff'
 import { FileRow } from './CommitPanel'
 import { errorMessage } from '../util'
 
@@ -32,7 +33,7 @@ export function WorkingTree({
   }, [status, sel])
 
   useEffect(() => {
-    if (!sel || editing) {
+    if (!sel || editing || isImageFile(sel.file.path)) {
       if (!sel) setDiff('')
       return
     }
@@ -81,7 +82,7 @@ export function WorkingTree({
   }
 
   const edit = (f: StatusFile): void => {
-    if (f.status === 'D') return
+    if (f.status === 'D' || isImageFile(f.path)) return
     setEditing(f.path)
   }
 
@@ -115,7 +116,7 @@ export function WorkingTree({
               onDoubleClick={() => edit(f)}
             >
               <span className="actions" onClick={(e) => e.stopPropagation()}>
-                {f.status !== 'D' && <button title="Edit" onClick={() => edit(f)}>✎</button>}
+                {f.status !== 'D' && !isImageFile(f.path) && <button title="Edit" onClick={() => edit(f)}>✎</button>}
                 <button title="Discard" onClick={() => discard([f.path])}>↶</button>
                 <button title="Stage" onClick={() => stage([f.path])}>+</button>
               </span>
@@ -136,7 +137,7 @@ export function WorkingTree({
               onDoubleClick={() => edit(f)}
             >
               <span className="actions" onClick={(e) => e.stopPropagation()}>
-                {f.status !== 'D' && <button title="Edit" onClick={() => edit(f)}>✎</button>}
+                {f.status !== 'D' && !isImageFile(f.path) && <button title="Edit" onClick={() => edit(f)}>✎</button>}
                 <button title="Unstage" onClick={() => unstage([f.path])}>−</button>
               </span>
             </FileRow>
@@ -149,6 +150,14 @@ export function WorkingTree({
             shell={actions}
             onClose={() => setEditing(null)}
             onSaved={actions.refresh}
+          />
+        ) : sel && isImageFile(sel.file.path) ? (
+          <ImageDiff
+            key={sel.area + sel.file.path}
+            repoPath={repoPath}
+            file={sel.file.path}
+            oldPath={sel.file.oldPath}
+            source={{ kind: 'worktree', staged: sel.area === 'staged', status: sel.file.status }}
           />
         ) : (
           <DiffView

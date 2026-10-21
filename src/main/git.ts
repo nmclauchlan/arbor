@@ -1,8 +1,10 @@
 import { simpleGit, SimpleGit } from 'simple-git'
 import { readFile, writeFile } from 'fs/promises'
 import { basename, join } from 'path'
-import type {
-  Commit, CommitDetails, FileChange, Ref, RepoInfo, RepoRefs, RepoStatus, StatusFile
+import {
+  imageMime,
+  type Commit, type CommitDetails, type FileChange, type ImageDiffResult, type ImageSource,
+  type Ref, type RepoInfo, type RepoRefs, type RepoStatus, type StatusFile
 } from '@shared/types'
 
 const FIELD = '\x1f'
@@ -307,4 +309,54 @@ export async function readFileContent(path: string, file: string): Promise<strin
 
 export async function writeFileContent(path: string, file: string, content: string): Promise<void> {
   await writeFile(join(path, file), content, 'utf8')
+}
+
+const MAX_IMAGE_BYTES = 25 * 1024 * 1024
+
+export async function imageDiff(
+  path: string,
+  file: string,
+  oldPath: string | undefined,
+  source: ImageSource
+): Promise<ImageDiffResult> {
+  const g = git(path)
+  const blob = async (spec: string): Promise<string | null> => {
+    try {
+      const buf = await g.binaryCatFile(['-p', spec])
+      if (buf.length > MAX_IMAGE_BYTES) throw new Error(`${file} is larger than 25 MB`)
+      return buf.toString('base64')
+    } catch (e) {
+      if (e instanceof Error && e.message.includes('larger than')) throw e
+      return null
+    }
+  }
+  const worktree = async (): Promise<string | null> => {
+    try {
+      const buf = await readFile(join(path, file))
+      if (buf.length > MAX_IMAGE_BYTES) throw new Error(`${file} is larger than 25 MB`)
+      return buf.toString('base64')
+    } catch (e) {
+      if (e instanceof Error && e.message.includes('larger than')) throw e
+      return null
+    }
+  }
+  const before = oldPath ?? file
+  const mime = imageMime(file)
+  if (source.kind === 'commit') {
+    const parents = (await g.raw(['rev-list', '--parents', '-n', '1', source.hash])).trim().split(' ')
+    const parent = parents.length > 1 ? parents[1] : null
+    return {
+      mime,
+      oldData: parent ? await blob(`${parent}:${before}`) : null,
+      newData: await blob(`${source.hash}:${file}`)
+    }
+  }
+  if (source.staged) {
+    return { mime, oldData: await blob(`HEAD:${before}`), newData: await blob(`:${file}`) }
+  }
+  return {
+    mime,
+    oldData: source.status === '?' ? null : await blob(`:${before}`),
+    newData: source.status === 'D' ? null : await worktree()
+  }
 }

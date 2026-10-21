@@ -113,7 +113,8 @@ const handlers: Handlers = {
   cherryPick: gitService.cherryPick,
   revert: gitService.revert,
   readFile: gitService.readFileContent,
-  writeFile: gitService.writeFileContent
+  writeFile: gitService.writeFileContent,
+  imageDiff: gitService.imageDiff
 }
 
 for (const [name, fn] of Object.entries(handlers)) {

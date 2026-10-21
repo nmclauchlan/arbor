@@ -434,3 +434,33 @@ textarea { resize: vertical; font-family: inherit; }
 .editor-bar button { padding: 2px 10px; font-size: 12px; }
 .editor-host { flex: 1; min-height: 0; overflow: hidden; }
 .editor-host .cm-editor { height: 100%; }
+
+.image-diff { display: flex; flex-direction: column; min-height: 0; height: 100%; background: var(--bg); overflow: hidden; }
+.image-modes { display: flex; gap: 2px; padding: 6px 10px; border-bottom: 1px solid var(--border); background: var(--bg-3); flex: none; }
+.image-modes button { padding: 2px 10px; font-size: 12px; background: transparent; border-color: transparent; }
+.image-modes button.active { background: var(--bg-4); border-color: var(--border); color: var(--fg); }
+.image-body { flex: 1; min-height: 0; overflow: auto; padding: 12px; display: flex; flex-direction: column; }
+.image-two-up { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; align-items: start; }
+.image-single { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.image-single .checker { display: flex; justify-content: center; align-items: center; padding: 8px; border-radius: 4px; }
+.image-single img { max-width: 100%; max-height: 60vh; display: block; }
+.image-label { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em; }
+.image-label.deleted { color: var(--red); }
+.image-label.added { color: var(--green); }
+.checker {
+  background-color: #2a2e37;
+  background-image:
+    linear-gradient(45deg, #343945 25%, transparent 25%),
+    linear-gradient(-45deg, #343945 25%, transparent 25%),
+    linear-gradient(45deg, transparent 75%, #343945 75%),
+    linear-gradient(-45deg, transparent 75%, #343945 75%);
+  background-size: 16px 16px;
+  background-position: 0 0, 0 8px, 8px -8px, -8px 0;
+}
+.image-overlay { flex: 1; min-height: 0; display: flex; flex-direction: column; gap: 8px; align-items: center; justify-content: flex-start; }
+.image-stage { position: relative; display: inline-block; max-width: 100%; border-radius: 4px; overflow: hidden; line-height: 0; }
+.image-stage .layer { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; display: block; }
+.image-stage .layer.old { position: relative; width: auto; height: auto; max-width: 100%; }
+.image-stage .swipe-line { position: absolute; top: 0; bottom: 0; width: 2px; background: var(--accent); box-shadow: 0 0 4px rgba(0,0,0,0.6); pointer-events: none; }
+.image-slider { display: flex; align-items: center; gap: 10px; width: 100%; font-size: 12px; flex: none; height: 28px; }
+.image-slider input[type='range'] { flex: 1; accent-color: var(--accent); }
