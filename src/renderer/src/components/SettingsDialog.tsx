@@ -9,7 +9,9 @@ import { UpdateNotice } from './UpdateNotice'
 
 function Accounts({ suggestBaseUrl }: { suggestBaseUrl?: string }): React.JSX.Element {
   const [accounts, setAccounts] = useState<HostAccount[]>([])
-  const [kind, setKind] = useState<HostKind>(suggestBaseUrl && !/dev\.azure\.com|visualstudio\.com/i.test(suggestBaseUrl) ? 'github' : 'azure')
+  const [kind, setKind] = useState<HostKind>(
+    !suggestBaseUrl || /dev\.azure\.com|visualstudio\.com/i.test(suggestBaseUrl) ? 'azure' : /gitlab/i.test(suggestBaseUrl) ? 'gitlab' : 'github'
+  )
   const [baseUrl, setBaseUrl] = useState(suggestBaseUrl ?? 'https://dev.azure.com/')
   const [token, setToken] = useState('')
   const [busy, setBusy] = useState(false)
@@ -66,24 +68,33 @@ function Accounts({ suggestBaseUrl }: { suggestBaseUrl?: string }): React.JSX.El
             onChange={(e) => {
               const k = e.target.value as HostKind
               setKind(k)
-              setBaseUrl(k === 'github' ? 'https://github.com' : 'https://dev.azure.com/')
+              setBaseUrl(k === 'github' ? 'https://github.com' : k === 'gitlab' ? 'https://gitlab.com' : 'https://dev.azure.com/')
               setNote(null)
             }}
           >
             <option value="azure">Azure DevOps</option>
             <option value="github">GitHub</option>
+            <option value="gitlab">GitLab</option>
           </select>
           <small className="muted">
             {kind === 'azure'
               ? 'Personal access token with Code (read & write) scope, from Organisation settings → Personal access tokens'
-              : 'Personal access token with repository and pull-request access, from Settings → Developer settings → Tokens'}
+              : kind === 'gitlab'
+                ? 'Personal access token with the api scope, from Preferences → Access tokens'
+                : 'Personal access token with repository and pull-request access, from Settings → Developer settings → Tokens'}
           </small>
         </span>
         <span className="unit grow">
           <input
             value={baseUrl}
             spellCheck={false}
-            placeholder={kind === 'github' ? 'https://github.com or https://github.my-company.com' : 'https://dev.azure.com/my-org'}
+            placeholder={
+              kind === 'github'
+                ? 'https://github.com or https://github.my-company.com'
+                : kind === 'gitlab'
+                  ? 'https://gitlab.com or https://gitlab.my-company.com'
+                  : 'https://dev.azure.com/my-org'
+            }
             onChange={(e) => setBaseUrl(e.target.value)}
           />
         </span>

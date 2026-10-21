@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import type { Branch, HostInfo, PullRequest, RemoteBranch, RepoRefs, Stash, Tag } from '@shared/types'
 import type { Actions } from '../actions'
-import { hostName, prPrefix } from '../util'
+import { hostName, hostPath, prNoun, prPrefix } from '../util'
 
 function Section({
   title,
@@ -197,11 +197,11 @@ export function Sidebar({
         {branches.length === 0 && !filtering && <div className="empty">No branches</div>}
       </Section>
       {host && (
-        <Section title="Pull requests" count={hasAccount ? shownPrs.length : 0} forceOpen={filtering}>
+        <Section title={host.kind === 'gitlab' ? 'Merge requests' : 'Pull requests'} count={hasAccount ? shownPrs.length : 0} forceOpen={filtering}>
           {!hasAccount ? (
             <div className="connect-row">
               <button onClick={() => actions.openSettings(host.baseUrl)}>Connect to {hostName(host.kind)}</button>
-              <small className="muted">{host.kind === 'github' ? `${host.org}/${host.repo}` : `${host.org} / ${host.project}`}</small>
+              <small className="muted">{hostPath(host)}</small>
             </div>
           ) : (
             <>
@@ -218,7 +218,7 @@ export function Sidebar({
                   <span className="name">{p.isDraft ? '[Draft] ' : ''}<Highlight text={p.title} query={q} /></span>
                 </div>
               ))}
-              {shownPrs.length === 0 && !filtering && !prError && <div className="empty">No open pull requests</div>}
+              {shownPrs.length === 0 && !filtering && !prError && <div className="empty">No open {prNoun(host.kind)}s</div>}
             </>
           )}
         </Section>

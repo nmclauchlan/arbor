@@ -55,11 +55,11 @@ export function Toolbar({
       {host && current && (
         currentPr ? (
           <button disabled={busy} onClick={() => onViewPr(currentPr)} title={currentPr.title}>
-            ⇄ PR {prPrefix(host.kind)}{currentPr.id}
+            ⇄ {host.kind === 'gitlab' ? 'MR' : 'PR'} {prPrefix(host.kind)}{currentPr.id}
           </button>
         ) : (
-          <button disabled={busy || !current.upstream} onClick={onCreatePr} title={current.upstream ? 'Create a pull request for this branch' : 'Push the branch first'}>
-            ⇄ Pull request
+          <button disabled={busy || !current.upstream} onClick={onCreatePr} title={current.upstream ? `Create a ${host.kind === 'gitlab' ? 'merge' : 'pull'} request for this branch` : 'Push the branch first'}>
+            ⇄ {host.kind === 'gitlab' ? 'Merge request' : 'Pull request'}
           </button>
         )
       )}

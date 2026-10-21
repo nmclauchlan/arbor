@@ -30,7 +30,17 @@ export function hostName(kind: string): string {
 }
 
 export function prPrefix(kind: string): string {
-  return kind === 'azure' ? '!' : '#'
+  return kind === 'github' ? '#' : '!'
+}
+
+export function prNoun(kind: string): string {
+  return kind === 'gitlab' ? 'merge request' : 'pull request'
+}
+
+export function hostPath(host: { kind: string; org: string; project: string; repo: string }): string {
+  if (host.kind === 'github') return `${host.org}/${host.repo}`
+  if (host.kind === 'gitlab') return host.project
+  return `${host.project} / ${host.repo}`
 }
 
 export function revealLabel(): string {
