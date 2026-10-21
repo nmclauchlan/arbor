@@ -19,6 +19,7 @@ Installers for Windows, macOS and Linux are published on the [releases page](htt
 - Commit graph with coloured lanes, merge curves and ref badges (branches, remotes, tags, HEAD)
 - Working tree panel: stage/unstage/discard files, view diffs, commit and amend (Ctrl+Enter)
 - Commit details with changed-file list and unified diff viewer
+- Image comparisons for changed images: 2-up, swipe, onion skin and difference modes
 - Sidebar with local branches (ahead/behind), remote branches, tags and stashes
 - Toolbar actions: fetch, pull, push (sets upstream when missing), create branch, stash, pop
 - Context menus: checkout, merge, create branch here, delete branch, cherry-pick, revert, reset (soft/mixed/hard), copy SHA

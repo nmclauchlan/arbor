@@ -1,8 +1,9 @@
 import { useEffect, useState } from 'react'
-import type { CommitDetails, StatusFile } from '@shared/types'
+import { isImageFile, type CommitDetails, type StatusFile } from '@shared/types'
 import type { Shell } from '../actions'
 import { DiffView } from './DiffView'
 import { Editor } from './Editor'
+import { ImageDiff } from './ImageDiff'
 import { formatFullDate, shortHash } from '../util'
 
 export function FileRow({
@@ -72,7 +73,7 @@ export function CommitPanel({
   }, [repoPath, hash])
 
   useEffect(() => {
-    if (!file || editing) return
+    if (!file || editing || isImageFile(file)) return
     let cancelled = false
     setLoadingDiff(true)
     window.git
@@ -117,9 +118,9 @@ export function CommitPanel({
               file={f}
               selected={file === f.path}
               onClick={() => setFile(f.path)}
-              onDoubleClick={() => f.status !== 'D' && setEditing(f.path)}
+              onDoubleClick={() => f.status !== 'D' && !isImageFile(f.path) && setEditing(f.path)}
             >
-              {f.status !== 'D' && (
+              {f.status !== 'D' && !isImageFile(f.path) && (
                 <span className="actions" onClick={(e) => e.stopPropagation()}>
                   <button title="Edit working copy" onClick={() => setEditing(f.path)}>✎</button>
                 </span>
@@ -134,6 +135,14 @@ export function CommitPanel({
             shell={shell}
             onClose={() => setEditing(null)}
             onSaved={onFileSaved}
+          />
+        ) : file && isImageFile(file) ? (
+          <ImageDiff
+            key={file}
+            repoPath={repoPath}
+            file={file}
+            oldPath={details.files.find((f) => f.path === file)?.oldPath}
+            source={{ kind: 'commit', hash }}
           />
         ) : (
           <DiffView text={diff} loading={loadingDiff} empty={file ? 'No textual changes' : 'Select a file'} />

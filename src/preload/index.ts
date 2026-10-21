@@ -4,7 +4,8 @@ import type { GitApi, GitMethod } from '@shared/types'
 const methods: GitMethod[] = [
   'selectRepo', 'initialRepo', 'openRepo', 'recentRepos', 'log', 'refs', 'status', 'stage', 'unstage', 'discard',
   'commit', 'fileDiff', 'commitDetails', 'commitFileDiff', 'checkout', 'createBranch', 'deleteBranch',
-  'fetch', 'pull', 'push', 'merge', 'stashPush', 'stashPop', 'stashDrop', 'resetTo', 'cherryPick', 'revert', 'readFile', 'writeFile'
+  'fetch', 'pull', 'push', 'merge', 'stashPush', 'stashPop', 'stashDrop', 'resetTo', 'cherryPick', 'revert', 'readFile', 'writeFile',
+  'imageDiff'
 ]
 
 const api: Record<string, (...args: unknown[]) => Promise<unknown>> = {}

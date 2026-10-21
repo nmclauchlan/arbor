@@ -110,6 +110,39 @@ export interface GitApi {
   revert(path: string, hash: string): Promise<void>
   readFile(path: string, file: string): Promise<string>
   writeFile(path: string, file: string, content: string): Promise<void>
+  imageDiff(path: string, file: string, oldPath: string | undefined, source: ImageSource): Promise<ImageDiffResult>
+}
+
+export type ImageSource =
+  | { kind: 'commit'; hash: string }
+  | { kind: 'worktree'; staged: boolean; status: FileChange }
+
+export interface ImageDiffResult {
+  mime: string
+  oldData: string | null
+  newData: string | null
+}
+
+export const IMAGE_EXTENSIONS = ['png', 'jpg', 'jpeg', 'gif', 'webp', 'bmp', 'svg', 'ico', 'avif']
+
+export function isImageFile(file: string): boolean {
+  const ext = file.slice(file.lastIndexOf('.') + 1).toLowerCase()
+  return IMAGE_EXTENSIONS.includes(ext)
+}
+
+export function imageMime(file: string): string {
+  const ext = file.slice(file.lastIndexOf('.') + 1).toLowerCase()
+  switch (ext) {
+    case 'jpg':
+    case 'jpeg':
+      return 'image/jpeg'
+    case 'svg':
+      return 'image/svg+xml'
+    case 'ico':
+      return 'image/x-icon'
+    default:
+      return `image/${ext}`
+  }
 }
 
 export type GitMethod = keyof GitApi
