@@ -1,3 +1,5 @@
+import { DEFAULT_GROUP_COLORS, normalizeGroupColor } from './tabColors'
+
 export interface Tab {
   path: string
   name: string
@@ -10,16 +12,6 @@ export interface TabGroup {
   color: string
   collapsed?: boolean
 }
-
-export const GROUP_COLORS: { name: string; value: string }[] = [
-  { name: 'Blue', value: '#3e9cf0' },
-  { name: 'Green', value: '#58c36b' },
-  { name: 'Orange', value: '#f1a33c' },
-  { name: 'Red', value: '#e8534a' },
-  { name: 'Purple', value: '#b16df5' },
-  { name: 'Teal', value: '#2ec4b6' },
-  { name: 'Pink', value: '#f06fa8' }
-]
 
 const KEY = 'arbor.tabs'
 const ACTIVE_KEY = 'arbor.active'
@@ -43,7 +35,10 @@ export function loadSavedTabs(): SavedTabs {
       : raw.tabs ?? []
     return {
       tabs: list.map((t) => ({ path: t.path, name: t.name || baseName(t.path), group: t.group })),
-      groups: Array.isArray(raw) ? [] : raw.groups ?? [],
+      groups: (Array.isArray(raw) ? [] : raw.groups ?? []).map((group: TabGroup, index: number) => ({
+        ...group,
+        color: normalizeGroupColor(group.color) ?? DEFAULT_GROUP_COLORS[index % DEFAULT_GROUP_COLORS.length].value
+      })),
       active
     }
   } catch {
@@ -71,8 +66,8 @@ export function newGroupId(): string {
 }
 
 export function nextGroupColor(groups: TabGroup[]): string {
-  const used = new Set(groups.map((g) => g.color))
-  return GROUP_COLORS.find((c) => !used.has(c.value))?.value ?? GROUP_COLORS[groups.length % GROUP_COLORS.length].value
+  const used = new Set(groups.map((g) => normalizeGroupColor(g.color)))
+  return DEFAULT_GROUP_COLORS.find((c) => !used.has(c.value))?.value ?? DEFAULT_GROUP_COLORS[groups.length % DEFAULT_GROUP_COLORS.length].value
 }
 
 function lastIndexOfGroup(tabs: Tab[], group: string): number {
