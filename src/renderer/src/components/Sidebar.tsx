@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import type { Branch, HostInfo, PullRequest, RemoteBranch, RepoRefs, Stash, Tag } from '@shared/types'
 import type { Actions } from '../actions'
+import { hostName, prPrefix } from '../util'
 
 function Section({
   title,
@@ -183,7 +184,7 @@ export function Sidebar({
                   onSelectPr(prByBranch.get(b.name)!)
                 }}
               >
-                !{prByBranch.get(b.name)!.id}
+                {prPrefix(host?.kind ?? 'azure')}{prByBranch.get(b.name)!.id}
               </span>
             )}
             {(b.ahead || b.behind) ? (
@@ -199,8 +200,8 @@ export function Sidebar({
         <Section title="Pull requests" count={hasAccount ? shownPrs.length : 0} forceOpen={filtering}>
           {!hasAccount ? (
             <div className="connect-row">
-              <button onClick={() => actions.openSettings(host.baseUrl)}>Connect to Azure DevOps</button>
-              <small className="muted">{host.org} / {host.project}</small>
+              <button onClick={() => actions.openSettings(host.baseUrl)}>Connect to {hostName(host.kind)}</button>
+              <small className="muted">{host.kind === 'github' ? `${host.org}/${host.repo}` : `${host.org} / ${host.project}`}</small>
             </div>
           ) : (
             <>
@@ -209,11 +210,11 @@ export function Sidebar({
                 <div
                   key={p.id}
                   className={`ref-item pr-item${selectedPr === p.id ? ' current' : ''}`}
-                  title={`!${p.id} ${p.title}\n${p.sourceBranch} → ${p.targetBranch}`}
+                  title={`${prPrefix(host.kind)}${p.id} ${p.title}\n${p.sourceBranch} → ${p.targetBranch}`}
                   onClick={() => onSelectPr(p)}
                   onDoubleClick={() => actions.checkout(p.sourceBranch)}
                 >
-                  <span className="pr-id">!{p.id}</span>
+                  <span className="pr-id">{prPrefix(host.kind)}{p.id}</span>
                   <span className="name">{p.isDraft ? '[Draft] ' : ''}<Highlight text={p.title} query={q} /></span>
                 </div>
               ))}

@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
-import type { HostAccount } from '@shared/types'
+import type { HostAccount, HostKind } from '@shared/types'
+import { hostName } from '../util'
 import { setFileView, useFileView } from '../fileView'
 import { SETTINGS_DEFAULTS, SETTINGS_LIMITS, setSettings, useSettings } from '../settings'
 import { setTheme, THEMES, useTheme } from '../themes'
@@ -8,6 +9,7 @@ import { UpdateNotice } from './UpdateNotice'
 
 function Accounts({ suggestBaseUrl }: { suggestBaseUrl?: string }): React.JSX.Element {
   const [accounts, setAccounts] = useState<HostAccount[]>([])
+  const [kind, setKind] = useState<HostKind>(suggestBaseUrl && !/dev\.azure\.com|visualstudio\.com/i.test(suggestBaseUrl) ? 'github' : 'azure')
   const [baseUrl, setBaseUrl] = useState(suggestBaseUrl ?? 'https://dev.azure.com/')
   const [token, setToken] = useState('')
   const [busy, setBusy] = useState(false)
@@ -22,7 +24,7 @@ function Accounts({ suggestBaseUrl }: { suggestBaseUrl?: string }): React.JSX.El
     setBusy(true)
     setNote(null)
     try {
-      const acc = await window.host.addAccount('azure', baseUrl, token)
+      const acc = await window.host.addAccount(kind, baseUrl, token)
       window.dispatchEvent(new Event('arbor:accounts-changed'))
       setNote({ text: `Connected as ${acc.user}${acc.encrypted ? '' : ' (token stored without OS encryption)'}`, error: false })
       setToken('')
@@ -41,7 +43,7 @@ function Accounts({ suggestBaseUrl }: { suggestBaseUrl?: string }): React.JSX.El
       {accounts.map((a) => (
         <div key={a.kind + a.baseUrl} className="settings-row account-row">
           <span>
-            {a.kind === 'azure' ? 'Azure DevOps' : a.kind}
+            {hostName(a.kind)}
             <small>{a.baseUrl} · {a.user}</small>
           </span>
           <button
@@ -58,12 +60,32 @@ function Accounts({ suggestBaseUrl }: { suggestBaseUrl?: string }): React.JSX.El
         </div>
       ))}
       <div className="settings-row column">
-        <span>
-          Add Azure DevOps organisation
-          <small>Create a personal access token with Code (read &amp; write) scope at Organisation settings → Personal access tokens</small>
+        <span className="unit">
+          <select
+            value={kind}
+            onChange={(e) => {
+              const k = e.target.value as HostKind
+              setKind(k)
+              setBaseUrl(k === 'github' ? 'https://github.com' : 'https://dev.azure.com/')
+              setNote(null)
+            }}
+          >
+            <option value="azure">Azure DevOps</option>
+            <option value="github">GitHub</option>
+          </select>
+          <small className="muted">
+            {kind === 'azure'
+              ? 'Personal access token with Code (read & write) scope, from Organisation settings → Personal access tokens'
+              : 'Personal access token with repository and pull-request access, from Settings → Developer settings → Tokens'}
+          </small>
         </span>
         <span className="unit grow">
-          <input value={baseUrl} spellCheck={false} placeholder="https://dev.azure.com/my-org" onChange={(e) => setBaseUrl(e.target.value)} />
+          <input
+            value={baseUrl}
+            spellCheck={false}
+            placeholder={kind === 'github' ? 'https://github.com or https://github.my-company.com' : 'https://dev.azure.com/my-org'}
+            onChange={(e) => setBaseUrl(e.target.value)}
+          />
         </span>
         <span className="unit grow">
           <input

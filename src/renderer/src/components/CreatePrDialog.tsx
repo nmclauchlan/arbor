@@ -59,7 +59,7 @@ export function CreatePrDialog({
     <div className="overlay" onMouseDown={onClose}>
       <div className="dialog pr-dialog" onMouseDown={(e) => e.stopPropagation()}>
         <h3>New pull request</h3>
-        <p className="muted">{host.project} / {host.repo}</p>
+        <p className="muted">{host.kind === 'github' ? `${host.org}/${host.repo}` : `${host.project} / ${host.repo}`}</p>
         <div className="pr-form-row">
           <span className="ref-badge branch">{source}</span>
           <span className="muted">into</span>

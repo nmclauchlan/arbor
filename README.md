@@ -26,7 +26,7 @@ Grab the installer for your platform from the [releases page](https://github.com
 
 **Looks and settings.** Ten themes, dark and light, including Dracula, Nord, Solarized, Gruvbox, Monokai and Rosé Pine; the editor follows the theme. Settings (⚙ or Ctrl+,) cover the theme, the default file-list view, how often repositories refresh, how much history to load, which git executable to use, and automatic update checks.
 
-**Azure DevOps.** For repositories hosted on Azure DevOps, connect your organisation with a personal access token under Settings → Accounts. Open pull requests then appear in the sidebar and as badges on their branches, each with reviewers, votes, policy and build checks, and a link to open in the browser. Create a pull request for the current branch straight from the toolbar. GitHub and GitLab are next.
+**GitHub and Azure DevOps.** Connect an account with a personal access token under Settings → Accounts; GitHub Enterprise and Azure DevOps organisations are supported alongside github.com. Open pull requests then appear in the sidebar and as badges on their branches, each with reviewers and their verdicts, checks and build status, merge state, and a link to open in the browser. Create a pull request for the current branch straight from the toolbar. GitLab is next.
 
 ## Keyboard shortcuts
 
