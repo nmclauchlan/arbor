@@ -4,29 +4,41 @@
 
 <h1 align="center">Arbor</h1>
 
-<p align="center">A GitKraken-style desktop git client built with Electron, React and TypeScript. Branches grow in lanes; Arbor keeps them in order.</p>
+<p align="center">A desktop git client for Windows, macOS and Linux. Branches grow in lanes; Arbor keeps them in order.</p>
 
 ![Arbor showing a commit graph with a merge commit selected](docs/screenshot.png)
 
 ## Download
 
-Installers for Windows, macOS and Linux are published on the [releases page](https://github.com/nmclauchlan/arbor/releases). Every push to `main` builds and publishes a release for the version in `package.json`, so bump the version to cut a new one.
+Grab the installer for your platform from the [releases page](https://github.com/nmclauchlan/arbor/releases). Arbor checks for new versions itself and offers to restart into them from the status bar.
 
-## Features
+## What you get
 
-- Tabs for multiple open repositories, restored on next launch (Ctrl+O open, Ctrl+W close, Ctrl+Tab switch)
-- Inline CodeMirror editor for any file in the working tree or a commit, with syntax highlighting and Ctrl+S to save
-- Commit graph with coloured lanes, merge curves and ref badges (branches, remotes, tags, HEAD)
-- Working tree panel: stage/unstage/discard files, view diffs, commit and amend (Ctrl+Enter)
-- Commit details with changed-file list and unified diff viewer
-- Image comparisons for changed images: 2-up, swipe, onion skin and difference modes
-- Sidebar with local branches (ahead/behind), remote branches, tags and stashes
-- Toolbar actions: fetch, pull, push (sets upstream when missing), create branch, stash, pop
-- Context menus: checkout, merge, create branch here, delete branch, cherry-pick, revert, reset (soft/mixed/hard), copy SHA
-- Recent repositories on the welcome screen
-- Live refresh of status and refs every few seconds and on window focus
+**The graph.** Every branch, remote, tag and stash on one commit graph with coloured lanes and merge curves. Click a commit to see its files; right-click for checkout, branch, cherry-pick, revert, reset and more.
 
-## Development
+**Working with changes.** Stage, unstage and discard per file or all at once. Click any file to see its diff in the main view, double-click to edit it in place with syntax highlighting, and commit with Ctrl+Enter. Changed images get side-by-side, swipe, onion-skin and difference comparisons.
+
+**Several repositories at once.** Each repository opens in a tab. Drag tabs to reorder them, collect them into named colour-coded groups, and pick up where you left off next launch.
+
+**Finding your way.** Filter branches with Ctrl+B. View changed files as a folder tree or a flat list. Resize the sidebar and panels to taste.
+
+**Looks.** Ten themes, dark and light, including Dracula, Nord, Solarized, Gruvbox, Monokai and Rosé Pine. The editor follows the theme.
+
+## Keyboard shortcuts
+
+| Shortcut | Action |
+| --- | --- |
+| Ctrl+O | Open a repository |
+| Ctrl+W | Close the current tab |
+| Ctrl+Tab / Ctrl+Shift+Tab | Next / previous tab |
+| Ctrl+B | Filter branches |
+| Ctrl+Enter | Commit |
+| Ctrl+S | Save the file being edited |
+| Esc | Back to the graph |
+
+## Building from source
+
+Arbor is built with Electron, React and TypeScript, and drives the `git` on your PATH.
 
 ```bash
 npm install
@@ -39,20 +51,14 @@ Pass a repository path to open it on launch:
 npx electron . C:\path\to\repo
 ```
 
-Other scripts:
-
 - `npm run typecheck` runs the TypeScript checks for the main, preload and renderer projects
 - `npm run build` produces `out/`
 - `npm run dist` builds installers for the current platform into `release/`
 - `npm run icon` re-renders `build/icon.svg` to `build/icon.png`
 
-## Releases
+### Layout
 
-The [release workflow](.github/workflows/release.yml) runs on every push to `main`. It type-checks and builds, then runs electron-builder on Windows, macOS and Linux and publishes the installers to a GitHub release tagged with the package version. macOS builds are unsigned.
-
-## Layout
-
-- `src/main` Electron main process. `git.ts` wraps the git CLI via simple-git; `index.ts` creates the window and exposes each git function over IPC as `git:<name>`.
-- `src/preload` bridges those IPC channels to `window.git` in the renderer.
+- `src/main` Electron main process. `git.ts` wraps the git CLI; `index.ts` creates the window and exposes each git function over IPC; `updater.ts` handles updates.
+- `src/preload` bridges those IPC channels to `window.git`, `window.updater` and `window.native`.
 - `src/shared/types.ts` types shared by both sides, including the `GitApi` contract.
-- `src/renderer/src` React UI. `graph/layout.ts` assigns lanes and edges for the commit graph; `components/` holds the panels.
+- `src/renderer/src` React UI. `graph/layout.ts` lays out the commit graph; `components/` holds the panels, the file viewer, the editor and the tab bar.

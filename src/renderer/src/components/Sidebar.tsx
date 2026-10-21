@@ -1,30 +1,76 @@
-import { useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import type { Branch, RemoteBranch, RepoRefs, Stash, Tag } from '@shared/types'
 import type { Actions } from '../actions'
 
 function Section({
   title,
   count,
+  forceOpen,
   children
 }: {
   title: string
   count: number
+  forceOpen: boolean
   children: React.ReactNode
 }): React.JSX.Element {
   const [open, setOpen] = useState(true)
+  const shown = open || forceOpen
   return (
     <div>
       <div className="section-title" onClick={() => setOpen(!open)}>
-        <span>{open ? '▾' : '▸'} {title}</span>
+        <span>{shown ? '▾' : '▸'} {title}</span>
         <span>{count}</span>
       </div>
-      {open && children}
+      {shown && children}
     </div>
   )
 }
 
-export function Sidebar({ refs, actions }: { refs: RepoRefs; actions: Actions }): React.JSX.Element {
+function Highlight({ text, query }: { text: string; query: string }): React.JSX.Element {
+  if (!query) return <>{text}</>
+  const idx = text.toLowerCase().indexOf(query.toLowerCase())
+  if (idx === -1) return <>{text}</>
+  return (
+    <>
+      {text.slice(0, idx)}
+      <mark>{text.slice(idx, idx + query.length)}</mark>
+      {text.slice(idx + query.length)}
+    </>
+  )
+}
+
+export function Sidebar({
+  refs,
+  actions,
+  active
+}: {
+  refs: RepoRefs
+  actions: Actions
+  active: boolean
+}): React.JSX.Element {
+  const [query, setQuery] = useState('')
+  const input = useRef<HTMLInputElement>(null)
   const current = refs.branches.find((b) => b.current)
+  const q = query.trim().toLowerCase()
+  const matches = (name: string): boolean => !q || name.toLowerCase().includes(q)
+
+  useEffect(() => {
+    if (!active) return
+    const key = (e: KeyboardEvent): void => {
+      if ((e.ctrlKey || e.metaKey) && e.key === 'b') {
+        e.preventDefault()
+        input.current?.focus()
+        input.current?.select()
+      }
+    }
+    window.addEventListener('keydown', key)
+    return () => window.removeEventListener('keydown', key)
+  }, [active])
+
+  const branches = useMemo(() => refs.branches.filter((b) => matches(b.name)), [refs.branches, q])
+  const remotes = useMemo(() => refs.remotes.filter((r) => matches(`${r.remote}/${r.name}`)), [refs.remotes, q])
+  const tags = useMemo(() => refs.tags.filter((t) => matches(t.name)), [refs.tags, q])
+  const stashes = useMemo(() => refs.stashes.filter((s) => matches(s.message)), [refs.stashes, q])
 
   const branchMenu = (e: React.MouseEvent, b: Branch): void => {
     e.preventDefault()
@@ -64,16 +110,47 @@ export function Sidebar({ refs, actions }: { refs: RepoRefs; actions: Actions })
     ])
   }
 
-  const remotes = new Map<string, RemoteBranch[]>()
-  for (const r of refs.remotes) {
-    if (!remotes.has(r.remote)) remotes.set(r.remote, [])
-    remotes.get(r.remote)!.push(r)
+  const remoteGroups = new Map<string, RemoteBranch[]>()
+  for (const r of remotes) {
+    if (!remoteGroups.has(r.remote)) remoteGroups.set(r.remote, [])
+    remoteGroups.get(r.remote)!.push(r)
   }
+
+  const onKey = (e: React.KeyboardEvent<HTMLInputElement>): void => {
+    if (e.key === 'Escape') {
+      setQuery('')
+      input.current?.blur()
+    } else if (e.key === 'Enter' && q) {
+      const first = branches.find((b) => !b.current) ?? branches[0]
+      const remote = remotes[0]
+      if (first && !first.current) actions.checkout(first.name)
+      else if (!first && remote) actions.checkout(remote.name)
+    }
+  }
+
+  const filtering = q.length > 0
+  const total = branches.length + remotes.length + tags.length + stashes.length
 
   return (
     <div className="sidebar">
-      <Section title="Local" count={refs.branches.length}>
-        {refs.branches.map((b) => (
+      <div className="sidebar-search">
+        <input
+          ref={input}
+          value={query}
+          placeholder="Filter branches (Ctrl+B)"
+          onChange={(e) => setQuery(e.target.value)}
+          onKeyDown={onKey}
+          spellCheck={false}
+        />
+        {query && (
+          <span className="clear" title="Clear" onClick={() => setQuery('')}>
+            ×
+          </span>
+        )}
+      </div>
+      {filtering && total === 0 && <div className="empty">No matches for “{query}”</div>}
+      <Section title="Local" count={branches.length} forceOpen={filtering}>
+        {branches.map((b) => (
           <div
             key={b.name}
             className={`ref-item${b.current ? ' current' : ''}`}
@@ -82,7 +159,7 @@ export function Sidebar({ refs, actions }: { refs: RepoRefs; actions: Actions })
             onDoubleClick={() => !b.current && actions.checkout(b.name)}
             onContextMenu={(e) => branchMenu(e, b)}
           >
-            <span className="name">{b.name}</span>
+            <span className="name"><Highlight text={b.name} query={q} /></span>
             {(b.ahead || b.behind) ? (
               <span className="track">
                 {b.ahead ? `↑${b.ahead}` : ''} {b.behind ? `↓${b.behind}` : ''}
@@ -90,10 +167,10 @@ export function Sidebar({ refs, actions }: { refs: RepoRefs; actions: Actions })
             ) : null}
           </div>
         ))}
-        {refs.branches.length === 0 && <div className="empty">No branches</div>}
+        {branches.length === 0 && !filtering && <div className="empty">No branches</div>}
       </Section>
-      <Section title="Remote" count={refs.remotes.length}>
-        {[...remotes.entries()].map(([remote, list]) => (
+      <Section title="Remote" count={remotes.length} forceOpen={filtering}>
+        {[...remoteGroups.entries()].map(([remote, list]) => (
           <div key={remote}>
             <div className="remote-group">☁ {remote}</div>
             {list.map((r) => (
@@ -106,15 +183,15 @@ export function Sidebar({ refs, actions }: { refs: RepoRefs; actions: Actions })
                 onDoubleClick={() => actions.checkout(r.name)}
                 onContextMenu={(e) => remoteMenu(e, r)}
               >
-                <span className="name">{r.name}</span>
+                <span className="name"><Highlight text={r.name} query={q} /></span>
               </div>
             ))}
           </div>
         ))}
-        {refs.remotes.length === 0 && <div className="empty">No remote branches</div>}
+        {remotes.length === 0 && !filtering && <div className="empty">No remote branches</div>}
       </Section>
-      <Section title="Tags" count={refs.tags.length}>
-        {refs.tags.map((t) => (
+      <Section title="Tags" count={tags.length} forceOpen={filtering}>
+        {tags.map((t) => (
           <div
             key={t.name}
             className="ref-item"
@@ -122,13 +199,13 @@ export function Sidebar({ refs, actions }: { refs: RepoRefs; actions: Actions })
             onClick={() => actions.selectHash(t.hash)}
             onContextMenu={(e) => tagMenu(e, t)}
           >
-            <span className="name">🏷 {t.name}</span>
+            <span className="name">🏷 <Highlight text={t.name} query={q} /></span>
           </div>
         ))}
-        {refs.tags.length === 0 && <div className="empty">No tags</div>}
+        {tags.length === 0 && !filtering && <div className="empty">No tags</div>}
       </Section>
-      <Section title="Stashes" count={refs.stashes.length}>
-        {refs.stashes.map((s) => (
+      <Section title="Stashes" count={stashes.length} forceOpen={filtering}>
+        {stashes.map((s) => (
           <div
             key={s.index}
             className="ref-item"
@@ -136,10 +213,10 @@ export function Sidebar({ refs, actions }: { refs: RepoRefs; actions: Actions })
             onDoubleClick={() => actions.stashPop(s.index)}
             onContextMenu={(e) => stashMenu(e, s)}
           >
-            <span className="name">{s.message}</span>
+            <span className="name"><Highlight text={s.message} query={q} /></span>
           </div>
         ))}
-        {refs.stashes.length === 0 && <div className="empty">No stashes</div>}
+        {stashes.length === 0 && !filtering && <div className="empty">No stashes</div>}
       </Section>
     </div>
   )

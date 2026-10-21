@@ -146,3 +146,17 @@ export function imageMime(file: string): string {
 }
 
 export type GitMethod = keyof GitApi
+
+export interface UpdateStatus {
+  state: 'idle' | 'checking' | 'available' | 'downloading' | 'downloaded' | 'error'
+  version?: string
+  percent?: number
+  message?: string
+}
+
+export interface UpdaterApi {
+  status(): Promise<UpdateStatus>
+  check(): Promise<void>
+  install(): Promise<void>
+  onStatus(cb: (status: UpdateStatus) => void): () => void
+}
