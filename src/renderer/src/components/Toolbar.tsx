@@ -1,4 +1,4 @@
-import type { HostInfo, PullRequest, RepoInfo, RepoRefs } from '@shared/types'
+import type { HostInfo, PullRequest, RepoInfo, RepoRefs, UndoInfo } from '@shared/types'
 import type { Actions } from '../actions'
 import { prPrefix } from '../util'
 
@@ -10,7 +10,8 @@ export function Toolbar({
   host,
   prs,
   onCreatePr,
-  onViewPr
+  onViewPr,
+  undoInfo
 }: {
   repo: RepoInfo
   refs: RepoRefs | null
@@ -20,7 +21,9 @@ export function Toolbar({
   prs: PullRequest[]
   onCreatePr: () => void
   onViewPr: (pr: PullRequest) => void
+  undoInfo: UndoInfo
 }): React.JSX.Element {
+  const mod = /Mac/.test(navigator.platform) ? '⌘' : 'Ctrl+'
   const current = refs?.branches.find((b) => b.current)
   const currentPr = current ? prs.find((p) => p.sourceBranch === current.name) : undefined
   return (
@@ -28,6 +31,24 @@ export function Toolbar({
       <button onClick={actions.openRepo} title="Open another repository">
         📁 {repo.name}
       </button>
+      <span className="toolbar-group">
+        <button
+          disabled={busy || !undoInfo.undo}
+          onClick={actions.undo}
+          title={undoInfo.undo ? `Undo ${undoInfo.undo} (${mod}Z)` : 'Nothing to undo'}
+          aria-label="Undo"
+        >
+          ↶ Undo
+        </button>
+        <button
+          disabled={busy || !undoInfo.redo}
+          onClick={actions.redo}
+          title={undoInfo.redo ? `Redo ${undoInfo.redo} (${mod}Shift+Z)` : 'Nothing to redo'}
+          aria-label="Redo"
+        >
+          ↷ Redo
+        </button>
+      </span>
       <button disabled={busy} onClick={actions.fetch} title="git fetch --all --prune">
         ⟳ Fetch
       </button>

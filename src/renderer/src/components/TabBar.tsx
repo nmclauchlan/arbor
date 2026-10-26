@@ -259,7 +259,10 @@ export function TabBar({
             toggleGroup(e, group.id)
           }
         }}
-        onContextMenu={(e) => groupMenu(e, group)}
+        onContextMenu={(e) => {
+          setOpenGroup(null)
+          groupMenu(e, group)
+        }}
         onDragStart={(e) => {
           e.dataTransfer.effectAllowed = 'move'
           e.dataTransfer.setData('text/plain', 'group:' + group.id)

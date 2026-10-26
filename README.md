@@ -14,7 +14,9 @@ Grab the installer for your platform from the [releases page](https://github.com
 
 ## What you get
 
-**The graph.** Every branch, remote, tag and stash on one commit graph with coloured lanes and merge curves. Click a commit to see its files; right-click for checkout, branch, cherry-pick, revert, reset and more.
+**The graph.** Every branch, remote and tag on one commit graph with coloured lanes, merge curves and author avatars. Branches and tags sit in their own column, with local and remote copies of a branch merged into one badge, and each commit shows the start of its description after the subject. Click a commit to see its files; right-click for checkout, branch, cherry-pick, revert, reset and more.
+
+**Undo and redo.** Made a commit too early, checked out the wrong branch, deleted a branch or reset too far? Undo (Ctrl+Z) reverses commits, amends, checkouts, branch creation and deletion, resets, merges, pulls, cherry-picks and reverts, and Redo (Ctrl+Shift+Z) puts them back. Arbor checks the repository hasn't moved on before reversing anything and never discards uncommitted work.
 
 **Working with changes.** Stage, unstage and discard per file, per folder or all at once, and jump to any file or folder in Explorer or Finder. Click any file to see its diff in the main view, double-click to edit it in place with syntax highlighting, and commit with Ctrl+Enter. Changed images get side-by-side, swipe, onion-skin and difference comparisons.
 
@@ -39,6 +41,7 @@ Grab the installer for your platform from the [releases page](https://github.com
 | Ctrl+W | Close the current tab |
 | Ctrl+Tab / Ctrl+Shift+Tab | Next / previous tab |
 | Ctrl+B | Filter branches |
+| Ctrl+Z / Ctrl+Shift+Z | Undo / redo the last git action |
 | Ctrl+Enter | Commit |
 | Ctrl+S | Save the file being edited |
 | Esc | Back to the graph |

@@ -198,6 +198,7 @@ textarea { resize: vertical; font-family: inherit; }
 .commit-header { display: flex; align-items: center; gap: 8px; height: 26px; padding-right: 12px; flex: none; background: var(--bg-2); border-bottom: 1px solid var(--border); font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em; color: var(--fg-dim); user-select: none; scrollbar-gutter: stable; overflow-y: hidden; }
 .commit-header .hcell { position: relative; flex: none; height: 100%; display: flex; align-items: center; white-space: nowrap; overflow: visible; }
 .commit-header .hcell.graph { padding-left: 8px; overflow: hidden; }
+.commit-header .hcell.refs { padding-left: 8px; overflow: visible; }
 .commit-header .hcell.subject { flex: 1 1 0; min-width: 80px; }
 .commit-header .col-resize { position: absolute; top: 0; bottom: 0; width: 9px; cursor: col-resize; z-index: 2; }
 .commit-header .col-resize.right { right: -5px; }
@@ -229,7 +230,28 @@ textarea { resize: vertical; font-family: inherit; }
   align-items: center;
   gap: 6px;
 }
-.commit-row .subject span.text { overflow: hidden; text-overflow: ellipsis; }
+.commit-row .subject span.text { overflow: hidden; text-overflow: ellipsis; flex: 0 0 auto; max-width: 100%; }
+.commit-row .subject .body-preview { flex: 1 1 0; min-width: 0; overflow: hidden; text-overflow: ellipsis; color: var(--fg-faint); font-size: 12px; }
+.commit-row.selected .subject .body-preview { color: var(--fg-dim); }
+
+.refs-cell { position: relative; flex: none; display: flex; align-items: center; gap: 4px; min-width: 0; height: 100%; padding-left: 6px; }
+.refs-cell > .ref-badge { min-width: 0; max-width: calc(100% - 34px); }
+.refs-cell > .ref-badge:only-child { max-width: 100%; }
+.ref-badge .ref-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+.ref-badge .ref-icons { display: inline-flex; gap: 2px; flex: none; opacity: 0.85; }
+.ref-badge .ref-icon { width: 12px; height: 12px; flex: none; }
+.ref-more { flex: none; font-size: 10px; color: var(--fg-dim); background: var(--bg-3); border-radius: 8px; padding: 0 5px; line-height: 16px; }
+.refs-pop { display: none; position: absolute; left: 2px; top: 2px; z-index: 6; flex-direction: column; align-items: flex-start; gap: 3px; padding: 4px; background: var(--bg-2); border: 1px solid var(--border); border-radius: 6px; box-shadow: 0 6px 18px rgba(0, 0, 0, 0.35); }
+.refs-pop .ref-badge { max-width: 320px; }
+.refs-cell:hover .refs-pop { display: flex; }
+.commit-row:has(.refs-cell:hover) { z-index: 4; }
+
+.graph-node { position: absolute; width: 22px; height: 22px; border-radius: 50%; border: 2px solid; background: var(--bg); overflow: hidden; display: flex; align-items: center; justify-content: center; pointer-events: none; }
+.graph-node img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.graph-node.head { box-shadow: 0 0 0 2px var(--bg), 0 0 0 4px currentColor; }
+.avatar-initials { width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; color: #fff; font-size: 8.5px; font-weight: 700; letter-spacing: 0.02em; line-height: 1; }
+
+.toolbar-group { display: inline-flex; gap: 2px; margin-right: 6px; }
 .commit-row .author { flex: none; color: var(--fg-dim); overflow: hidden; text-overflow: ellipsis; }
 .commit-row .date { flex: none; color: var(--fg-dim); font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .commit-row .sha { flex: none; color: var(--fg-faint); font-family: var(--mono); font-size: 11px; overflow: hidden; }
@@ -375,7 +397,7 @@ textarea { resize: vertical; font-family: inherit; }
 
 .context-menu {
   position: fixed;
-  z-index: 100;
+  z-index: 250;
   background: var(--bg-3);
   border: 1px solid var(--border);
   border-radius: 6px;

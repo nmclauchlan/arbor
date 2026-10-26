@@ -3,6 +3,7 @@ import { useSyncExternalStore } from 'react'
 export interface Layout {
   sidebar: number
   panel: number
+  colRefs: number
   colGraph: number
   colAuthor: number
   colDate: number
@@ -12,6 +13,7 @@ export interface Layout {
 export const LIMITS = {
   sidebar: { min: 160, max: 600 },
   panel: { min: 300, max: 1200 },
+  colRefs: { min: 40, max: 400 },
   colGraph: { min: 30, max: 600 },
   colAuthor: { min: 50, max: 400 },
   colDate: { min: 60, max: 300 },
@@ -19,7 +21,7 @@ export const LIMITS = {
 } as const
 
 const KEY = 'arbor.layout'
-export const LAYOUT_DEFAULTS: Layout = { sidebar: 250, panel: 440, colGraph: 0, colAuthor: 130, colDate: 110, colSha: 64 }
+export const LAYOUT_DEFAULTS: Layout = { sidebar: 250, panel: 440, colRefs: 130, colGraph: 0, colAuthor: 110, colDate: 90, colSha: 64 }
 
 function load(): Layout {
   try {

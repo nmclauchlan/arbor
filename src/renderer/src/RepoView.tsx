@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import type { Commit, HostInfo, PullRequest, RepoInfo, RepoRefs, RepoStatus } from '@shared/types'
+import type { Commit, HostInfo, PullRequest, RepoInfo, RepoRefs, RepoStatus, UndoInfo } from '@shared/types'
 import { CreatePrDialog } from './components/CreatePrDialog'
 import { PrPanel } from './components/PrPanel'
 import type { Actions, Shell } from './actions'
@@ -39,6 +39,12 @@ export function RepoView({
   const [scrollTarget, setScrollTarget] = useState<{ hash: string; n: number } | null>(null)
   const [busy, setBusy] = useState<string | null>(null)
   const [viewing, setViewing] = useState<FileViewRequest | null>(null)
+  const [undoInfo, setUndoInfo] = useState<UndoInfo>({ undo: null, redo: null })
+  const undoRef = useRef(undoInfo)
+  undoRef.current = undoInfo
+  const busyRef = useRef(busy)
+  busyRef.current = busy
+  const actionsRef = useRef<Actions | null>(null)
   const [host, setHost] = useState<HostInfo | null>(null)
   const [hasAccount, setHasAccount] = useState(false)
   const [prs, setPrs] = useState<PullRequest[]>([])
@@ -68,11 +74,13 @@ export function RepoView({
   const layout = useLayout()
 
   const loadAll = useCallback(async () => {
-    const [log, r, s] = await Promise.all([
+    const [log, r, s, u] = await Promise.all([
       window.git.log(path, LOG_LIMIT),
       window.git.refs(path),
-      window.git.status(path)
+      window.git.status(path),
+      window.git.undoInfo(path)
     ])
+    setUndoInfo(u)
     lastRefsJson.current = JSON.stringify(r)
     lastStatusJson.current = JSON.stringify(s)
     setCommits(log)
@@ -132,6 +140,7 @@ export function RepoView({
           lastRefsJson.current = rj
           setRefs(r)
           setCommits(await window.git.log(path, LOG_LIMIT))
+          setUndoInfo(await window.git.undoInfo(path))
         }
       } catch {
         /* transient, e.g. git lock during an operation */
@@ -150,6 +159,26 @@ export function RepoView({
   useEffect(() => {
     setViewing(null)
   }, [selected])
+
+  useEffect(() => {
+    if (!active) return
+    const key = (e: KeyboardEvent): void => {
+      if (!(e.ctrlKey || e.metaKey) || e.altKey) return
+      const t = e.target
+      if (t instanceof HTMLElement && t.closest('input, textarea, select, [contenteditable="true"], .cm-editor')) return
+      if (document.querySelector('.overlay, .dialog')) return
+      const k = e.key.toLowerCase()
+      if (k === 'z' && !e.shiftKey) {
+        e.preventDefault()
+        actionsRef.current?.undo()
+      } else if ((k === 'z' && e.shiftKey) || k === 'y') {
+        e.preventDefault()
+        actionsRef.current?.redo()
+      }
+    }
+    window.addEventListener('keydown', key)
+    return () => window.removeEventListener('keydown', key)
+  }, [active])
 
   useEffect(() => {
     if (!active || !viewing) return
@@ -297,10 +326,25 @@ export function RepoView({
       copyHash: (hash) => {
         navigator.clipboard.writeText(hash)
         shell.showInfo(`Copied ${hash}`)
+      },
+      undo: () => {
+        if (!undoRef.current.undo || busyRef.current) return
+        void run('Undoing', async () => {
+          const label = await window.git.undo(path)
+          shell.showInfo(`Undid: ${label}`)
+        })
+      },
+      redo: () => {
+        if (!undoRef.current.redo || busyRef.current) return
+        void run('Redoing', async () => {
+          const label = await window.git.redo(path)
+          shell.showInfo(`Redid: ${label}`)
+        })
       }
     }),
     [path, refresh, refs, run, shell]
   )
+  actionsRef.current = actions
 
   const commitMenu = (c: Commit, e: React.MouseEvent): void => {
     const branches = c.refs.filter((r) => r.kind === 'branch').map((r) => r.name)
@@ -355,6 +399,7 @@ export function RepoView({
         prs={prs}
         onCreatePr={() => setCreatingPr(true)}
         onViewPr={(pr) => setSelectedPr(pr)}
+        undoInfo={undoInfo}
       />
       {refs ? (
         <Sidebar

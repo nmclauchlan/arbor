@@ -10,7 +10,13 @@ export interface Commit {
   email: string
   date: number
   subject: string
+  body?: string
   refs: Ref[]
+}
+
+export interface UndoInfo {
+  undo: string | null
+  redo: string | null
 }
 
 export type RefKind = 'head' | 'branch' | 'remote' | 'tag' | 'stash'
@@ -110,6 +116,9 @@ export interface GitApi {
   fetch(path: string): Promise<void>
   pull(path: string): Promise<void>
   pullFastForward(path: string): Promise<'updated' | 'up-to-date'>
+  undoInfo(path: string): Promise<UndoInfo>
+  undo(path: string): Promise<string>
+  redo(path: string): Promise<string>
   push(path: string, setUpstream: boolean): Promise<void>
   merge(path: string, ref: string): Promise<void>
   stashPush(path: string, message: string): Promise<void>

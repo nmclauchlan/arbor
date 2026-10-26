@@ -3,6 +3,7 @@ import { join } from 'path'
 import { readFile, writeFile, mkdir, stat } from 'fs/promises'
 import * as gitService from './git'
 import { setupUpdater } from './updater'
+import * as journal from './undo'
 import { getSettings, setSettings } from './settings'
 import { hostApi } from './hosts'
 import type { MainSettings } from '@shared/types'
@@ -94,6 +95,15 @@ function createWindow(): void {
 
 type Handlers = { [K in keyof GitApi]: (...args: Parameters<GitApi[K]>) => ReturnType<GitApi[K]> }
 
+function firstLine(message: string): string {
+  const line = message.split('\n')[0].trim()
+  return line.length > 60 ? line.slice(0, 59) + '…' : line
+}
+
+function shortRef(ref: string): string {
+  return /^[0-9a-f]{40}$/i.test(ref) ? ref.slice(0, 7) : ref
+}
+
 const handlers: Handlers = {
   async selectRepos() {
     const win = BrowserWindow.getFocusedWindow()
@@ -129,30 +139,49 @@ const handlers: Handlers = {
   stage: gitService.stage,
   unstage: gitService.unstage,
   discard: gitService.discard,
-  commit: gitService.commit,
+  commit: (path, message, amend) =>
+    journal.record(path, amend ? 'amend' : 'commit', `${amend ? 'Amend' : 'Commit'} “${firstLine(message)}”`, () =>
+      gitService.commit(path, message, amend)
+    ),
   fileDiff: gitService.fileDiff,
   commitDetails: gitService.commitDetails,
   commitFileDiff: gitService.commitFileDiff,
-  checkout: gitService.checkout,
-  createBranch: gitService.createBranch,
-  deleteBranch: gitService.deleteBranch,
+  checkout: (path, ref) => journal.record(path, 'checkout', `Checkout ${shortRef(ref)}`, () => gitService.checkout(path, ref)),
+  createBranch: (path, name, startPoint, co) =>
+    journal.record(path, 'createBranch', `Create branch ${name}`, () => gitService.createBranch(path, name, startPoint, co), {
+      branchName: name,
+      checkedOut: co
+    }),
+  deleteBranch: (path, name, force) =>
+    journal.record(path, 'deleteBranch', `Delete branch ${name}`, () => gitService.deleteBranch(path, name, force), { branchName: name }),
   fetch: gitService.fetch,
-  pull: gitService.pull,
-  pullFastForward: gitService.pullFastForward,
+  pull: (path) => journal.record(path, 'pull', 'Pull', () => gitService.pull(path)),
+  pullFastForward: (path) => journal.record(path, 'pull', 'Pull', () => gitService.pullFastForward(path)),
+  undoInfo: async (path) => journal.undoInfo(path),
+  undo: journal.undo,
+  redo: journal.redo,
   push: gitService.push,
-  merge: gitService.merge,
+  merge: (path, ref) => journal.record(path, 'merge', `Merge ${shortRef(ref)}`, () => gitService.merge(path, ref)),
   stashPush: gitService.stashPush,
   stashPop: gitService.stashPop,
   stashDrop: gitService.stashDrop,
-  resetTo: gitService.resetTo,
-  cherryPick: gitService.cherryPick,
-  revert: gitService.revert,
+  resetTo: (path, hash, mode) =>
+    journal.record(path, 'reset', `Reset (${mode}) to ${shortRef(hash)}`, () => gitService.resetTo(path, hash, mode), { mode }),
+  cherryPick: (path, hash) => journal.record(path, 'cherryPick', `Cherry-pick ${shortRef(hash)}`, () => gitService.cherryPick(path, hash)),
+  revert: (path, hash) => journal.record(path, 'revert', `Revert ${shortRef(hash)}`, () => gitService.revert(path, hash)),
   readFile: gitService.readFileContent,
   writeFile: gitService.writeFileContent,
   imageDiff: gitService.imageDiff,
   resolveFile: gitService.resolveFile,
   abortOperation: gitService.abortOperation,
-  continueOperation: gitService.continueOperation
+  async continueOperation(path, message) {
+    const op = (await gitService.status(path)).operation
+    if (!op || op.kind === 'rebase') return gitService.continueOperation(path, message)
+    const label = op.kind === 'merge' ? 'Commit merge' : op.kind === 'cherry-pick' ? 'Finish cherry-pick' : 'Finish revert'
+    return journal.record(path, op.kind === 'merge' ? 'merge' : op.kind === 'cherry-pick' ? 'cherryPick' : 'revert', label, () =>
+      gitService.continueOperation(path, message)
+    )
+  }
 }
 
 for (const [name, fn] of Object.entries(handlers)) {

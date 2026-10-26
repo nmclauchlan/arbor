@@ -4,11 +4,15 @@ import type { MainSettings } from '@shared/types'
 export interface Settings extends MainSettings {
   pollInterval: number
   logLimit: number
+  showAvatars: boolean
+  showBodyPreview: boolean
 }
 
 export const SETTINGS_DEFAULTS: Settings = {
   pollInterval: 3,
   logLimit: 5000,
+  showAvatars: true,
+  showBodyPreview: true,
   gitPath: '',
   autoUpdate: true
 }

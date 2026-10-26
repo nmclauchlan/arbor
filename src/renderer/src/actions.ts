@@ -27,4 +27,6 @@ export interface Actions extends Shell {
   revert(hash: string): void
   resetTo(hash: string, mode: 'soft' | 'mixed' | 'hard'): void
   copyHash(hash: string): void
+  undo(): void
+  redo(): void
 }

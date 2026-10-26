@@ -81,7 +81,7 @@ function parseRefs(decorations: string): Ref[] {
 }
 
 export async function log(path: string, limit: number): Promise<Commit[]> {
-  const format = ['%H', '%P', '%an', '%ae', '%at', '%s', '%D'].join(FIELD) + RECORD
+  const format = ['%H', '%P', '%an', '%ae', '%at', '%s', '%D', '%b'].join(FIELD) + RECORD
   const out = await git(path).raw([
     'log', '--branches', '--remotes', '--tags', 'HEAD', '--topo-order', `--format=${format}`, '-n', String(limit)
   ]).catch(() => '')
@@ -89,8 +89,15 @@ export async function log(path: string, limit: number): Promise<Commit[]> {
   for (const rec of out.split(RECORD)) {
     const line = rec.replace(/^\n/, '')
     if (!line.trim()) continue
-    const [hash, parents, author, email, date, subject, refs] = line.split(FIELD)
+    const [hash, parents, author, email, date, subject, refs, body] = line.split(FIELD)
+    const preview = (body ?? '')
+      .split('\n')
+      .map((l) => l.trim())
+      .filter(Boolean)
+      .slice(0, 4)
+      .join(' | ')
     commits.push({
+      body: preview.length > 240 ? preview.slice(0, 239) + '…' : preview || undefined,
       hash,
       parents: parents ? parents.split(' ').filter(Boolean) : [],
       author,
@@ -452,3 +459,5 @@ export async function continueOperation(path: string, message: string): Promise<
     await gitWithEnv({ GIT_EDITOR: 'true' }, path).raw([op.kind, '--continue'])
   }
 }
+
+export const gitFor = git

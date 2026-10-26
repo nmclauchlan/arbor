@@ -178,6 +178,20 @@ export function SettingsDialog({ onClose, suggestBaseUrl }: { onClose: () => voi
               <option value="flat">Flat list</option>
             </select>
           </label>
+          <label className="settings-row">
+            <span>
+              Author avatars in the graph
+              <small>Pictures come from Gravatar and GitHub, looked up by a hash of each author's email</small>
+            </span>
+            <input type="checkbox" checked={settings.showAvatars} onChange={(e) => setSettings({ showAvatars: e.target.checked })} />
+          </label>
+          <label className="settings-row">
+            <span>
+              Commit body preview
+              <small>Show the start of each commit's description after its subject</small>
+            </span>
+            <input type="checkbox" checked={settings.showBodyPreview} onChange={(e) => setSettings({ showBodyPreview: e.target.checked })} />
+          </label>
         </section>
 
         <section className="settings-section">
