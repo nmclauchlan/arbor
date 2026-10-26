@@ -6,8 +6,17 @@ import { dirname, join } from 'path'
 
 const MAIN = join(__dirname, '..', 'out', 'main', 'index.js')
 
+let clock = Date.parse('2026-01-01T09:00:00Z')
+
 export function git(cwd: string, ...args: string[]): string {
-  return execFileSync('git', args, { cwd, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] })
+  const env = { ...process.env }
+  if (args.includes('commit') || args.includes('merge')) {
+    clock += 60_000
+    const stamp = new Date(clock).toISOString()
+    env.GIT_AUTHOR_DATE = stamp
+    env.GIT_COMMITTER_DATE = stamp
+  }
+  return execFileSync('git', args, { cwd, env, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] })
 }
 
 export function tempDir(prefix = 'arbor-e2e-'): string {
