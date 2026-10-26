@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import type { CommitDetails, StatusFile } from '@shared/types'
 import { FileList, FileViewToggle } from './FileList'
+import { Loading } from './Spinner'
 import { canEdit, type FileViewRequest } from './FileViewer'
 import { formatFullDate, revealInFolder, revealLabel, shortHash } from '../util'
 import type { Shell } from '../actions'
@@ -42,7 +43,7 @@ export function CommitPanel({
   const selected = viewing && viewing.source.kind === 'commit' && viewing.source.hash === hash ? viewing.file.path : null
 
   if (error) return <div className="panel"><div className="center">{error}</div></div>
-  if (!details) return <div className="panel"><div className="center">Loading…</div></div>
+  if (!details) return <div className="panel"><Loading /></div>
 
   return (
     <div className="panel">

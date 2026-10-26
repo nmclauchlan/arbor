@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import type { Branch, HostInfo, PullRequest, RemoteBranch, RepoRefs, Stash, Tag } from '@shared/types'
 import type { Actions } from '../actions'
+import { Loading } from './Spinner'
 import { hostName, hostPath, prNoun, prPrefix } from '../util'
 
 function Section({
@@ -48,6 +49,7 @@ export function Sidebar({
   hasAccount,
   prs,
   prError,
+  prsLoaded = true,
   selectedPr,
   onSelectPr
 }: {
@@ -58,6 +60,7 @@ export function Sidebar({
   hasAccount: boolean
   prs: PullRequest[]
   prError: string | null
+  prsLoaded?: boolean
   selectedPr: number | null
   onSelectPr: (pr: PullRequest) => void
 }): React.JSX.Element {
@@ -205,6 +208,7 @@ export function Sidebar({
             </div>
           ) : (
             <>
+              {!prsLoaded && <Loading className="empty" label={`Loading ${prNoun(host.kind)}s…`} />}
               {prError && <div className="empty error-text" title={prError}>{prError}</div>}
               {shownPrs.map((p) => (
                 <div
@@ -218,7 +222,7 @@ export function Sidebar({
                   <span className="name">{p.isDraft ? '[Draft] ' : ''}<Highlight text={p.title} query={q} /></span>
                 </div>
               ))}
-              {shownPrs.length === 0 && !filtering && !prError && <div className="empty">No open {prNoun(host.kind)}s</div>}
+              {prsLoaded && shownPrs.length === 0 && !filtering && !prError && <div className="empty">No open {prNoun(host.kind)}s</div>}
             </>
           )}
         </Section>

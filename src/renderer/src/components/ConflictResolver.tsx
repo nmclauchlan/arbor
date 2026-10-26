@@ -77,6 +77,7 @@ export function ConflictResolver({
   const [error, setError] = useState<string | null>(null)
   const [edited, setEdited] = useState(false)
   const [busy, setBusy] = useState(false)
+  const [action, setAction] = useState<'resolve' | 'ours' | 'theirs' | null>(null)
   const host = useRef<HTMLDivElement>(null)
   const view = useRef<EditorView | null>(null)
   const themeComp = useRef(new Compartment())
@@ -168,6 +169,7 @@ export function ConflictResolver({
       if (!ok) return
     }
     setBusy(true)
+    setAction('resolve')
     try {
       await window.git.resolveFile(repoPath, file, text, null)
       shell.showInfo(`Resolved ${file}`)
@@ -181,6 +183,7 @@ export function ConflictResolver({
 
   const takeWhole = async (side: 'ours' | 'theirs'): Promise<void> => {
     setBusy(true)
+    setAction(side)
     try {
       await window.git.resolveFile(repoPath, file, null, side)
       shell.showInfo(`Resolved ${file} using ${side}`)
@@ -198,15 +201,15 @@ export function ConflictResolver({
     <div className="conflict-resolver">
       <div className="conflict-toolbar">
         <span>
-          {segments ? `${resolvedCount} of ${conflictCount} conflict${conflictCount === 1 ? '' : 's'} resolved` : 'Loading…'}
+          {segments ? `${resolvedCount} of ${conflictCount} conflict${conflictCount === 1 ? '' : 's'} resolved` : <><span className="spinner" aria-hidden /> Loading…</>}
           {edited && <span className="muted"> · result edited by hand</span>}
         </span>
         <span className="spacer" />
         <button disabled={!segments || busy} onClick={() => chooseAll('ours')}>All ours</button>
         <button disabled={!segments || busy} onClick={() => chooseAll('theirs')}>All theirs</button>
-        <button disabled={busy} onClick={() => takeWhole('ours')} title="Take the whole file from our side (git checkout --ours)">File: ours</button>
-        <button disabled={busy} onClick={() => takeWhole('theirs')} title="Take the whole file from their side (git checkout --theirs)">File: theirs</button>
-        <button className="primary" disabled={!segments || busy} onClick={markResolved}>
+        <button disabled={busy} aria-busy={busy && action === 'ours'} onClick={() => takeWhole('ours')} title="Take the whole file from our side (git checkout --ours)">File: ours</button>
+        <button disabled={busy} aria-busy={busy && action === 'theirs'} onClick={() => takeWhole('theirs')} title="Take the whole file from their side (git checkout --theirs)">File: theirs</button>
+        <button className="primary" aria-busy={busy && action === 'resolve'} disabled={!segments || busy} onClick={markResolved}>
           Mark resolved
         </button>
       </div>

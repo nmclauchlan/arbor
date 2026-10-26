@@ -1,4 +1,5 @@
 import { useMemo } from 'react'
+import { Loading } from './Spinner'
 
 interface DiffLine {
   kind: 'add' | 'del' | 'ctx' | 'hunk' | 'meta'
@@ -46,7 +47,7 @@ function parseDiff(text: string): DiffLine[] {
 
 export function DiffView({ text, loading, empty }: { text: string; loading?: boolean; empty?: string }): React.JSX.Element {
   const lines = useMemo(() => parseDiff(text), [text])
-  if (loading) return <div className="diff"><div className="placeholder">Loading…</div></div>
+  if (loading) return <div className="diff"><Loading className="placeholder" /></div>
   if (!text.trim()) return <div className="diff"><div className="placeholder">{empty ?? 'No changes'}</div></div>
   return (
     <div className="diff">

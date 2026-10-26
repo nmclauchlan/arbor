@@ -64,18 +64,16 @@ function parseRefs(decorations: string): Ref[] {
     if (!part) continue
     if (part.startsWith('HEAD -> ')) {
       refs.push({ kind: 'head', name: 'HEAD' })
-      refs.push({ kind: 'branch', name: part.slice(8) })
+      part = part.slice(8)
     } else if (part === 'HEAD') {
       refs.push({ kind: 'head', name: 'HEAD' })
-    } else if (part.startsWith('tag: ')) {
-      refs.push({ kind: 'tag', name: part.slice(5) })
-    } else if (part.startsWith('refs/stash')) {
-      refs.push({ kind: 'stash', name: 'stash' })
-    } else if (part.includes('/')) {
-      refs.push({ kind: 'remote', name: part })
-    } else {
-      refs.push({ kind: 'branch', name: part })
+      continue
     }
+    if (part.startsWith('tag: ')) part = part.slice(5)
+    if (part.startsWith('refs/heads/')) refs.push({ kind: 'branch', name: part.slice(11) })
+    else if (part.startsWith('refs/remotes/')) refs.push({ kind: 'remote', name: part.slice(13) })
+    else if (part.startsWith('refs/tags/')) refs.push({ kind: 'tag', name: part.slice(10) })
+    else if (part.startsWith('refs/stash')) refs.push({ kind: 'stash', name: 'stash' })
   }
   return refs
 }
@@ -83,7 +81,7 @@ function parseRefs(decorations: string): Ref[] {
 export async function log(path: string, limit: number): Promise<Commit[]> {
   const format = ['%H', '%P', '%an', '%ae', '%at', '%s', '%D', '%b'].join(FIELD) + RECORD
   const out = await git(path).raw([
-    'log', '--branches', '--remotes', '--tags', 'HEAD', '--topo-order', `--format=${format}`, '-n', String(limit)
+    'log', '--branches', '--remotes', '--tags', 'HEAD', '--topo-order', '--decorate=full', `--format=${format}`, '-n', String(limit)
   ]).catch(() => '')
   const commits: Commit[] = []
   for (const rec of out.split(RECORD)) {
@@ -340,8 +338,15 @@ export async function push(path: string, setUpstream: boolean): Promise<void> {
   }
 }
 
+async function failOnConflict(path: string, what: string): Promise<void> {
+  if (!(await operationState(path))) return
+  const n = (await status(path)).conflicted.length
+  throw new Error(`CONFLICT: ${what} stopped with ${n} conflicted file${n === 1 ? '' : 's'} to resolve`)
+}
+
 export async function merge(path: string, ref: string): Promise<void> {
   await git(path).raw(['merge', ref])
+  await failOnConflict(path, 'Merge')
 }
 
 export async function stashPush(path: string, message: string): Promise<void> {
@@ -364,10 +369,12 @@ export async function resetTo(path: string, hash: string, mode: 'soft' | 'mixed'
 
 export async function cherryPick(path: string, hash: string): Promise<void> {
   await git(path).raw(['cherry-pick', hash])
+  await failOnConflict(path, 'Cherry-pick')
 }
 
 export async function revert(path: string, hash: string): Promise<void> {
   await git(path).raw(['revert', '--no-edit', hash])
+  await failOnConflict(path, 'Revert')
 }
 
 export async function readFileContent(path: string, file: string): Promise<string> {

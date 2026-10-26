@@ -124,6 +124,7 @@ export function SettingsDialog({ onClose, suggestBaseUrl }: { onClose: () => voi
   const fileView = useFileView()
   const [gitPath, setGitPath] = useState(settings.gitPath)
   const [gitTest, setGitTest] = useState<string | null>(null)
+  const [testing, setTesting] = useState(false)
   const [version, setVersion] = useState('')
 
   useEffect(() => {
@@ -141,12 +142,15 @@ export function SettingsDialog({ onClose, suggestBaseUrl }: { onClose: () => voi
   const applyGitPath = async (): Promise<void> => {
     const trimmed = gitPath.trim()
     setGitTest(null)
+    setTesting(true)
     setSettings({ gitPath: trimmed })
     try {
       const v = await window.git.gitVersion()
       setGitTest(v.trim())
     } catch (e) {
       setGitTest(`Error: ${errorMessage(e)}`)
+    } finally {
+      setTesting(false)
     }
   }
 
@@ -248,7 +252,7 @@ export function SettingsDialog({ onClose, suggestBaseUrl }: { onClose: () => voi
                   if (e.key === 'Enter') void applyGitPath()
                 }}
               />
-              <button onClick={() => void applyGitPath()}>Apply &amp; test</button>
+              <button aria-busy={testing} disabled={testing} onClick={() => void applyGitPath()}>Apply &amp; test</button>
             </span>
           </label>
           {gitTest && <div className={`settings-note${gitTest.startsWith('Error') ? ' error' : ''}`}>{gitTest}</div>}

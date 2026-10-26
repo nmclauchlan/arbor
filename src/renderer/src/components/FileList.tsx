@@ -118,7 +118,11 @@ export function FileList({
 }): React.JSX.Element {
   const view = useFileView()
   const [collapsed, setCollapsed] = useState<Set<string>>(new Set())
-  const tree = useMemo(() => (view === 'tree' ? compact(buildTree(files)) : null), [files, view])
+  const tree = useMemo(() => {
+    if (view !== 'tree') return null
+    const root = buildTree(files)
+    return { ...root, dirs: new Map([...root.dirs].map(([k, v]) => [k, compact(v)])) }
+  }, [files, view])
 
   const toggle = (path: string): void => {
     setCollapsed((s) => {

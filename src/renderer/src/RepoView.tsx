@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { Commit, HostInfo, PullRequest, RepoInfo, RepoRefs, RepoStatus, UndoInfo } from '@shared/types'
 import { CreatePrDialog } from './components/CreatePrDialog'
+import { Loading } from './components/Spinner'
 import { PrPanel } from './components/PrPanel'
 import type { Actions, Shell } from './actions'
 import { CommitList } from './components/CommitList'
@@ -49,6 +50,7 @@ export function RepoView({
   const [hasAccount, setHasAccount] = useState(false)
   const [prs, setPrs] = useState<PullRequest[]>([])
   const [prError, setPrError] = useState<string | null>(null)
+  const [prsLoaded, setPrsLoaded] = useState(false)
   const [selectedPr, setSelectedPr] = useState<PullRequest | null>(null)
   const [prRefresh, setPrRefresh] = useState(0)
   const [creatingPr, setCreatingPr] = useState(false)
@@ -66,6 +68,8 @@ export function RepoView({
       setPrRefresh((n) => n + 1)
     } catch (e) {
       setPrError(errorMessage(e))
+    } finally {
+      setPrsLoaded(true)
     }
   }, [repo.path])
   const lastRefsJson = useRef('')
@@ -207,9 +211,16 @@ export function RepoView({
     return [wip, ...commits]
   }, [commits, hasWip, refs, status])
 
+  const wantWip = useRef(false)
   useEffect(() => {
     if (!rows.length) return
+    if (wantWip.current && rows[0].hash === WIP_HASH) {
+      wantWip.current = false
+      if (selected !== WIP_HASH) setSelected(WIP_HASH)
+      return
+    }
     if (selected && rows.some((c) => c.hash === selected)) return
+    if (wantWip.current) return
     setSelected(rows[0].hash)
   }, [rows, selected])
 
@@ -236,6 +247,7 @@ export function RepoView({
     } catch (e) {
       if (!/CONFLICT|could not apply/i.test(errorMessage(e))) throw e
       shell.showInfo('There are conflicts to resolve')
+      wantWip.current = true
       setSelected(WIP_HASH)
     }
   }
@@ -280,6 +292,7 @@ export function RepoView({
           } catch (e) {
             if (!/CONFLICT/.test(errorMessage(e))) throw e
             shell.showInfo(`Merge of ${ref} has conflicts to resolve`)
+            wantWip.current = true
             setSelected(WIP_HASH)
           }
         }),
@@ -394,6 +407,7 @@ export function RepoView({
         repo={repo}
         refs={refs}
         busy={!!busy}
+        busyLabel={busy}
         actions={actions}
         host={host}
         prs={prs}
@@ -410,6 +424,7 @@ export function RepoView({
           hasAccount={hasAccount}
           prs={prs}
           prError={prError}
+          prsLoaded={prsLoaded}
           selectedPr={selectedPr?.id ?? null}
           onSelectPr={(pr) => setSelectedPr(pr)}
         />
@@ -441,6 +456,7 @@ export function RepoView({
           }}
           onContextMenu={commitMenu}
           scrollTarget={scrollTarget}
+          loading={!refs}
         />
       )}
       <Splitter
@@ -458,7 +474,7 @@ export function RepoView({
         <CommitPanel repoPath={path} hash={selected} shell={shell} viewing={viewing} onView={setViewing} />
       ) : (
         <div className="panel">
-          <div className="center">{refs && !commits.length ? 'No commits yet' : 'Loading…'}</div>
+          {refs && !commits.length ? <div className="center">No commits yet</div> : <Loading />}
         </div>
       )}
       {creatingPr && host && refs && (

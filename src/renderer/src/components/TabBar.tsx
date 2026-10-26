@@ -293,7 +293,7 @@ export function TabBar({
         {group.name}
         {groupProgress[group.id] ? (
           <span className="count pulling" title="Pulling">
-            ⟳ {groupProgress[group.id].done}/{groupProgress[group.id].total}
+            <span className="spinner" aria-hidden /> {groupProgress[group.id].done}/{groupProgress[group.id].total}
           </span>
         ) : (
           <span className="count">{count}</span>

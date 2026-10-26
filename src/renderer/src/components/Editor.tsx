@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
+import { Loading } from './Spinner'
 import { Compartment, EditorState } from '@codemirror/state'
 import { EditorView, keymap } from '@codemirror/view'
 import { indentWithTab } from '@codemirror/commands'
@@ -79,11 +80,13 @@ export function Editor({
   const view = useRef<EditorView | null>(null)
   const themeComp = useRef(new Compartment())
   const [dirty, setDirty] = useState(false)
+  const [saving, setSaving] = useState(false)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
   const save = useCallback(async (): Promise<boolean> => {
     if (!view.current) return false
+    setSaving(true)
     try {
       await window.git.writeFile(repoPath, file, view.current.state.doc.toString())
       setDirty(false)
@@ -92,6 +95,8 @@ export function Editor({
     } catch (e) {
       shell.showError(errorMessage(e))
       return false
+    } finally {
+      setSaving(false)
     }
   }, [repoPath, file, onSaved, shell])
   const saveRef = useRef(save)
@@ -163,8 +168,8 @@ export function Editor({
           {file}
           {dirty ? ' •' : ''}
         </span>
-        <button className="primary" disabled={!dirty || loading} onClick={() => void save()} title="Ctrl+S">
-          Save
+        <button className="primary" aria-busy={saving} disabled={!dirty || loading || saving} onClick={() => void save()} title="Ctrl+S">
+          {saving ? 'Saving…' : 'Save'}
         </button>
         <button onClick={() => void close()}>Close</button>
       </div>
@@ -172,7 +177,7 @@ export function Editor({
         <div className="center">{error}</div>
       ) : (
         <div className="editor-host" ref={host}>
-          {loading && <div className="center">Loading…</div>}
+          {loading && <Loading />}
         </div>
       )}
     </div>

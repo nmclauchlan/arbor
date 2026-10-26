@@ -66,6 +66,16 @@ npx electron . C:\path\to\repo
 - `npm run dist` builds installers for the current platform into `release/`
 - `npm run icon` re-renders `build/icon.svg` to `build/icon.png`
 
+### Testing
+
+End-to-end tests drive the built app with [Playwright](https://playwright.dev) against throwaway repositories, so they never touch your own data:
+
+```bash
+npm run test:e2e
+```
+
+They cover the welcome screen and settings, the graph's branch column, badges and body previews, column resizing, staging and committing, discarding, file previews, branch creation, checkout and deletion with undo and redo, resolving and aborting merge conflicts, tab groups and Pull all, and the loading indicators. CI runs them on every push and only publishes a release when they pass.
+
 ### Layout
 
 - `src/main` Electron main process. `git.ts` wraps the git CLI; `index.ts` creates the window and exposes each git function over IPC; `updater.ts` handles updates.

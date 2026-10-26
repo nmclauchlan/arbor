@@ -5,6 +5,7 @@ import { formatDate, shortHash, WIP_HASH } from '../util'
 import { resetLayout, setLayout, useLayout, type Layout } from '../layout'
 import { useSettings } from '../settings'
 import { Avatar } from '../avatars'
+import { Loading } from './Spinner'
 
 const ROW_H = 28
 const MAX_LANES = 14
@@ -188,13 +189,15 @@ export function CommitList({
   selected,
   onSelect,
   onContextMenu,
-  scrollTarget
+  scrollTarget,
+  loading = false
 }: {
   commits: Commit[]
   selected: string | null
   onSelect: (hash: string) => void
   onContextMenu: (commit: Commit, e: React.MouseEvent) => void
   scrollTarget: { hash: string; n: number } | null
+  loading?: boolean
 }): React.JSX.Element {
   const layout = useMemo(() => layoutGraph(commits), [commits])
   const container = useRef<HTMLDivElement>(null)
@@ -310,6 +313,7 @@ export function CommitList({
     <div className="commit-list">
       <Header graphCol={graphCol} cols={cols} />
       <div className="commit-scroll" ref={container}>
+        {loading && total === 0 && <Loading label="Loading history…" />}
         <div className="rows" style={{ height: total * ROW_H }}>
           <div className="graph-clip" style={{ left: cols.colRefs + GAP, width: graphCol, height: total * ROW_H }}>
             <svg className="graph" width={graphWidth} height={total * ROW_H}>

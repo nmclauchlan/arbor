@@ -767,6 +767,24 @@ button[aria-busy='true']::before {
 }
 button[aria-busy='true']::before { margin-right: 6px; vertical-align: -1px; }
 
+.spinner {
+  display: inline-block;
+  flex: none;
+  width: 12px;
+  height: 12px;
+  box-sizing: border-box;
+  border: 1.5px solid currentColor;
+  border-right-color: transparent;
+  border-radius: 50%;
+  vertical-align: -2px;
+  animation: activity-spin 800ms linear infinite;
+}
+.loading { gap: 8px; color: var(--fg-dim); }
+.loading:not(.center) { display: flex; align-items: center; }
+.tab-group .count.pulling { display: inline-flex; align-items: center; gap: 4px; }
+.tab-group .count.pulling .spinner { width: 9px; height: 9px; border-width: 1.5px; }
+.commit-scroll > .loading { position: absolute; inset: 0; }
+
 @keyframes fade-enter {
   from { opacity: 0; }
   to { opacity: 1; }

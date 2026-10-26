@@ -23,7 +23,7 @@ export function WorkingTree({
 }): React.JSX.Element {
   const [message, setMessage] = useState('')
   const [amend, setAmend] = useState(false)
-  const [working, setWorking] = useState(false)
+  const [working, setWorking] = useState<string | null>(null)
   const operation = status.operation
   const conflicted = new Set(status.conflicted)
   const conflictFiles = status.unstaged.filter((f) => conflicted.has(f.path))
@@ -40,27 +40,27 @@ export function WorkingTree({
     if (!list.some((f) => f.path === viewing.file.path)) onView(null)
   }, [status, viewing, onView])
 
-  const run = async (fn: () => Promise<void>): Promise<void> => {
-    setWorking(true)
+  const run = async (fn: () => Promise<void>, key = 'action'): Promise<void> => {
+    setWorking(key)
     try {
       await fn()
     } catch (e) {
       actions.showError(errorMessage(e))
     } finally {
-      setWorking(false)
+      setWorking(null)
       actions.refresh()
     }
   }
 
-  const stage = (files: string[]): Promise<void> => run(() => window.git.stage(repoPath, files))
-  const unstage = (files: string[]): Promise<void> => run(() => window.git.unstage(repoPath, files))
+  const stage = (files: string[], key = 'stage'): Promise<void> => run(() => window.git.stage(repoPath, files), key)
+  const unstage = (files: string[], key = 'unstage'): Promise<void> => run(() => window.git.unstage(repoPath, files), key)
   const discard = async (files: string[]): Promise<void> => {
     const ok = await actions.confirm(
       'Discard changes',
       `Discard changes to ${files.length === 1 ? files[0] : `${files.length} files`}? This cannot be undone.`,
       true
     )
-    if (ok) await run(() => window.git.discard(repoPath, files))
+    if (ok) await run(() => window.git.discard(repoPath, files), 'discard')
   }
 
   const commit = async (): Promise<void> => {
@@ -69,7 +69,7 @@ export function WorkingTree({
       await window.git.commit(repoPath, message.trim(), amend)
       setMessage('')
       setAmend(false)
-    })
+    }, 'commit')
   }
 
   const view = (area: Area, file: StatusFile, mode: 'diff' | 'edit' | 'conflict'): void => {
@@ -83,14 +83,14 @@ export function WorkingTree({
   const abort = async (): Promise<void> => {
     if (!operation) return
     const ok = await actions.confirm(`Abort ${operation.kind}`, `Abort the ${operation.kind} in progress and restore the previous state?`, true)
-    if (ok) await run(() => window.git.abortOperation(repoPath))
+    if (ok) await run(() => window.git.abortOperation(repoPath), 'abort')
   }
 
   const continueOp = async (): Promise<void> => {
     await run(async () => {
       await window.git.continueOperation(repoPath, message)
       setMessage('')
-    })
+    }, 'continue')
   }
 
   const fileMenu =
@@ -165,8 +165,8 @@ export function WorkingTree({
                 : operation.message || 'All conflicts resolved'}
             </span>
           </div>
-          <button disabled={working} onClick={abort}>Abort</button>
-          <button className="primary" disabled={working || conflictFiles.length > 0} onClick={continueOp}>
+          <button disabled={!!working} aria-busy={working === 'abort'} onClick={abort}>Abort</button>
+          <button className="primary" disabled={!!working || conflictFiles.length > 0} aria-busy={working === 'continue'} onClick={continueOp}>
             {operation.kind === 'merge' ? 'Commit merge' : 'Continue'}
           </button>
         </div>
@@ -195,7 +195,7 @@ export function WorkingTree({
         )}
         <div className="file-group-title">
           <span>Unstaged ({unstagedFiles.length})</span>
-          <button disabled={working || !unstagedFiles.length} onClick={() => stage(unstagedPaths)}>
+          <button disabled={!!working || !unstagedFiles.length} aria-busy={working === 'stage-all'} onClick={() => stage(unstagedPaths, 'stage-all')}>
             Stage all
           </button>
         </div>
@@ -215,7 +215,7 @@ export function WorkingTree({
         />
         <div className="file-group-title">
           <span>Staged ({status.staged.length})</span>
-          <button disabled={working || !status.staged.length} onClick={() => unstage(stagedPaths)}>
+          <button disabled={!!working || !status.staged.length} aria-busy={working === 'unstage-all'} onClick={() => unstage(stagedPaths, 'unstage-all')}>
             Unstage all
           </button>
         </div>
@@ -248,11 +248,11 @@ export function WorkingTree({
           </label>
           <div style={{ flex: 1 }} />
           {operation ? (
-            <button className="primary" disabled={working || conflictFiles.length > 0} onClick={continueOp}>
+            <button className="primary" disabled={!!working || conflictFiles.length > 0} aria-busy={working === 'continue'} onClick={continueOp}>
               {operation.kind === 'merge' ? 'Commit merge' : `Continue ${operation.kind}`}
             </button>
           ) : (
-            <button className="primary" disabled={working || !canCommit} onClick={commit}>
+            <button className="primary" disabled={!!working || !canCommit} aria-busy={working === 'commit'} onClick={commit}>
               {amend ? 'Amend commit' : `Commit ${status.staged.length ? `(${status.staged.length})` : ''}`}
             </button>
           )}

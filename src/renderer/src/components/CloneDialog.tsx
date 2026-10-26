@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
+import { Loading } from './Spinner'
 import type { HostAccount, HostRepo } from '@shared/types'
 import { errorMessage, formatDate, hostName } from '../util'
 
@@ -158,7 +159,7 @@ export function CloneDialog({
           <>
             <input autoFocus value={query} placeholder="Search repositories" spellCheck={false} onChange={(e) => setQuery(e.target.value)} />
             <div className="clone-list">
-              {current === undefined && <div className="clone-empty">Loading repositories…</div>}
+              {current === undefined && <Loading className="clone-empty" label="Loading repositories…" />}
               {typeof current === 'string' && <div className="clone-empty error-text">{current}</div>}
               {Array.isArray(current) && filtered.length === 0 && (
                 <div className="clone-empty">{query ? `No repositories match “${query}”` : 'No repositories found'}</div>

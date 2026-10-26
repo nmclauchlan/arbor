@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import type { ImageDiffResult, ImageSource } from '@shared/types'
 import { errorMessage } from '../util'
+import { Loading } from './Spinner'
 
 type Mode = 'two-up' | 'swipe' | 'onion' | 'difference'
 
@@ -113,7 +114,7 @@ export function ImageDiff({
   }, [repoPath, file, oldPath, sourceKey])
 
   if (error) return <div className="image-diff"><div className="center">{error}</div></div>
-  if (!result) return <div className="image-diff"><div className="center">Loading…</div></div>
+  if (!result) return <div className="image-diff"><Loading /></div>
 
   const oldSrc = result.oldData ? dataUrl(result.mime, result.oldData) : null
   const newSrc = result.newData ? dataUrl(result.mime, result.newData) : null

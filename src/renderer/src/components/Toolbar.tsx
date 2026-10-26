@@ -6,6 +6,7 @@ export function Toolbar({
   repo,
   refs,
   busy,
+  busyLabel = null,
   actions,
   host,
   prs,
@@ -16,6 +17,7 @@ export function Toolbar({
   repo: RepoInfo
   refs: RepoRefs | null
   busy: boolean
+  busyLabel?: string | null
   actions: Actions
   host: HostInfo | null
   prs: PullRequest[]
@@ -35,6 +37,7 @@ export function Toolbar({
         <button
           disabled={busy || !undoInfo.undo}
           onClick={actions.undo}
+          aria-busy={busyLabel === 'Undoing'}
           title={undoInfo.undo ? `Undo ${undoInfo.undo} (${mod}Z)` : 'Nothing to undo'}
           aria-label="Undo"
         >
@@ -43,31 +46,33 @@ export function Toolbar({
         <button
           disabled={busy || !undoInfo.redo}
           onClick={actions.redo}
+          aria-busy={busyLabel === 'Redoing'}
           title={undoInfo.redo ? `Redo ${undoInfo.redo} (${mod}Shift+Z)` : 'Nothing to redo'}
           aria-label="Redo"
         >
           ↷ Redo
         </button>
       </span>
-      <button disabled={busy} onClick={actions.fetch} title="git fetch --all --prune">
+      <button disabled={busy} aria-busy={busyLabel === 'Fetching'} onClick={actions.fetch} title="git fetch --all --prune">
         ⟳ Fetch
       </button>
-      <button disabled={busy} onClick={actions.pull} title="git pull">
+      <button disabled={busy} aria-busy={busyLabel === 'Pulling'} onClick={actions.pull} title="git pull">
         ⇣ Pull
         {current?.behind ? <span className="badge">{current.behind}</span> : null}
       </button>
-      <button disabled={busy} onClick={actions.push} title="git push">
+      <button disabled={busy} aria-busy={busyLabel === 'Pushing'} onClick={actions.push} title="git push">
         ⇡ Push
         {current?.ahead ? <span className="badge">{current.ahead}</span> : null}
       </button>
-      <button disabled={busy} onClick={() => actions.createBranch('HEAD')} title="Create a branch at HEAD">
+      <button disabled={busy} aria-busy={busyLabel === 'Creating branch'} onClick={() => actions.createBranch('HEAD')} title="Create a branch at HEAD">
         ⑂ Branch
       </button>
-      <button disabled={busy} onClick={actions.stash} title="git stash push --include-untracked">
+      <button disabled={busy} aria-busy={busyLabel === 'Stashing'} onClick={actions.stash} title="git stash push --include-untracked">
         ▣ Stash
       </button>
       <button
         disabled={busy || !refs?.stashes.length}
+        aria-busy={busyLabel === 'Popping stash'}
         onClick={() => actions.stashPop(0)}
         title="git stash pop"
       >

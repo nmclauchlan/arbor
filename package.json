@@ -1,7 +1,7 @@
 {
   "name": "arbor",
   "productName": "Arbor",
-  "version": "0.16.0",
+  "version": "0.17.0",
   "description": "A desktop git client with a branching commit graph, built with Electron",
   "main": "./out/main/index.js",
   "private": true,
@@ -11,7 +11,8 @@
     "preview": "electron-vite preview",
     "typecheck": "tsc --noEmit -p tsconfig.node.json && tsc --noEmit -p tsconfig.web.json",
     "dist": "electron-vite build && electron-builder",
-    "icon": "electron scripts/render-icon.mjs"
+    "icon": "electron scripts/render-icon.mjs",
+    "test:e2e": "electron-vite build && playwright test"
   },
   "build": {
     "appId": "com.arbor.app",
@@ -58,6 +59,7 @@
     }
   },
   "devDependencies": {
+    "@playwright/test": "^1.64.1",
     "@types/node": "^26.6.5",
     "@types/react": "^19.1.0",
     "@types/react-dom": "^19.1.0",

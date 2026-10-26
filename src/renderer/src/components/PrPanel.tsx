@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { Loading } from './Spinner'
 import type { HostInfo, PullRequest, PullRequestDetails } from '@shared/types'
 import type { Actions } from '../actions'
 import { errorMessage, formatFullDate, hostPath, prPrefix } from '../util'
@@ -83,7 +84,7 @@ export function PrPanel({
         })}
         <div className="file-group-title"><span>Checks ({d.checks.length})</span></div>
         {details && d.checks.length === 0 && <div className="empty">No policies or builds reported</div>}
-        {!details && !error && <div className="empty">Loading…</div>}
+        {!details && !error && <Loading className="empty" />}
         {d.checks.map((c, i) => (
           <div key={i} className="pr-row" onClick={() => c.url && window.open(c.url)} style={{ cursor: c.url ? 'pointer' : 'default' }}>
             <span className={`pr-check ${c.state}`}>●</span>

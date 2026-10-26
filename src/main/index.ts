@@ -9,7 +9,8 @@ import { hostApi } from './hosts'
 import type { MainSettings } from '@shared/types'
 import type { GitApi, RepoInfo } from '@shared/types'
 
-if (!app.isPackaged) app.setPath('userData', join(app.getPath('appData'), 'Arbor Dev'))
+if (process.env['ARBOR_USER_DATA']) app.setPath('userData', process.env['ARBOR_USER_DATA'])
+else if (!app.isPackaged) app.setPath('userData', join(app.getPath('appData'), 'Arbor Dev'))
 
 const isPrimary = app.requestSingleInstanceLock()
 if (!isPrimary) app.quit()
