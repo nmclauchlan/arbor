@@ -22,6 +22,8 @@ export function TabBar({
   onCreateGroup,
   onUpdateGroup,
   onUngroup,
+  onPullGroup,
+  groupProgress,
   onOpenInto,
   onClone,
   onNewGroup,
@@ -42,6 +44,8 @@ export function TabBar({
   onCreateGroup: (name: string, paths: string[]) => void
   onUpdateGroup: (id: string, patch: Partial<TabGroup>) => void
   onUngroup: (id: string) => void
+  onPullGroup: (id: string) => void
+  groupProgress: Record<string, { done: number; total: number }>
   onOpenInto: (group?: string) => void
   onClone: (group?: string) => void
   onNewGroup: () => void
@@ -145,7 +149,14 @@ export function TabBar({
   const groupMenu = (e: React.MouseEvent, group: TabGroup): void => {
     e.preventDefault()
     const members = tabs.filter((t) => t.group === group.id).map((t) => t.path)
+    const pulling = !!groupProgress[group.id]
     shell.openMenu(e, [
+      {
+        label: pulling ? `Pulling… (${groupProgress[group.id].done}/${groupProgress[group.id].total})` : `Pull all (${members.length})`,
+        disabled: pulling || !members.length,
+        onClick: () => onPullGroup(group.id)
+      },
+      { separator: true },
       { label: 'Open repository into group…', onClick: () => onOpenInto(group.id) },
       { label: 'Clone repository into group…', onClick: () => onClone(group.id) },
       {
@@ -277,7 +288,13 @@ export function TabBar({
         }}
       >
         {group.name}
-        <span className="count">{count}</span>
+        {groupProgress[group.id] ? (
+          <span className="count pulling" title="Pulling">
+            ⟳ {groupProgress[group.id].done}/{groupProgress[group.id].total}
+          </span>
+        ) : (
+          <span className="count">{count}</span>
+        )}
         <span className="caret">{isOpen ? '▴' : '▾'}</span>
       </div>
     )

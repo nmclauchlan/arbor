@@ -109,6 +109,7 @@ export interface GitApi {
   deleteBranch(path: string, name: string, force: boolean): Promise<void>
   fetch(path: string): Promise<void>
   pull(path: string): Promise<void>
+  pullFastForward(path: string): Promise<'updated' | 'up-to-date'>
   push(path: string, setUpstream: boolean): Promise<void>
   merge(path: string, ref: string): Promise<void>
   stashPush(path: string, message: string): Promise<void>

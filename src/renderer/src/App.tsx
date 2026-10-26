@@ -27,6 +27,7 @@ interface Toast {
 export default function App(): React.JSX.Element {
   const [tabs, setTabs] = useState<Tab[]>([])
   const [groups, setGroups] = useState<TabGroup[]>([])
+  const [groupProgress, setGroupProgress] = useState<Record<string, { done: number; total: number }>>({})
   const [activePath, setActivePath] = useState<string | null>(null)
   const [recent, setRecent] = useState<RepoInfo[]>([])
   const [toast, setToast] = useState<Toast | null>(null)
@@ -184,6 +185,58 @@ export default function App(): React.JSX.Element {
   const updateGroup = (id: string, patch: Partial<TabGroup>): void =>
     setGroups((gs) => gs.map((g) => (g.id === id ? { ...g, ...patch } : g)))
 
+  const pullGroup = async (id: string): Promise<void> => {
+    const group = groups.find((g) => g.id === id)
+    const members = tabs.filter((t) => t.group === id)
+    if (!group || !members.length) return
+    const total = members.length
+    let done = 0
+    setGroupProgress((p) => ({ ...p, [id]: { done, total } }))
+    const updated: string[] = []
+    const current: string[] = []
+    const failed: { name: string; reason: string }[] = []
+    const queue = [...members]
+    const worker = async (): Promise<void> => {
+      for (let t = queue.shift(); t; t = queue.shift()) {
+        try {
+          const result = await window.git.pullFastForward(t.path)
+          ;(result === 'updated' ? updated : current).push(t.name)
+        } catch (e) {
+          const msg = errorMessage(e)
+          const reason = /not possible to fast-forward|diverg/i.test(msg)
+            ? 'branch has diverged; pull it on its own to merge or rebase'
+            : /no tracking information|no such ref was fetched/i.test(msg)
+              ? 'no upstream branch'
+              : /would be overwritten|local changes/i.test(msg)
+                ? 'local changes would be overwritten'
+                : /not a git repository|does not exist|cannot use simple-git/i.test(msg)
+                  ? 'repository not found'
+                  : msg.split('\n').find((l) => l.trim())?.replace(/^(fatal|error|hint):\s*/i, '') ?? msg
+          failed.push({ name: t.name, reason })
+        } finally {
+          done++
+          setGroupProgress((p) => ({ ...p, [id]: { done, total } }))
+        }
+      }
+    }
+    await Promise.all(Array.from({ length: Math.min(4, total) }, worker))
+    setGroupProgress((p) => {
+      const next = { ...p }
+      delete next[id]
+      return next
+    })
+    const parts: string[] = []
+    if (updated.length) parts.push(`Updated ${updated.length}: ${updated.join(', ')}`)
+    if (current.length) parts.push(`Already up to date: ${current.length}`)
+    if (failed.length) {
+      showError(
+        [`Pulled ${group.name}: ${total - failed.length} of ${total} succeeded`, ...parts, '', ...failed.map((f) => `${f.name}: ${f.reason}`)].join('\n')
+      )
+    } else {
+      showInfo([`Pulled ${group.name}`, ...parts].join('\n'))
+    }
+  }
+
   const ungroup = (id: string): void => {
     setTabs((list) => list.map((t) => (t.group === id ? { ...t, group: undefined } : t)))
     setGroups((gs) => gs.filter((g) => g.id !== id))
@@ -210,6 +263,8 @@ export default function App(): React.JSX.Element {
           onCreateGroup={createGroup}
           onUpdateGroup={updateGroup}
           onUngroup={ungroup}
+          onPullGroup={(id) => void pullGroup(id)}
+          groupProgress={groupProgress}
           onOpenInto={openInto}
           onClone={cloneRepo}
           onNewGroup={newGroup}

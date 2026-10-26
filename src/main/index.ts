@@ -138,6 +138,7 @@ const handlers: Handlers = {
   deleteBranch: gitService.deleteBranch,
   fetch: gitService.fetch,
   pull: gitService.pull,
+  pullFastForward: gitService.pullFastForward,
   push: gitService.push,
   merge: gitService.merge,
   stashPush: gitService.stashPush,

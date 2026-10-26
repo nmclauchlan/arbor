@@ -315,6 +315,14 @@ export async function pull(path: string): Promise<void> {
   await git(path).raw(['pull'])
 }
 
+export async function pullFastForward(path: string): Promise<'updated' | 'up-to-date'> {
+  const g = git(path)
+  const before = (await g.revparse(['HEAD']).catch(() => '')).trim()
+  await g.raw(['pull', '--ff-only'])
+  const after = (await g.revparse(['HEAD']).catch(() => '')).trim()
+  return before === after ? 'up-to-date' : 'updated'
+}
+
 export async function push(path: string, setUpstream: boolean): Promise<void> {
   const g = git(path)
   if (setUpstream) {
