@@ -11,6 +11,9 @@ test('the bell lists incoming commits after a fetch, opens them and pulls them',
 
   const { page, close } = await launch(repo)
   try {
+    await page.evaluate(() => localStorage.setItem('arbor.settings', JSON.stringify({ pollInterval: 60 })))
+    await page.reload()
+    await expect(view(page).locator('.commit-row').first()).toBeVisible()
     const bell = page.getByRole('button', { name: /^Notifications/ })
     await bell.click()
     const panel = page.locator('.notifications-panel')

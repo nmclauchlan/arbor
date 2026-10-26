@@ -213,17 +213,28 @@ export function RepoView({
     return [wip, ...commits]
   }, [commits, hasWip, refs, status])
 
+  const wantHash = useRef<string | null>(null)
   useEffect(() => {
     if (!focus) return
     setSelectedPr(null)
     setViewing(null)
+    wantHash.current = focus.hash
     setSelected(focus.hash)
     setScrollTarget((t) => ({ hash: focus.hash, n: (t?.n ?? 0) + 1 }))
-  }, [focus])
+    refresh()
+  }, [focus, refresh])
 
   const wantWip = useRef(false)
   useEffect(() => {
     if (!rows.length) return
+    if (wantHash.current) {
+      const h = wantHash.current
+      if (!rows.some((c) => c.hash === h)) return
+      wantHash.current = null
+      if (selected !== h) setSelected(h)
+      setScrollTarget((t) => ({ hash: h, n: (t?.n ?? 0) + 1 }))
+      return
+    }
     if (wantWip.current && rows[0].hash === WIP_HASH) {
       wantWip.current = false
       if (selected !== WIP_HASH) setSelected(WIP_HASH)
@@ -464,6 +475,7 @@ export function RepoView({
           commits={rows}
           selected={selected}
           onSelect={(hash) => {
+            wantHash.current = null
             setSelectedPr(null)
             setSelected(hash)
           }}
