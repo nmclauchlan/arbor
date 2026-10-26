@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test'
-import { commit, git, launch, repoWithRemote, tempDir, view } from './helpers'
+import { commit, git, initRepo, launch, repoWithRemote, tempDir, view } from './helpers'
 
 test('the bell lists incoming commits after a fetch, opens them and pulls them', async () => {
   const root = tempDir()
@@ -39,6 +39,33 @@ test('the bell lists incoming commits after a fetch, opens them and pulls them',
     await expect(page.locator('.toast')).toContainText('Pulled repo')
     await expect(panel.locator('.notifications-branch')).toHaveCount(0)
     expect(git(repo, 'rev-parse', 'HEAD').trim()).toBe(latest)
+  } finally {
+    await close()
+  }
+})
+
+test('the notifications panel sits below the bell and closes while a check is still running', async () => {
+  const repo = initRepo(tempDir())
+  commit(repo, 'a.txt', 'a\n', 'Initial')
+  git(repo, 'remote', 'add', 'origin', 'http://10.255.255.1/unreachable.git')
+  const { page, close } = await launch(repo)
+  try {
+    const bell = page.getByRole('button', { name: /^Notifications/ })
+    const panel = page.locator('.notifications-panel')
+    for (const method of ['bell', 'outside', 'escape'] as const) {
+      await bell.click()
+      await expect(panel).toBeVisible()
+      const bellBox = (await bell.boundingBox())!
+      const panelBox = (await panel.boundingBox())!
+      expect(panelBox.y).toBeGreaterThanOrEqual(bellBox.y + bellBox.height)
+      const check = panel.locator('.notifications-head button')
+      if (await check.isEnabled()) await check.click()
+      await expect(panel.getByRole('button', { name: /Checking/ })).toBeVisible()
+      if (method === 'bell') await bell.click()
+      if (method === 'outside') await page.mouse.click(300, 500)
+      if (method === 'escape') await page.keyboard.press('Escape')
+      await expect(panel, `closing with ${method} while checking`).toBeHidden()
+    }
   } finally {
     await close()
   }

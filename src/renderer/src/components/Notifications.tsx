@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react'
+import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import type { IncomingBranch } from '@shared/types'
 import { formatDate, shortHash } from '../util'
 import { Spinner } from './Spinner'
@@ -41,6 +41,20 @@ export function NotificationsPanel({
   onClose: () => void
 }): React.JSX.Element {
   const ref = useRef<HTMLDivElement>(null)
+  const [pos, setPos] = useState<React.CSSProperties>({ visibility: 'hidden' })
+
+  useLayoutEffect(() => {
+    const place = (): void => {
+      const bell = document.querySelector('.notifications-btn')
+      if (!bell) return
+      const rect = bell.getBoundingClientRect()
+      const top = Math.round(rect.bottom + 6)
+      setPos({ top, right: Math.max(8, Math.round(window.innerWidth - rect.right - 4)), maxHeight: `calc(100vh - ${top + 16}px)` })
+    }
+    place()
+    window.addEventListener('resize', place)
+    return () => window.removeEventListener('resize', place)
+  }, [])
 
   useEffect(() => {
     const down = (e: MouseEvent): void => {
@@ -61,7 +75,7 @@ export function NotificationsPanel({
   const total = withIncoming.reduce((n, r) => n + r.branches.reduce((m, b) => m + b.behind, 0), 0)
 
   return (
-    <div className="notifications-panel" ref={ref} role="dialog" aria-label="Incoming commits">
+    <div className="notifications-panel" ref={ref} style={pos} role="dialog" aria-label="Incoming commits">
       <div className="notifications-head">
         <strong>Incoming commits</strong>
         <span className="muted">
