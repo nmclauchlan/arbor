@@ -1,0 +1,42 @@
+import { expect, test } from '@playwright/test'
+import { commit, git, launch, repoWithRemote, tempDir, view } from './helpers'
+
+test('the bell lists incoming commits after a fetch, opens them and pulls them', async () => {
+  const root = tempDir()
+  const { repo, other } = repoWithRemote(root)
+  commit(other, 'one.txt', '1\n', 'Remote change one')
+  commit(other, 'two.txt', '2\n', 'Remote change two')
+  git(other, 'push', '-q', 'origin', 'main')
+  const latest = git(other, 'rev-parse', 'HEAD').trim()
+
+  const { page, close } = await launch(repo)
+  try {
+    const bell = page.getByRole('button', { name: /^Notifications/ })
+    await bell.click()
+    const panel = page.locator('.notifications-panel')
+    await expect(panel).toBeVisible()
+    await panel.getByRole('button', { name: 'Check now' }).click()
+
+    const branch = panel.locator('.notifications-branch', { hasText: 'main' })
+    await expect(branch).toContainText('2 new from origin/main', { timeout: 20_000 })
+    await expect(branch.locator('.notifications-commit')).toHaveCount(2)
+
+    await page.keyboard.press('Escape')
+    await expect(panel).toBeHidden()
+    await expect(page.locator('.notif-badge')).toHaveText('2')
+
+    await bell.click()
+    await expect(page.locator('.notif-badge')).toHaveCount(0)
+    await panel.locator('.notifications-commit', { hasText: 'Remote change two' }).click()
+    await expect(panel).toBeHidden()
+    await expect(view(page).locator('.commit-row.selected')).toHaveAttribute('data-hash', latest)
+
+    await bell.click()
+    await panel.locator('.notifications-branch', { hasText: 'main' }).getByRole('button', { name: 'Pull' }).click()
+    await expect(page.locator('.toast')).toContainText('Pulled repo')
+    await expect(panel.locator('.notifications-branch')).toHaveCount(0)
+    expect(git(repo, 'rev-parse', 'HEAD').trim()).toBe(latest)
+  } finally {
+    await close()
+  }
+})

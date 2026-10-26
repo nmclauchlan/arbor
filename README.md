@@ -28,6 +28,8 @@ Grab the installer for your platform from the [releases page](https://github.com
 
 **Your tab colors.** Groups use subtle tints and small color markers. Right-click a group and choose **Color…**, or click its color dot in the group dropdown, to choose a swatch, enter a custom hex color, or import a palette from a Color Hunt link. Curated Color Hunt suggestions are included, and your colors are saved between launches.
 
+**Staying up to date.** Arbor fetches your open repositories in the background (every ten minutes by default) and the bell in the title bar counts commits waiting on your branches. Open it to see them by repository and branch, jump straight to any of them in the graph, or pull with one click.
+
 **Looks and settings.** Ten themes, dark and light, including Dracula, Nord, Solarized, Gruvbox, Monokai and Rosé Pine; the editor follows the theme. Settings (⚙ or Ctrl+,) cover the theme, the default file-list view, how often repositories refresh, how much history to load, which git executable to use, and automatic update checks.
 
 **GitHub, GitLab and Azure DevOps.** Connect an account with a personal access token under Settings → Accounts; self-hosted GitHub Enterprise and GitLab instances work alongside github.com and gitlab.com. Open pull and merge requests then appear in the sidebar and as badges on their branches, each with reviewers and approvals, checks and pipeline jobs, merge state, and a link to open in the browser. Create one for the current branch straight from the toolbar, or clone any repository you have access to from a searchable list under + → Clone.

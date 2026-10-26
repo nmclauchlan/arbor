@@ -14,6 +14,23 @@ export interface Commit {
   refs: Ref[]
 }
 
+export interface IncomingCommit {
+  hash: string
+  subject: string
+  author: string
+  date: number
+}
+
+export interface IncomingBranch {
+  branch: string
+  upstream: string
+  upstreamSha: string
+  behind: number
+  ahead: number
+  current: boolean
+  commits: IncomingCommit[]
+}
+
 export interface UndoInfo {
   undo: string | null
   redo: string | null
@@ -117,6 +134,8 @@ export interface GitApi {
   pull(path: string): Promise<void>
   pullFastForward(path: string): Promise<'updated' | 'up-to-date'>
   undoInfo(path: string): Promise<UndoInfo>
+  backgroundFetch(path: string): Promise<void>
+  incoming(path: string): Promise<IncomingBranch[]>
   undo(path: string): Promise<string>
   redo(path: string): Promise<string>
   push(path: string, setUpstream: boolean): Promise<void>

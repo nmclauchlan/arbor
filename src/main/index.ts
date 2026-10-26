@@ -159,6 +159,8 @@ const handlers: Handlers = {
   pull: (path) => journal.record(path, 'pull', 'Pull', () => gitService.pull(path)),
   pullFastForward: (path) => journal.record(path, 'pull', 'Pull', () => gitService.pullFastForward(path)),
   undoInfo: async (path) => journal.undoInfo(path),
+  backgroundFetch: gitService.backgroundFetch,
+  incoming: gitService.incoming,
   undo: journal.undo,
   redo: journal.redo,
   push: gitService.push,

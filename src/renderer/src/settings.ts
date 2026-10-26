@@ -6,6 +6,7 @@ export interface Settings extends MainSettings {
   logLimit: number
   showAvatars: boolean
   showBodyPreview: boolean
+  backgroundFetch: number
 }
 
 export const SETTINGS_DEFAULTS: Settings = {
@@ -13,13 +14,15 @@ export const SETTINGS_DEFAULTS: Settings = {
   logLimit: 5000,
   showAvatars: true,
   showBodyPreview: true,
+  backgroundFetch: 10,
   gitPath: '',
   autoUpdate: true
 }
 
 export const SETTINGS_LIMITS = {
   pollInterval: { min: 1, max: 60 },
-  logLimit: { min: 100, max: 50000 }
+  logLimit: { min: 100, max: 50000 },
+  backgroundFetch: { min: 0, max: 120 }
 } as const
 
 const KEY = 'arbor.settings'
@@ -42,6 +45,7 @@ function emit(): void {
 export function setSettings(patch: Partial<Settings>): void {
   const next = { ...current, ...patch }
   next.pollInterval = Math.min(SETTINGS_LIMITS.pollInterval.max, Math.max(SETTINGS_LIMITS.pollInterval.min, Math.round(next.pollInterval) || SETTINGS_DEFAULTS.pollInterval))
+  next.backgroundFetch = Math.min(SETTINGS_LIMITS.backgroundFetch.max, Math.max(0, Math.round(Number(next.backgroundFetch)) || 0))
   next.logLimit = Math.min(SETTINGS_LIMITS.logLimit.max, Math.max(SETTINGS_LIMITS.logLimit.min, Math.round(next.logLimit) || SETTINGS_DEFAULTS.logLimit))
   const mainChanged = next.gitPath !== current.gitPath || next.autoUpdate !== current.autoUpdate
   current = next

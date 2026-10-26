@@ -767,6 +767,33 @@ button[aria-busy='true']::before {
 }
 button[aria-busy='true']::before { margin-right: 6px; vertical-align: -1px; }
 
+.notifications-btn { position: relative; display: inline-flex; align-items: center; justify-content: center; }
+.notifications-btn.has-unseen { color: var(--fg); }
+.notif-badge { position: absolute; top: 0; right: -2px; min-width: 15px; height: 15px; padding: 0 4px; border-radius: 8px; background: var(--accent); color: #fff; font-size: 9.5px; font-weight: 700; line-height: 15px; text-align: center; pointer-events: none; }
+.notifications-panel { position: fixed; top: 40px; right: 12px; z-index: 180; width: 440px; max-height: calc(100vh - 80px); display: flex; flex-direction: column; background: var(--bg-2); border: 1px solid var(--border); border-radius: 8px; box-shadow: 0 12px 32px rgba(0, 0, 0, 0.45); animation: menu-enter var(--motion-normal) var(--ease-out); -webkit-app-region: no-drag; }
+.notifications-head { display: flex; align-items: center; gap: 8px; padding: 10px 12px; border-bottom: 1px solid var(--border); }
+.notifications-head .muted { flex: 1; font-size: 12px; }
+.notifications-head button { font-size: 12px; padding: 2px 8px; }
+.notifications-body { overflow: auto; padding: 4px 0; }
+.notifications-empty { display: flex; align-items: center; gap: 8px; padding: 18px 14px; color: var(--fg-dim); font-size: 12px; }
+.notifications-branch { padding: 6px 12px 8px; border-bottom: 1px solid var(--border); }
+.notifications-branch:last-child { border-bottom: none; }
+.notifications-branch.unseen { background: color-mix(in srgb, var(--accent) 7%, transparent); }
+.notifications-branch-head { display: flex; align-items: center; gap: 6px; margin-bottom: 4px; font-size: 12px; min-width: 0; }
+.notifications-branch-head .repo-name { font-weight: 600; }
+.notifications-branch-head .spacer { flex: 1; }
+.notifications-branch-head button { font-size: 11px; padding: 1px 8px; }
+.notifications-branch-head .muted { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+.notifications-branch-head .diverged { font-size: 11px; color: var(--yellow); border: 1px solid currentColor; border-radius: 8px; padding: 0 6px; flex: none; }
+.unseen-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--accent); flex: none; }
+.notifications-commit { display: flex; align-items: center; gap: 8px; width: 100%; text-align: left; background: transparent; border: none; border-radius: 4px; padding: 3px 6px; font-size: 12px; }
+.notifications-commit:hover { background: var(--bg-3); }
+.notifications-commit .subject { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.notifications-commit .author { flex: none; max-width: 110px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.notifications-commit .when { flex: none; font-size: 11px; }
+.notifications-more { font-size: 11px; padding: 2px 6px; }
+.notifications-error { padding: 6px 12px; font-size: 11px; color: var(--red); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
 .spinner {
   display: inline-block;
   flex: none;

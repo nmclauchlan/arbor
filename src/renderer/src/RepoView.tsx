@@ -22,12 +22,14 @@ export function RepoView({
   repo,
   active,
   shell,
-  onClose
+  onClose,
+  focus
 }: {
   repo: RepoInfo
   active: boolean
   shell: Shell
   onClose: () => void
+  focus?: { hash: string; n: number } | null
 }): React.JSX.Element {
   const [loadError, setLoadError] = useState<string | null>(null)
   const { pollInterval, logLimit } = useSettings()
@@ -211,6 +213,14 @@ export function RepoView({
     return [wip, ...commits]
   }, [commits, hasWip, refs, status])
 
+  useEffect(() => {
+    if (!focus) return
+    setSelectedPr(null)
+    setViewing(null)
+    setSelected(focus.hash)
+    setScrollTarget((t) => ({ hash: focus.hash, n: (t?.n ?? 0) + 1 }))
+  }, [focus])
+
   const wantWip = useRef(false)
   useEffect(() => {
     if (!rows.length) return
@@ -235,7 +245,10 @@ export function RepoView({
       } finally {
         setBusy(null)
         refresh()
-        if (/Push|Fetch|Pull/.test(label)) void refreshPrs()
+        if (/Push|Fetch|Pull/.test(label)) {
+          void refreshPrs()
+          window.dispatchEvent(new CustomEvent('arbor:synced', { detail: path }))
+        }
       }
     },
     [refresh, refreshPrs, shell]

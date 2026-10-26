@@ -5,7 +5,7 @@ import { getSettings } from './settings'
 import {
   imageMime,
   type Commit, type CommitDetails, type FileChange, type ImageDiffResult, type ImageSource,
-  type OperationState, type Ref, type RepoInfo, type RepoRefs, type RepoStatus, type StatusFile
+  type OperationState, type IncomingBranch, type Ref, type RepoInfo, type RepoRefs, type RepoStatus, type StatusFile
 } from '@shared/types'
 
 const FIELD = '\x1f'
@@ -468,3 +468,31 @@ export async function continueOperation(path: string, message: string): Promise<
 }
 
 export const gitFor = git
+
+export async function backgroundFetch(path: string): Promise<void> {
+  await gitWithEnv({ GIT_TERMINAL_PROMPT: '0', GCM_INTERACTIVE: 'never' }, path).raw(['fetch', '--all', '--prune', '--quiet'])
+}
+
+export async function incoming(path: string): Promise<IncomingBranch[]> {
+  const g = git(path)
+  const r = await refs(path)
+  const out: IncomingBranch[] = []
+  for (const b of r.branches) {
+    if (!b.upstream || !b.behind) continue
+    const upstreamSha = (await g.revparse([b.upstream]).catch(() => '')).trim()
+    if (!upstreamSha) continue
+    const log = await g
+      .raw(['log', `refs/heads/${b.name}..${upstreamSha}`, '-n', '10', `--format=%H${FIELD}%an${FIELD}%at${FIELD}%s${RECORD}`])
+      .catch(() => '')
+    const commits = log
+      .split(RECORD)
+      .map((l) => l.replace(/^\n/, ''))
+      .filter((l) => l.trim())
+      .map((l) => {
+        const [hash, author, at, subject] = l.split(FIELD)
+        return { hash, author, date: Number(at) * 1000, subject }
+      })
+    out.push({ branch: b.name, upstream: b.upstream, upstreamSha, behind: b.behind ?? commits.length, ahead: b.ahead ?? 0, current: b.current, commits })
+  }
+  return out.sort((a, b) => Number(b.current) - Number(a.current))
+}

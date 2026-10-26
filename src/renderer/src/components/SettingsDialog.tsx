@@ -218,6 +218,22 @@ export function SettingsDialog({ onClose, suggestBaseUrl }: { onClose: () => voi
           </label>
           <label className="settings-row">
             <span>
+              Check for incoming commits every
+              <small>Fetches open repositories in the background; 0 turns it off</small>
+            </span>
+            <span className="unit">
+              <input
+                type="number"
+                min={0}
+                max={120}
+                value={settings.backgroundFetch}
+                onChange={(e) => setSettings({ backgroundFetch: Number(e.target.value) })}
+              />
+              minutes
+            </span>
+          </label>
+          <label className="settings-row">
+            <span>
               History limit
               <small>Most recent commits loaded into the graph</small>
             </span>

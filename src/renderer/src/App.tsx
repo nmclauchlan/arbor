@@ -12,7 +12,8 @@ import { BrandIcon } from './components/BrandIcon'
 import { RepoView } from './RepoView'
 import { errorMessage } from './util'
 import { applyTheme, currentTheme, setTheme, THEMES, useTheme } from './themes'
-import { syncSettingsFromMain } from './settings'
+import { syncSettingsFromMain, useSettings } from './settings'
+import { BellIcon, NotificationsPanel, type RepoIncoming } from './components/Notifications'
 import {
   assignGroup, loadSavedTabs, moveGroupToEnd, moveGroupToGroup, moveGroupToTab, moveTab, moveToEnd,
   newGroupId, nextGroupColor, reorderGroups, saveTabs,
@@ -34,6 +35,22 @@ export default function App(): React.JSX.Element {
   const [menu, setMenu] = useState<MenuState | null>(null)
   const dialogs = useDialogs()
   const restored = useRef(false)
+  const { backgroundFetch } = useSettings()
+  const [incoming, setIncoming] = useState<Record<string, RepoIncoming>>({})
+  const [checking, setChecking] = useState(false)
+  const [lastChecked, setLastChecked] = useState<number | null>(null)
+  const [notifOpen, setNotifOpen] = useState<Set<string> | null>(null)
+  const [pullingRepo, setPullingRepo] = useState<string | null>(null)
+  const [focus, setFocus] = useState<{ path: string; hash: string; n: number } | null>(null)
+  const [seen, setSeen] = useState<Record<string, string>>(() => {
+    try {
+      return JSON.parse(localStorage.getItem('arbor.seenIncoming') ?? '{}')
+    } catch {
+      return {}
+    }
+  })
+  const tabsRef = useRef<{ path: string; name: string }[]>([])
+  const checkingRef = useRef(false)
   const theme = useTheme()
   const [settingsOpen, setSettingsOpen] = useState<false | { suggestBaseUrl?: string }>(false)
   const [cloneOpen, setCloneOpen] = useState<false | { group?: string }>(false)
@@ -108,6 +125,111 @@ export default function App(): React.JSX.Element {
   }, [])
 
   const closeTab = useCallback((path: string) => closeMany([path]), [closeMany])
+
+  tabsRef.current = tabs
+
+  const refreshIncoming = useCallback(async (path: string, name: string, error?: string) => {
+    try {
+      const branches = await window.git.incoming(path)
+      setIncoming((m) => ({ ...m, [path]: { path, name, branches, error } }))
+    } catch {
+      setIncoming((m) => {
+        const next = { ...m }
+        delete next[path]
+        return next
+      })
+    }
+  }, [])
+
+  const checkIncoming = useCallback(
+    async (doFetch: boolean) => {
+      if (checkingRef.current) return
+      checkingRef.current = true
+      setChecking(true)
+      const queue = [...new Map(tabsRef.current.map((t) => [t.path, t])).values()]
+      const worker = async (): Promise<void> => {
+        for (let t = queue.shift(); t; t = queue.shift()) {
+          let error: string | undefined
+          if (doFetch) {
+            try {
+              await window.git.backgroundFetch(t.path)
+            } catch (e) {
+              error = errorMessage(e).split('\n').find((l) => l.trim())?.replace(/^.*?(fatal|error):\s*/i, '')
+            }
+          }
+          await refreshIncoming(t.path, t.name, error)
+        }
+      }
+      await Promise.all([worker(), worker()])
+      checkingRef.current = false
+      setChecking(false)
+      setLastChecked(Date.now())
+    },
+    [refreshIncoming]
+  )
+
+  useEffect(() => {
+    const first = setTimeout(() => void checkIncoming(backgroundFetch > 0), 15_000)
+    const id = backgroundFetch > 0 ? setInterval(() => void checkIncoming(true), backgroundFetch * 60_000) : undefined
+    return () => {
+      clearTimeout(first)
+      if (id) clearInterval(id)
+    }
+  }, [backgroundFetch, checkIncoming])
+
+  useEffect(() => {
+    const onSynced = (e: Event): void => {
+      const path = (e as CustomEvent<string>).detail
+      const tab = tabsRef.current.find((t) => t.path === path)
+      if (tab) void refreshIncoming(tab.path, tab.name)
+    }
+    window.addEventListener('arbor:synced', onSynced)
+    return () => window.removeEventListener('arbor:synced', onSynced)
+  }, [refreshIncoming])
+
+  const openPaths = new Set(tabs.map((t) => t.path))
+  const incomingList = Object.values(incoming).filter((r) => openPaths.has(r.path))
+  const unseenKeys = new Set<string>()
+  let unseenCount = 0
+  for (const r of incomingList) {
+    for (const b of r.branches) {
+      const key = `${r.path}::${b.branch}`
+      if (seen[key] !== b.upstreamSha) {
+        unseenKeys.add(key)
+        unseenCount += b.behind
+      }
+    }
+  }
+
+  const openNotifications = (): void => {
+    if (notifOpen) {
+      setNotifOpen(null)
+      return
+    }
+    setNotifOpen(new Set(unseenKeys))
+    const next = { ...seen }
+    for (const r of incomingList) for (const b of r.branches) next[`${r.path}::${b.branch}`] = b.upstreamSha
+    setSeen(next)
+    try {
+      localStorage.setItem('arbor.seenIncoming', JSON.stringify(next))
+    } catch {
+      /* storage unavailable */
+    }
+  }
+
+  const pullIncoming = async (path: string): Promise<void> => {
+    const tab = tabsRef.current.find((t) => t.path === path)
+    setPullingRepo(path)
+    try {
+      const result = await window.git.pullFastForward(path)
+      showInfo(result === 'updated' ? `Pulled ${tab?.name ?? path}` : `${tab?.name ?? path} is already up to date`)
+    } catch (e) {
+      showError(errorMessage(e))
+    } finally {
+      setPullingRepo(null)
+      if (tab) await refreshIncoming(tab.path, tab.name)
+    }
+  }
 
   const shell = useMemo<Shell>(
     () => ({
@@ -285,6 +407,16 @@ export default function App(): React.JSX.Element {
         <button className="icon titlebar-btn" title={`Theme: ${theme.name}`} onClick={themeMenu}>
           ◐ {theme.name}
         </button>
+        <button
+          className={`icon titlebar-btn notifications-btn${unseenCount ? ' has-unseen' : ''}`}
+          title={unseenCount ? `${unseenCount} incoming commit${unseenCount === 1 ? '' : 's'}` : 'Incoming commits'}
+          aria-label={unseenCount ? `Notifications, ${unseenCount} new` : 'Notifications'}
+          aria-expanded={!!notifOpen}
+          onClick={openNotifications}
+        >
+          <BellIcon />
+          {unseenCount > 0 && <span className="notif-badge">{unseenCount > 99 ? '99+' : unseenCount}</span>}
+        </button>
         <button className="icon titlebar-btn" title="Settings (Ctrl+,)" onClick={() => setSettingsOpen({})}>
           ⚙
         </button>
@@ -299,8 +431,32 @@ export default function App(): React.JSX.Element {
         </>
       ) : (
         tabs.map((t) => (
-          <RepoView key={t.path} repo={t} active={t.path === activePath} shell={shell} onClose={() => closeTab(t.path)} />
+          <RepoView
+            key={t.path}
+            repo={t}
+            active={t.path === activePath}
+            shell={shell}
+            onClose={() => closeTab(t.path)}
+            focus={focus && focus.path === t.path ? focus : null}
+          />
         ))
+      )}
+      {notifOpen && (
+        <NotificationsPanel
+          repos={incomingList}
+          unseenKeys={notifOpen}
+          checking={checking}
+          lastChecked={lastChecked}
+          pulling={pullingRepo}
+          onOpenCommit={(path, hash) => {
+            setNotifOpen(null)
+            setActivePath(path)
+            setFocus((f) => ({ path, hash, n: (f?.n ?? 0) + 1 }))
+          }}
+          onPull={(path) => void pullIncoming(path)}
+          onCheckNow={() => void checkIncoming(true)}
+          onClose={() => setNotifOpen(null)}
+        />
       )}
       <ContextMenu menu={menu} onClose={closeMenu} />
       {cloneOpen && (
