@@ -14,7 +14,7 @@ Grab the installer for your platform from the [releases page](https://github.com
 
 ## What you get
 
-**The graph.** Every branch, remote and tag on one commit graph with coloured lanes, merge curves and author avatars. Branches and tags sit in their own column, with local and remote copies of a branch merged into one badge, and each commit shows the start of its description after the subject. Click a commit to see its files; right-click for checkout, branch, cherry-pick, revert, reset and more.
+**The graph.** Every branch, remote and tag on one commit graph with coloured lanes, merge curves and author avatars. Branches and tags sit in their own column, with local and remote copies of a branch merged into one badge, and each commit shows the start of its description after the subject. Click a commit to see its files. Right-click a commit, a branch or tag badge, or a sidebar entry for the full set of actions: pull, push and set upstream (even for branches you have not checked out), fast-forward, merge and rebase, check out or create a worktree from any ref, create a branch, cherry-pick, reset (soft, mixed or hard) and revert, start a pull request, rename or delete a branch locally and on the remote, copy names, SHAs and links to the branch or commit on your host, save a patch, solo or hide branches in the graph, and create, push or delete tags.
 
 **Undo and redo.** Made a commit too early, checked out the wrong branch, deleted a branch or reset too far? Undo (Ctrl+Z) reverses commits, amends, checkouts, branch creation and deletion, resets, merges, pulls, cherry-picks and reverts, and Redo (Ctrl+Shift+Z) puts them back. Arbor checks the repository hasn't moved on before reversing anything and never discards uncommitted work.
 
@@ -80,7 +80,7 @@ End-to-end tests drive the built app with [Playwright](https://playwright.dev) a
 npm run test:e2e
 ```
 
-They cover the welcome screen, Repository Management, the menu bar and settings, the graph's branch column, badges and body previews, column resizing, staging and committing, discarding, file previews, branch creation, checkout and deletion with undo and redo, resolving and aborting merge conflicts, tab groups and Pull all, and the loading indicators. CI runs them on every push and only publishes a release when they pass.
+They cover the welcome screen, Repository Management, the menu bar and settings, the graph's branch column, badges and body previews, column resizing, staging and committing, discarding, file previews, branch creation, checkout and deletion with undo and redo, the branch and commit context menus (fast-forward, rebase, pulling other branches, rename, remote deletion, tags, solo and hide, patches and worktrees), resolving and aborting merge conflicts, tab groups and Pull all, and the loading indicators. CI runs them on every push and only publishes a release when they pass.
 
 ### Layout
 

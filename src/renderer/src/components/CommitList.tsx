@@ -87,7 +87,12 @@ const TagIcon = (): React.JSX.Element => (
 function RefPill({ g }: { g: RefGroup }): React.JSX.Element {
   const cls = g.isHead ? 'branch head' : g.kind === 'detached' ? 'head' : g.kind
   return (
-    <span className={`ref-badge ${cls}`} title={refTitle(g)}>
+    <span
+      className={`ref-badge ${cls}`}
+      title={refTitle(g)}
+      data-ref-kind={g.kind === 'detached' ? undefined : g.kind === 'branch' ? 'branch' : g.kind === 'remote' ? 'remote' : 'tag'}
+      data-ref-name={g.kind === 'remote' ? `${g.remotes[0]}/${g.name}` : g.name}
+    >
       {g.kind === 'tag' && <TagIcon />}
       <span className="ref-name">{g.name}</span>
       {g.kind !== 'tag' && g.kind !== 'detached' && (
@@ -190,12 +195,14 @@ export function CommitList({
   onSelect,
   onContextMenu,
   scrollTarget,
-  loading = false
+  loading = false,
+  filterNote
 }: {
   commits: Commit[]
   selected: string | null
   onSelect: (hash: string) => void
-  onContextMenu: (commit: Commit, e: React.MouseEvent) => void
+  onContextMenu: (commit: Commit, e: React.MouseEvent, focus?: { kind: 'branch' | 'remote' | 'tag'; name: string } | null) => void
+  filterNote?: React.ReactNode
   scrollTarget: { hash: string; n: number } | null
   loading?: boolean
 }): React.JSX.Element {
@@ -268,7 +275,10 @@ export function CommitList({
         onClick={() => onSelect(c.hash)}
         onContextMenu={(e) => {
           e.preventDefault()
-          if (!isWip) onContextMenu(c, e)
+          if (isWip) return
+          const pill = (e.target as HTMLElement).closest<HTMLElement>('[data-ref-kind]')
+          const focus = pill ? { kind: pill.dataset.refKind as 'branch' | 'remote' | 'tag', name: pill.dataset.refName! } : null
+          onContextMenu(c, e, focus)
         }}
       >
         <RefsCell refs={c.refs} width={cols.colRefs} />
@@ -312,6 +322,7 @@ export function CommitList({
   return (
     <div className="commit-list">
       <Header graphCol={graphCol} cols={cols} />
+      {filterNote}
       <div className="commit-scroll" ref={container}>
         {loading && total === 0 && <Loading label="Loading history…" />}
         <div className="rows" style={{ height: total * ROW_H }}>

@@ -1,13 +1,13 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import type { Commit, HostInfo, PullRequest, RepoInfo, RepoRefs, RepoStatus, UndoInfo } from '@shared/types'
+import type { Commit, GraphFilter, HostInfo, PullRequest, RepoInfo, RepoRefs, RepoStatus, UndoInfo } from '@shared/types'
 import { CreatePrDialog } from './components/CreatePrDialog'
 import { Loading } from './components/Spinner'
+import { buildRefMenu, type FocusRef } from './refMenu'
 import { PrPanel } from './components/PrPanel'
 import type { Actions, Shell } from './actions'
 import { CommitList } from './components/CommitList'
 import { CommitPanel } from './components/CommitPanel'
 import { FileViewer, type FileViewRequest } from './components/FileViewer'
-import type { MenuItem } from './components/ContextMenu'
 import { Sidebar } from './components/Sidebar'
 import { Toolbar } from './components/Toolbar'
 import { WorkingTree } from './components/WorkingTree'
@@ -55,7 +55,9 @@ export function RepoView({
   const [prsLoaded, setPrsLoaded] = useState(false)
   const [selectedPr, setSelectedPr] = useState<PullRequest | null>(null)
   const [prRefresh, setPrRefresh] = useState(0)
-  const [creatingPr, setCreatingPr] = useState(false)
+  const [creatingPr, setCreatingPr] = useState<string | false>(false)
+  const [graphFilter, setGraphFilter] = useState<GraphFilter>({})
+  const filtered = !!graphFilter.solo?.length || !!graphFilter.hide?.length
 
   const refreshPrs = useCallback(async () => {
     try {
@@ -81,7 +83,7 @@ export function RepoView({
 
   const loadAll = useCallback(async () => {
     const [log, r, s, u] = await Promise.all([
-      window.git.log(path, LOG_LIMIT),
+      window.git.log(path, LOG_LIMIT, graphFilter),
       window.git.refs(path),
       window.git.status(path),
       window.git.undoInfo(path)
@@ -92,7 +94,7 @@ export function RepoView({
     setCommits(log)
     setRefs(r)
     setStatus(s)
-  }, [path, LOG_LIMIT])
+  }, [path, LOG_LIMIT, graphFilter])
 
   const refresh = useCallback(() => {
     loadAll()
@@ -104,6 +106,13 @@ export function RepoView({
   }, [loadAll, shell])
 
   const loaded = useRef(false)
+  const filterKey = JSON.stringify(graphFilter)
+  const lastFilterKey = useRef(filterKey)
+  useEffect(() => {
+    if (lastFilterKey.current === filterKey) return
+    lastFilterKey.current = filterKey
+    if (loaded.current) refresh()
+  }, [filterKey, refresh])
   useEffect(() => {
     if (active && !loaded.current) {
       loaded.current = true
@@ -145,7 +154,7 @@ export function RepoView({
         if (rj !== lastRefsJson.current) {
           lastRefsJson.current = rj
           setRefs(r)
-          setCommits(await window.git.log(path, LOG_LIMIT))
+          setCommits(await window.git.log(path, LOG_LIMIT, graphFilter))
           setUndoInfo(await window.git.undoInfo(path))
         }
       } catch {
@@ -160,7 +169,7 @@ export function RepoView({
       clearInterval(id)
       window.removeEventListener('focus', onFocus)
     }
-  }, [path, active, busy, loadError, LOG_LIMIT, POLL_MS])
+  }, [path, active, busy, loadError, LOG_LIMIT, POLL_MS, graphFilter])
 
   useEffect(() => {
     setViewing(null)
@@ -360,6 +369,91 @@ export function RepoView({
         )
         if (ok) run('Resetting', () => window.git.resetTo(path, hash, mode))
       },
+      copyText: (text, what) => {
+        navigator.clipboard.writeText(text)
+        shell.showInfo(`Copied ${what}: ${text}`)
+      },
+      updateBranch: (branch) => run('Pulling', () => window.git.updateBranch(path, branch), `Updated ${branch} from its upstream`),
+      pushBranch: (branch) => run('Pushing', () => window.git.pushBranch(path, branch), `Pushed ${branch}`),
+      setUpstream: async (branch) => {
+        const current = refs?.branches.find((b) => b.name === branch)?.upstream
+        const remote = refs?.remotes[0]?.remote ?? 'origin'
+        const upstream = await shell.prompt('Set upstream', `Upstream branch for ${branch}`, current ?? `${remote}/${branch}`)
+        if (upstream) run('Setting upstream', () => window.git.setUpstream(path, branch, upstream), `${branch} now tracks ${upstream}`)
+      },
+      fastForward: (target) => run('Fast-forwarding', () => window.git.fastForward(path, target), `Fast-forwarded to ${target}`),
+      rebase: (onto) =>
+        run('Rebasing', async () => {
+          let conflicted = false
+          await conflictAware(async () => {
+            try {
+              await window.git.rebase(path, onto)
+            } catch (e) {
+              conflicted = /CONFLICT|could not apply/i.test(errorMessage(e))
+              throw e
+            }
+          })
+          if (!conflicted) shell.showInfo(`Rebased onto ${onto}`)
+        }),
+      renameBranch: async (branch) => {
+        const name = await shell.prompt('Rename branch', `New name for ${branch}`, branch)
+        if (name && name !== branch) run('Renaming branch', () => window.git.renameBranch(path, branch, name), `Renamed ${branch} to ${name}`)
+      },
+      deleteRemoteBranch: async (remote, branch) => {
+        const ok = await shell.confirm('Delete remote branch', `Delete ${remote}/${branch} from the remote? Anyone else using it will lose it too.`, true)
+        if (ok) run('Deleting remote branch', () => window.git.deleteRemoteBranch(path, remote, branch), `Deleted ${remote}/${branch}`)
+      },
+      deleteBranchEverywhere: async (branch, remote, remoteBranch) => {
+        const ok = await shell.confirm('Delete branch everywhere', `Delete ${branch} locally and ${remote}/${remoteBranch} from the remote?`, true)
+        if (!ok) return
+        run('Deleting branch', async () => {
+          await window.git.deleteBranch(path, branch, true)
+          await window.git.deleteRemoteBranch(path, remote, remoteBranch)
+        }, `Deleted ${branch} and ${remote}/${remoteBranch}`)
+      },
+      createTag: async (target, annotated) => {
+        const name = await shell.prompt(annotated ? 'Create annotated tag' : 'Create tag', `Tag name (at ${shortHash(target)})`)
+        if (!name) return
+        let message: string | null = null
+        if (annotated) {
+          message = await shell.prompt('Create annotated tag', 'Tag message', name)
+          if (!message) return
+        }
+        run('Creating tag', () => window.git.createTag(path, name, target, message), `Created tag ${name}`)
+      },
+      deleteTag: async (name) => {
+        const ok = await shell.confirm('Delete tag', `Delete the local tag ${name}?`, true)
+        if (ok) run('Deleting tag', () => window.git.deleteTag(path, name), `Deleted tag ${name}`)
+      },
+      pushTag: (remote, name) => run('Pushing tag', () => window.git.pushTag(path, remote, name), `Pushed tag ${name} to ${remote}`),
+      deleteRemoteTag: async (remote, name) => {
+        const ok = await shell.confirm('Delete remote tag', `Delete the tag ${name} from ${remote}?`, true)
+        if (ok) run('Deleting tag', () => window.git.deleteRemoteTag(path, remote, name), `Deleted tag ${name} from ${remote}`)
+      },
+      addWorktree: async (ref, newBranch) => {
+        const parent = await window.git.selectFolder('Choose where to create the worktree')
+        if (!parent) return
+        const base = (newBranch ?? (/^[0-9a-f]{40}$/i.test(ref) ? ref.slice(0, 7) : ref)).replace(/[^\w.-]+/g, '-')
+        const folder = await shell.prompt('Create worktree', 'Folder name', `${repo.name}-${base}`)
+        if (!folder) return
+        const dest = `${parent.replace(/[\\/]+$/, '')}/${folder}`
+        run('Creating worktree', async () => {
+          await window.git.addWorktree(path, dest, ref, newBranch)
+          shell.openPath(dest)
+        }, `Created worktree at ${dest}`)
+      },
+      savePatch: async (hash) => {
+        try {
+          const file = await window.git.savePatch(path, hash)
+          if (file) shell.showInfo(`Saved patch to ${file}`)
+        } catch (e) {
+          shell.showError(errorMessage(e))
+        }
+      },
+      startPullRequest: (branch) => setCreatingPr(branch),
+      soloRefs: (list) => setGraphFilter({ solo: list }),
+      hideRef: (ref) => setGraphFilter((f) => ({ hide: [...new Set([...(f.hide ?? []), ref])] })),
+      showAllRefs: () => setGraphFilter({}),
       copyHash: (hash) => {
         navigator.clipboard.writeText(hash)
         shell.showInfo(`Copied ${hash}`)
@@ -379,28 +473,23 @@ export function RepoView({
         })
       }
     }),
-    [path, refresh, refs, run, shell]
+    [path, refresh, refs, run, shell, repo.name]
   )
   actionsRef.current = actions
 
-  const commitMenu = (c: Commit, e: React.MouseEvent): void => {
-    const branches = c.refs.filter((r) => r.kind === 'branch').map((r) => r.name)
-    const items: MenuItem[] = [
-      ...branches.map((b) => ({ label: `Checkout ${b}`, onClick: () => actions.checkout(b) })),
-      { label: `Checkout ${shortHash(c.hash)} (detached)`, onClick: () => actions.checkout(c.hash) },
-      { label: 'Create branch here…', onClick: () => actions.createBranch(c.hash) },
-      { separator: true },
-      { label: 'Cherry-pick commit', onClick: () => actions.cherryPick(c.hash) },
-      { label: 'Revert commit', onClick: () => actions.revert(c.hash) },
-      { separator: true },
-      { label: 'Reset to here (soft)', onClick: () => actions.resetTo(c.hash, 'soft') },
-      { label: 'Reset to here (mixed)', onClick: () => actions.resetTo(c.hash, 'mixed') },
-      { label: 'Reset to here (hard)', danger: true, onClick: () => actions.resetTo(c.hash, 'hard') },
-      { separator: true },
-      { label: 'Copy SHA', onClick: () => actions.copyHash(c.hash) }
-    ]
-    actions.openMenu(e, items)
+  const commitMenu = (c: Commit, e: React.MouseEvent, focus?: FocusRef | null): void => {
+    if (!refs) return
+    actions.openMenu(e, buildRefMenu({ sha: c.hash, refs: c.refs, focus, repoRefs: refs, host, actions, filtered }))
   }
+
+  const filterNote = filtered ? (
+    <div className="graph-filter-note" role="status">
+      {graphFilter.solo?.length
+        ? `Showing only ${graphFilter.solo.map((r) => r.replace(/^refs\/(heads|remotes|tags)\//, '')).join(' and ')}`
+        : `Hiding ${graphFilter.hide!.map((r) => r.replace(/^refs\/(heads|remotes|tags)\//, '')).join(', ')}`}
+      <button onClick={() => setGraphFilter({})}>Show all</button>
+    </div>
+  ) : null
 
   if (!active) return <div className="repo-view" hidden />
 
@@ -435,7 +524,7 @@ export function RepoView({
         actions={actions}
         host={host}
         prs={prs}
-        onCreatePr={() => setCreatingPr(true)}
+        onCreatePr={() => setCreatingPr(refs?.branches.find((b) => b.current)?.name ?? false)}
         onViewPr={(pr) => setSelectedPr(pr)}
         undoInfo={undoInfo}
       />
@@ -449,6 +538,7 @@ export function RepoView({
           prs={prs}
           prError={prError}
           prsLoaded={prsLoaded}
+          graphFiltered={filtered}
           selectedPr={selectedPr?.id ?? null}
           onSelectPr={(pr) => setSelectedPr(pr)}
         />
@@ -480,6 +570,7 @@ export function RepoView({
             setSelected(hash)
           }}
           onContextMenu={commitMenu}
+          filterNote={filterNote}
           scrollTarget={scrollTarget}
           loading={!refs}
         />
@@ -507,7 +598,7 @@ export function RepoView({
           repoPath={path}
           host={host}
           refs={refs}
-          source={refs.branches.find((b) => b.current)?.name ?? ''}
+          source={creatingPr}
           defaultTitle={commits.find((c) => c.refs.some((r) => r.kind === 'head'))?.subject ?? ''}
           onCreated={(pr) => {
             setCreatingPr(false)

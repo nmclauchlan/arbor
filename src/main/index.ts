@@ -192,6 +192,27 @@ const handlers: Handlers = {
   redo: journal.redo,
   push: gitService.push,
   merge: (path, ref) => journal.record(path, 'merge', `Merge ${shortRef(ref)}`, () => gitService.merge(path, ref)),
+  updateBranch: gitService.updateBranch,
+  pushBranch: gitService.pushBranch,
+  setUpstream: gitService.setUpstream,
+  fastForward: (path, target) => journal.record(path, 'merge', `Fast-forward to ${shortRef(target)}`, () => gitService.fastForward(path, target)),
+  rebase: (path, onto) => journal.record(path, 'merge', `Rebase onto ${shortRef(onto)}`, () => gitService.rebase(path, onto)),
+  renameBranch: gitService.renameBranch,
+  deleteRemoteBranch: gitService.deleteRemoteBranch,
+  createTag: gitService.createTag,
+  deleteTag: gitService.deleteTag,
+  pushTag: gitService.pushTag,
+  deleteRemoteTag: gitService.deleteRemoteTag,
+  addWorktree: gitService.addWorktree,
+  async savePatch(path, hash) {
+    const { text, name } = await gitService.formatPatch(path, hash)
+    const win = BrowserWindow.getFocusedWindow()
+    const opts = { title: 'Save patch', defaultPath: join(app.getPath('downloads'), name), filters: [{ name: 'Patch files', extensions: ['patch', 'diff'] }] }
+    const result = win ? await dialog.showSaveDialog(win, opts) : await dialog.showSaveDialog(opts)
+    if (result.canceled || !result.filePath) return null
+    await writeFile(result.filePath, text)
+    return result.filePath
+  },
   stashPush: gitService.stashPush,
   stashPop: gitService.stashPop,
   stashDrop: gitService.stashDrop,

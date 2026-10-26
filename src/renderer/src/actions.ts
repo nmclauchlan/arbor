@@ -8,6 +8,7 @@ export interface Shell {
   showError(message: string): void
   showInfo(message: string): void
   openSettings(suggestBaseUrl?: string): void
+  openPath(path: string): void
 }
 
 export interface Actions extends Shell {
@@ -27,6 +28,25 @@ export interface Actions extends Shell {
   revert(hash: string): void
   resetTo(hash: string, mode: 'soft' | 'mixed' | 'hard'): void
   copyHash(hash: string): void
+  copyText(text: string, what: string): void
+  updateBranch(branch: string): void
+  pushBranch(branch: string): void
+  setUpstream(branch: string): void
+  fastForward(target: string): void
+  rebase(onto: string): void
+  renameBranch(branch: string): void
+  deleteRemoteBranch(remote: string, branch: string): void
+  deleteBranchEverywhere(branch: string, remote: string, remoteBranch: string): void
+  createTag(target: string, annotated: boolean): void
+  deleteTag(name: string): void
+  pushTag(remote: string, name: string): void
+  deleteRemoteTag(remote: string, name: string): void
+  addWorktree(ref: string, newBranch: string | null): void
+  savePatch(hash: string): void
+  startPullRequest(branch: string): void
+  soloRefs(refs: string[]): void
+  hideRef(ref: string): void
+  showAllRefs(): void
   undo(): void
   redo(): void
 }

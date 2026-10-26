@@ -261,7 +261,8 @@ export default function App(): React.JSX.Element {
       prompt: dialogs.prompt,
       showError,
       showInfo,
-      openSettings: (suggestBaseUrl) => setSettingsOpen({ suggestBaseUrl })
+      openSettings: (suggestBaseUrl) => setSettingsOpen({ suggestBaseUrl }),
+      openPath: (p) => void openPath(p)
     }),
     [dialogs.confirm, dialogs.prompt, openPath, showError, showInfo]
   )

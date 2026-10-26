@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import type { Branch, HostInfo, PullRequest, RemoteBranch, RepoRefs, Stash, Tag } from '@shared/types'
+import type { Branch, HostInfo, PullRequest, Ref, RemoteBranch, RepoRefs, Stash, Tag } from '@shared/types'
+import { buildRefMenu, type FocusRef } from '../refMenu'
 import type { Actions } from '../actions'
 import { Loading } from './Spinner'
 import { hostName, hostPath, prNoun, prPrefix } from '../util'
@@ -50,6 +51,7 @@ export function Sidebar({
   prs,
   prError,
   prsLoaded = true,
+  graphFiltered = false,
   selectedPr,
   onSelectPr
 }: {
@@ -61,12 +63,12 @@ export function Sidebar({
   prs: PullRequest[]
   prError: string | null
   prsLoaded?: boolean
+  graphFiltered?: boolean
   selectedPr: number | null
   onSelectPr: (pr: PullRequest) => void
 }): React.JSX.Element {
   const [query, setQuery] = useState('')
   const input = useRef<HTMLInputElement>(null)
-  const current = refs.branches.find((b) => b.current)
   const q = query.trim().toLowerCase()
   const matches = (name: string): boolean => !q || name.toLowerCase().includes(q)
 
@@ -90,34 +92,18 @@ export function Sidebar({
   const shownPrs = useMemo(() => prs.filter((p) => matches(p.title) || matches(p.sourceBranch) || matches(String(p.id))), [prs, q])
   const prByBranch = useMemo(() => new Map(prs.map((p) => [p.sourceBranch, p])), [prs])
 
-  const branchMenu = (e: React.MouseEvent, b: Branch): void => {
+  const refsAt = (hash: string): Ref[] => [
+    ...refs.branches.filter((b) => b.hash === hash).map((b) => ({ kind: 'branch' as const, name: b.name })),
+    ...refs.remotes.filter((r) => r.hash === hash).map((r) => ({ kind: 'remote' as const, name: `${r.remote}/${r.name}` })),
+    ...refs.tags.filter((t) => t.hash === hash).map((t) => ({ kind: 'tag' as const, name: t.name }))
+  ]
+  const open = (e: React.MouseEvent, hash: string, focus: FocusRef): void => {
     e.preventDefault()
-    actions.openMenu(e, [
-      { label: `Checkout ${b.name}`, disabled: b.current, onClick: () => actions.checkout(b.name) },
-      { label: `Merge ${b.name} into ${current?.name ?? 'HEAD'}`, disabled: b.current, onClick: () => actions.merge(b.name) },
-      { label: 'Create branch here…', onClick: () => actions.createBranch(b.name) },
-      { separator: true },
-      { label: `Delete ${b.name}`, danger: true, disabled: b.current, onClick: () => actions.deleteBranch(b.name) }
-    ])
+    actions.openMenu(e, buildRefMenu({ sha: hash, refs: refsAt(hash), focus, repoRefs: refs, host, actions, filtered: graphFiltered }))
   }
-
-  const remoteMenu = (e: React.MouseEvent, r: RemoteBranch): void => {
-    e.preventDefault()
-    const full = `${r.remote}/${r.name}`
-    actions.openMenu(e, [
-      { label: `Checkout ${r.name}`, onClick: () => actions.checkout(r.name) },
-      { label: `Merge ${full} into ${current?.name ?? 'HEAD'}`, onClick: () => actions.merge(full) },
-      { label: 'Create branch here…', onClick: () => actions.createBranch(full) }
-    ])
-  }
-
-  const tagMenu = (e: React.MouseEvent, t: Tag): void => {
-    e.preventDefault()
-    actions.openMenu(e, [
-      { label: `Checkout ${t.name}`, onClick: () => actions.checkout(t.name) },
-      { label: 'Create branch here…', onClick: () => actions.createBranch(t.name) }
-    ])
-  }
+  const branchMenu = (e: React.MouseEvent, b: Branch): void => open(e, b.hash, { kind: 'branch', name: b.name })
+  const remoteMenu = (e: React.MouseEvent, r: RemoteBranch): void => open(e, r.hash, { kind: 'remote', name: `${r.remote}/${r.name}` })
+  const tagMenu = (e: React.MouseEvent, t: Tag): void => open(e, t.hash, { kind: 'tag', name: t.name })
 
   const stashMenu = (e: React.MouseEvent, s: Stash): void => {
     e.preventDefault()

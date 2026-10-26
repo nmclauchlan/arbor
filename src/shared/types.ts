@@ -45,6 +45,11 @@ export interface RepoSummary {
   host: HostKind | null
 }
 
+export interface GraphFilter {
+  solo?: string[]
+  hide?: string[]
+}
+
 export interface UndoInfo {
   undo: string | null
   redo: string | null
@@ -131,7 +136,20 @@ export interface GitApi {
   initialRepo(): Promise<string | null>
   openRepo(path: string): Promise<RepoInfo>
   recentRepos(): Promise<RepoInfo[]>
-  log(path: string, limit: number): Promise<Commit[]>
+  log(path: string, limit: number, filter?: GraphFilter): Promise<Commit[]>
+  updateBranch(path: string, branch: string): Promise<void>
+  pushBranch(path: string, branch: string): Promise<void>
+  setUpstream(path: string, branch: string, upstream: string): Promise<void>
+  fastForward(path: string, target: string): Promise<void>
+  rebase(path: string, onto: string): Promise<void>
+  renameBranch(path: string, from: string, to: string): Promise<void>
+  deleteRemoteBranch(path: string, remote: string, branch: string): Promise<void>
+  createTag(path: string, name: string, target: string, message: string | null): Promise<void>
+  deleteTag(path: string, name: string): Promise<void>
+  pushTag(path: string, remote: string, name: string): Promise<void>
+  deleteRemoteTag(path: string, remote: string, name: string): Promise<void>
+  addWorktree(path: string, dest: string, ref: string, newBranch: string | null): Promise<string>
+  savePatch(path: string, hash: string): Promise<string | null>
   refs(path: string): Promise<RepoRefs>
   status(path: string): Promise<RepoStatus>
   stage(path: string, files: string[]): Promise<void>

@@ -5,7 +5,7 @@ import { getSettings } from './settings'
 import {
   imageMime,
   type Commit, type CommitDetails, type FileChange, type ImageDiffResult, type ImageSource,
-  type OperationState, type IncomingBranch, type Ref, type RepoSummary, type RepoInfo, type RepoRefs, type RepoStatus, type StatusFile
+  type OperationState, type IncomingBranch, type Ref, type RepoSummary, type GraphFilter, type RepoInfo, type RepoRefs, type RepoStatus, type StatusFile
 } from '@shared/types'
 
 const FIELD = '\x1f'
@@ -78,10 +78,23 @@ function parseRefs(decorations: string): Ref[] {
   return refs
 }
 
-export async function log(path: string, limit: number): Promise<Commit[]> {
+function logSelection(filter?: GraphFilter): string[] {
+  if (filter?.solo?.length) return filter.solo
+  const hide = filter?.hide ?? []
+  const args: string[] = []
+  for (const r of hide) if (r.startsWith('refs/heads/')) args.push(`--exclude=${r.slice(11)}`)
+  args.push('--branches')
+  for (const r of hide) if (r.startsWith('refs/remotes/')) args.push(`--exclude=${r.slice(13)}`)
+  args.push('--remotes')
+  for (const r of hide) if (r.startsWith('refs/tags/')) args.push(`--exclude=${r.slice(10)}`)
+  args.push('--tags', 'HEAD')
+  return args
+}
+
+export async function log(path: string, limit: number, filter?: GraphFilter): Promise<Commit[]> {
   const format = ['%H', '%P', '%an', '%ae', '%at', '%s', '%D', '%b'].join(FIELD) + RECORD
   const out = await git(path).raw([
-    'log', '--branches', '--remotes', '--tags', 'HEAD', '--topo-order', '--decorate=full', `--format=${format}`, '-n', String(limit)
+    'log', ...logSelection(filter), '--topo-order', '--decorate=full', `--format=${format}`, '-n', String(limit), '--'
   ]).catch(() => '')
   const commits: Commit[] = []
   for (const rec of out.split(RECORD)) {
@@ -540,4 +553,82 @@ export async function repoSummary(path: string, withChanges: boolean): Promise<R
 
 export async function initRepo(path: string): Promise<void> {
   await simpleGit({ baseDir: path, binary: binary() }).raw(['init'])
+}
+
+async function upstreamOf(path: string, branch: string): Promise<{ remote: string; ref: string } | null> {
+  const out = (await git(path).raw(['for-each-ref', `--format=%(upstream:remotename)${FIELD}%(upstream:remoteref)`, `refs/heads/${branch}`]).catch(() => '')).trim()
+  const [remote, ref] = out.split(FIELD)
+  return remote && ref ? { remote, ref } : null
+}
+
+export async function updateBranch(path: string, branch: string): Promise<void> {
+  const up = await upstreamOf(path, branch)
+  if (!up) throw new Error(`${branch} has no upstream branch to pull from`)
+  await git(path).raw(['fetch', up.remote, `${up.ref}:refs/heads/${branch}`])
+}
+
+export async function pushBranch(path: string, branch: string): Promise<void> {
+  const up = await upstreamOf(path, branch)
+  if (up) await git(path).raw(['push', up.remote, `refs/heads/${branch}:${up.ref}`])
+  else await git(path).raw(['push', '-u', 'origin', branch])
+}
+
+export async function setUpstream(path: string, branch: string, upstream: string): Promise<void> {
+  await git(path).raw(['branch', `--set-upstream-to=${upstream}`, branch])
+}
+
+export async function fastForward(path: string, target: string): Promise<void> {
+  await git(path).raw(['merge', '--ff-only', target])
+}
+
+export async function rebase(path: string, onto: string): Promise<void> {
+  try {
+    await git(path).raw(['rebase', onto])
+  } catch (e) {
+    await failOnConflict(path, 'Rebase')
+    throw e
+  }
+  await failOnConflict(path, 'Rebase')
+}
+
+export async function renameBranch(path: string, from: string, to: string): Promise<void> {
+  await git(path).raw(['branch', '-m', from, to])
+}
+
+export async function deleteRemoteBranch(path: string, remote: string, branch: string): Promise<void> {
+  await git(path).raw(['push', remote, '--delete', branch])
+}
+
+export async function createTag(path: string, name: string, target: string, message: string | null): Promise<void> {
+  if (message) await git(path).raw(['tag', '-a', name, '-m', message, target])
+  else await git(path).raw(['tag', name, target])
+}
+
+export async function deleteTag(path: string, name: string): Promise<void> {
+  await git(path).raw(['tag', '-d', name])
+}
+
+export async function pushTag(path: string, remote: string, name: string): Promise<void> {
+  await git(path).raw(['push', remote, `refs/tags/${name}`])
+}
+
+export async function deleteRemoteTag(path: string, remote: string, name: string): Promise<void> {
+  await git(path).raw(['push', remote, '--delete', `refs/tags/${name}`])
+}
+
+export async function addWorktree(path: string, dest: string, ref: string, newBranch: string | null): Promise<string> {
+  const args = ['worktree', 'add']
+  if (newBranch) args.push('-b', newBranch, dest, ref)
+  else if (/^[0-9a-f]{40}$/i.test(ref)) args.push('--detach', dest, ref)
+  else args.push(dest, ref)
+  await git(path).raw(args)
+  return dest
+}
+
+export async function formatPatch(path: string, hash: string): Promise<{ text: string; name: string }> {
+  const g = git(path)
+  const text = await g.raw(['format-patch', '-1', '--stdout', hash])
+  const subject = (await g.raw(['log', '-1', '--format=%s', hash])).trim()
+  const slug = subject.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 50) || 'commit'
+  return { text, name: `${hash.slice(0, 7)}-${slug}.patch` }
 }
