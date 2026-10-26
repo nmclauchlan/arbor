@@ -8,6 +8,10 @@ import { SettingsDialog } from './components/SettingsDialog'
 import { CloneDialog } from './components/CloneDialog'
 import { UpdateNotice } from './components/UpdateNotice'
 import { Welcome } from './components/Welcome'
+import { MenuBar, type MenuDef } from './components/MenuBar'
+import { RepoManager } from './components/RepoManager'
+import { AboutDialog, ShortcutsDialog } from './components/InfoDialogs'
+import { revealInFolder } from './util'
 import { BrandIcon } from './components/BrandIcon'
 import { RepoView } from './RepoView'
 import { errorMessage } from './util'
@@ -54,9 +58,21 @@ export default function App(): React.JSX.Element {
   const theme = useTheme()
   const [settingsOpen, setSettingsOpen] = useState<false | { suggestBaseUrl?: string }>(false)
   const [cloneOpen, setCloneOpen] = useState<false | { group?: string }>(false)
+  const [home, setHome] = useState(false)
+  const [homeBusy, setHomeBusy] = useState<string | null>(null)
+  const [homeRefresh, setHomeRefresh] = useState(0)
+  const [infoDialog, setInfoDialog] = useState<'about' | 'shortcuts' | null>(null)
+  const [favorites, setFavorites] = useState<{ path: string; name: string }[]>(() => {
+    try {
+      return JSON.parse(localStorage.getItem('arbor.favorites') ?? '[]')
+    } catch {
+      return []
+    }
+  })
 
   useEffect(() => {
     applyTheme(currentTheme())
+    document.documentElement.dataset.platform = window.native?.platform ?? ''
     void syncSettingsFromMain()
   }, [])
 
@@ -82,7 +98,10 @@ export default function App(): React.JSX.Element {
       try {
         const info = await window.git.openRepo(path)
         setTabs((list) => (list.some((t) => t.path === info.path) ? list : [...list, { ...info, group }]))
-        if (activate) setActivePath(info.path)
+        if (activate) {
+          setActivePath(info.path)
+          setHome(false)
+        }
         loadRecent()
       } catch (e) {
         showError(errorMessage(e))
@@ -252,9 +271,24 @@ export default function App(): React.JSX.Element {
   useEffect(() => {
     const key = (e: KeyboardEvent): void => {
       if (!e.ctrlKey && !e.metaKey) return
-      if (e.key === 'w' && activePath) {
+      if (e.key === 'w' && home && tabs.length) {
+        e.preventDefault()
+        setHome(false)
+      } else if (e.key === 'w' && activePath) {
         e.preventDefault()
         closeTab(activePath)
+      } else if (e.key === 't' && !e.shiftKey) {
+        e.preventDefault()
+        setHome(true)
+      } else if (e.key === '=' || e.key === '+') {
+        e.preventDefault()
+        void zoom('zoomIn')
+      } else if (e.key === '-') {
+        e.preventDefault()
+        void zoom('zoomOut')
+      } else if (e.key === '0') {
+        e.preventDefault()
+        void zoom('zoomReset')
       } else if (e.key === 'o') {
         e.preventDefault()
         shell.openRepo()
@@ -270,7 +304,7 @@ export default function App(): React.JSX.Element {
     }
     window.addEventListener('keydown', key)
     return () => window.removeEventListener('keydown', key)
-  }, [activePath, closeTab, shell, visibleTabs])
+  }, [activePath, closeTab, shell, visibleTabs, home, tabs])
 
   const closeMenu = useCallback(() => setMenu(null), [])
 
@@ -307,17 +341,19 @@ export default function App(): React.JSX.Element {
   const updateGroup = (id: string, patch: Partial<TabGroup>): void =>
     setGroups((gs) => gs.map((g) => (g.id === id ? { ...g, ...patch } : g)))
 
-  const pullGroup = async (id: string): Promise<void> => {
-    const group = groups.find((g) => g.id === id)
-    const members = tabs.filter((t) => t.group === id)
-    if (!group || !members.length) return
-    const total = members.length
+  const pullRepos = async (
+    entries: { path: string; name: string }[],
+    label: string,
+    onProgress?: (done: number, total: number) => void
+  ): Promise<void> => {
+    const total = entries.length
+    if (!total) return
     let done = 0
-    setGroupProgress((p) => ({ ...p, [id]: { done, total } }))
+    onProgress?.(done, total)
     const updated: string[] = []
     const current: string[] = []
     const failed: { name: string; reason: string }[] = []
-    const queue = [...members]
+    const queue = [...entries]
     const worker = async (): Promise<void> => {
       for (let t = queue.shift(); t; t = queue.shift()) {
         try {
@@ -337,27 +373,192 @@ export default function App(): React.JSX.Element {
           failed.push({ name: t.name, reason })
         } finally {
           done++
-          setGroupProgress((p) => ({ ...p, [id]: { done, total } }))
+          onProgress?.(done, total)
+          window.dispatchEvent(new CustomEvent('arbor:synced', { detail: t.path }))
         }
       }
     }
     await Promise.all(Array.from({ length: Math.min(4, total) }, worker))
-    setGroupProgress((p) => {
-      const next = { ...p }
-      delete next[id]
-      return next
-    })
     const parts: string[] = []
     if (updated.length) parts.push(`Updated ${updated.length}: ${updated.join(', ')}`)
     if (current.length) parts.push(`Already up to date: ${current.length}`)
     if (failed.length) {
       showError(
-        [`Pulled ${group.name}: ${total - failed.length} of ${total} succeeded`, ...parts, '', ...failed.map((f) => `${f.name}: ${f.reason}`)].join('\n')
+        [`Pulled ${label}: ${total - failed.length} of ${total} succeeded`, ...parts, '', ...failed.map((x) => `${x.name}: ${x.reason}`)].join('\n')
       )
     } else {
-      showInfo([`Pulled ${group.name}`, ...parts].join('\n'))
+      showInfo([`Pulled ${label}`, ...parts].join('\n'))
     }
   }
+
+  const pullGroup = async (id: string): Promise<void> => {
+    const group = groups.find((g) => g.id === id)
+    const members = tabs.filter((t) => t.group === id)
+    if (!group || !members.length) return
+    await pullRepos(members, group.name, (done, total) => setGroupProgress((p) => ({ ...p, [id]: { done, total } })))
+    setGroupProgress((p) => {
+      const next = { ...p }
+      delete next[id]
+      return next
+    })
+  }
+
+  const nameOf = (path: string): string =>
+    tabs.find((t) => t.path === path)?.name ??
+    favorites.find((x) => x.path === path)?.name ??
+    recent.find((r) => r.path === path)?.name ??
+    path.replace(/[\\/]+$/, '').split(/[\\/]/).pop() ??
+    path
+
+  const fetchRepos = async (paths: string[], tag: string): Promise<void> => {
+    setHomeBusy('fetch:' + tag)
+    const failed: string[] = []
+    const queue = [...paths]
+    const worker = async (): Promise<void> => {
+      for (let p = queue.shift(); p; p = queue.shift()) {
+        try {
+          await window.git.fetch(p)
+        } catch (e) {
+          failed.push(`${nameOf(p)}: ${errorMessage(e).split('\n').find((l) => l.trim()) ?? ''}`)
+        }
+        window.dispatchEvent(new CustomEvent('arbor:synced', { detail: p }))
+      }
+    }
+    await Promise.all(Array.from({ length: Math.min(4, paths.length) }, worker))
+    setHomeBusy(null)
+    setHomeRefresh((n) => n + 1)
+    if (failed.length) showError([`Fetched ${paths.length - failed.length} of ${paths.length}`, '', ...failed].join('\n'))
+    else showInfo(`Fetched ${paths.length} repositor${paths.length === 1 ? 'y' : 'ies'}`)
+  }
+
+  const pullFromHome = async (paths: string[], tag: string): Promise<void> => {
+    setHomeBusy('pull:' + tag)
+    await pullRepos(paths.map((p) => ({ path: p, name: nameOf(p) })), `${paths.length} repositor${paths.length === 1 ? 'y' : 'ies'}`)
+    setHomeBusy(null)
+    setHomeRefresh((n) => n + 1)
+  }
+
+  const openFromHome = async (paths: string[]): Promise<void> => {
+    for (const p of paths) {
+      if (tabs.some((t) => t.path === p)) {
+        if (p === paths[paths.length - 1]) {
+          setActivePath(p)
+          setHome(false)
+        }
+      } else {
+        await openPath(p, p === paths[paths.length - 1])
+      }
+    }
+  }
+
+  const toggleFavorite = (entry: { path: string; name: string }): void => {
+    setFavorites((list) => {
+      const next = list.some((x) => x.path === entry.path) ? list.filter((x) => x.path !== entry.path) : [...list, { path: entry.path, name: entry.name }]
+      try {
+        localStorage.setItem('arbor.favorites', JSON.stringify(next))
+      } catch {
+        /* storage unavailable */
+      }
+      return next
+    })
+  }
+
+  const initRepo = async (): Promise<void> => {
+    const folder = await window.git.selectFolder('Choose a folder for the new repository')
+    if (!folder) return
+    try {
+      const info = await window.git.initRepo(folder)
+      await openPath(info.path)
+      showInfo(`Initialised ${info.name}`)
+    } catch (e) {
+      showError(errorMessage(e))
+    }
+  }
+
+  const selectTab = (path: string): void => {
+    setHome(false)
+    setActivePath(path)
+  }
+
+  const editable = (): boolean => {
+    const a = document.activeElement as HTMLElement | null
+    return !!a && !!a.closest('input, textarea, select, [contenteditable="true"], .cm-editor')
+  }
+  const sendKey = (key: string, shift = false): void => {
+    window.dispatchEvent(new KeyboardEvent('keydown', { key, ctrlKey: true, shiftKey: shift, bubbles: true }))
+  }
+  const zoom = async (action: 'zoomIn' | 'zoomOut' | 'zoomReset'): Promise<void> => {
+    const pct = await window.native?.window(action)
+    if (pct) showInfo(`Zoom ${pct}%`)
+  }
+  const mod = window.native?.platform === 'darwin' ? '⌘' : 'Ctrl+'
+  const menus: MenuDef[] = [
+    {
+      label: 'File',
+      items: [
+        { label: 'Repository Management', shortcut: `${mod}T`, onSelect: () => setHome(true) },
+        { separator: true },
+        { label: 'Open repository…', shortcut: `${mod}O`, onSelect: () => shell.openRepo() },
+        { label: 'Clone repository…', onSelect: () => setCloneOpen({}) },
+        { label: 'Init new repository…', onSelect: () => void initRepo() },
+        { label: 'New tab group…', onSelect: () => void newGroup() },
+        { separator: true },
+        { label: 'Close tab', shortcut: `${mod}W`, disabled: !activePath || (home && !tabs.length), onSelect: () => (home ? setHome(false) : activePath && closeTab(activePath)) },
+        { separator: true },
+        { label: 'Settings…', shortcut: `${mod},`, onSelect: () => setSettingsOpen({}) },
+        { separator: true },
+        { label: 'Exit', onSelect: () => void window.native?.window('quit') }
+      ]
+    },
+    {
+      label: 'Edit',
+      items: [
+        { label: 'Undo', shortcut: `${mod}Z`, onSelect: () => (editable() ? void window.native?.window('undo') : sendKey('z')) },
+        { label: 'Redo', shortcut: `${mod}Shift+Z`, onSelect: () => (editable() ? void window.native?.window('redo') : sendKey('z', true)) },
+        { separator: true },
+        { label: 'Cut', shortcut: `${mod}X`, onSelect: () => void window.native?.window('cut') },
+        { label: 'Copy', shortcut: `${mod}C`, onSelect: () => void window.native?.window('copy') },
+        { label: 'Paste', shortcut: `${mod}V`, onSelect: () => void window.native?.window('paste') },
+        { label: 'Select all', shortcut: `${mod}A`, onSelect: () => void window.native?.window('selectAll') },
+        { separator: true },
+        { label: 'Find branch', shortcut: `${mod}B`, disabled: home || !tabs.length, onSelect: () => sendKey('b') }
+      ]
+    },
+    {
+      label: 'View',
+      items: [
+        { label: 'Repository Management', shortcut: `${mod}T`, checked: home || !tabs.length, onSelect: () => setHome((h) => (tabs.length ? !h : true)) },
+        { separator: true },
+        ...THEMES.map((t) => ({ label: t.name, checked: t.id === theme.id, onSelect: () => setTheme(t.id) })),
+        { separator: true },
+        { label: 'Zoom in', shortcut: `${mod}=`, onSelect: () => void zoom('zoomIn') },
+        { label: 'Zoom out', shortcut: `${mod}-`, onSelect: () => void zoom('zoomOut') },
+        { label: 'Actual size', shortcut: `${mod}0`, onSelect: () => void zoom('zoomReset') },
+        { label: 'Full screen', shortcut: 'F11', onSelect: () => void window.native?.window('fullScreen') },
+        { separator: true },
+        { label: 'Reload', onSelect: () => void window.native?.window('reload') },
+        { label: 'Developer tools', onSelect: () => void window.native?.window('devTools') }
+      ]
+    },
+    {
+      label: 'Help',
+      items: [
+        { label: 'Keyboard shortcuts', onSelect: () => setInfoDialog('shortcuts') },
+        { label: 'Documentation', onSelect: () => window.open('https://github.com/nmclauchlan/arbor#readme') },
+        { label: 'Release notes', onSelect: () => window.open('https://github.com/nmclauchlan/arbor/releases') },
+        { label: 'Report an issue', onSelect: () => window.open('https://github.com/nmclauchlan/arbor/issues/new') },
+        { separator: true },
+        {
+          label: 'Check for updates',
+          onSelect: () => {
+            void window.updater.check()
+            showInfo('Checking for updates…')
+          }
+        },
+        { label: 'About Arbor', onSelect: () => setInfoDialog('about') }
+      ]
+    }
+  ]
 
   const ungroup = (id: string): void => {
     setTabs((list) => list.map((t) => (t.group === id ? { ...t, group: undefined } : t)))
@@ -366,17 +567,32 @@ export default function App(): React.JSX.Element {
 
   return (
     <div className="app">
-      <div className="titlebar">
+      <div className="menubar-row">
         <div className="brand-lockup" title="Arbor">
-          <BrandIcon size={22} />
+          <BrandIcon size={18} />
           <strong>Arbor</strong>
         </div>
+        <MenuBar menus={menus} />
+        <div className="menubar-drag" />
+      </div>
+      <div className="titlebar">
+        <button
+          className={`tab home-tab${home || !tabs.length ? ' active' : ''}`}
+          title={`Repository Management (${mod}T)`}
+          aria-label="Repository Management"
+          aria-pressed={home || !tabs.length}
+          onClick={() => setHome((h) => (tabs.length ? !h : true))}
+        >
+          <svg viewBox="0 0 16 16" width="15" height="15" aria-hidden="true" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinejoin="round">
+            <path d="M1.5 4.5v-1h4.2l1.3 1.5h7.5v8h-13Z" />
+          </svg>
+        </button>
         <TabBar
           tabs={tabs}
           groups={groups}
-          activePath={activePath}
+          activePath={home ? null : activePath}
           shell={shell}
-          onSelect={setActivePath}
+          onSelect={selectTab}
           onClose={closeTab}
           onCloseMany={closeMany}
           onMove={(path, target, after) => setTabs((list) => moveTab(list, path, target, after))}
@@ -421,7 +637,7 @@ export default function App(): React.JSX.Element {
           ⚙
         </button>
       </div>
-      {tabs.length === 0 ? (
+      {tabs.length === 0 && recent.length === 0 && favorites.length === 0 ? (
         <>
           <Welcome recent={recent} onOpen={shell.openRepo} onClone={() => setCloneOpen({})} onOpenRecent={openPath} />
           <div className="statusbar">
@@ -430,17 +646,41 @@ export default function App(): React.JSX.Element {
           </div>
         </>
       ) : (
-        tabs.map((t) => (
-          <RepoView
-            key={t.path}
-            repo={t}
-            active={t.path === activePath}
-            shell={shell}
-            onClose={() => closeTab(t.path)}
-            focus={focus && focus.path === t.path ? focus : null}
+        (home || tabs.length === 0) && (
+          <RepoManager
+            open={tabs.map((t) => ({ path: t.path, name: t.name }))}
+            favorites={favorites}
+            recent={recent}
+            activePath={activePath}
+            groupNames={Object.fromEntries(tabs.filter((t) => t.group).map((t) => [t.path, groups.find((g) => g.id === t.group)?.name ?? '']))}
+            onOpen={(paths) => void openFromHome(paths)}
+            onBrowse={shell.openRepo}
+            onClone={() => setCloneOpen({})}
+            onInit={() => void initRepo()}
+            onClose={closeMany}
+            onRemoveRecent={(paths) => void Promise.all(paths.map((p) => window.git.removeRecent(p))).then(loadRecent)}
+            onClearRecent={() => void window.git.clearRecent().then(loadRecent)}
+            onToggleFavorite={toggleFavorite}
+            onReveal={(p) => revealInFolder(p, null)}
+            onFetch={(paths) => fetchRepos(paths, paths.length === tabs.length ? 'open' : 'bulk')}
+            onPull={(paths) => pullFromHome(paths, paths.length === tabs.length ? 'open' : 'bulk')}
+            busy={homeBusy}
+            refreshKey={homeRefresh}
           />
-        ))
+        )
       )}
+      {tabs.map((t) => (
+        <RepoView
+          key={t.path}
+          repo={t}
+          active={!home && t.path === activePath}
+          shell={shell}
+          onClose={() => closeTab(t.path)}
+          focus={focus && focus.path === t.path ? focus : null}
+        />
+      ))}
+      {infoDialog === 'about' && <AboutDialog onClose={() => setInfoDialog(null)} />}
+      {infoDialog === 'shortcuts' && <ShortcutsDialog onClose={() => setInfoDialog(null)} />}
       {notifOpen && (
         <NotificationsPanel
           repos={incomingList}
@@ -451,6 +691,7 @@ export default function App(): React.JSX.Element {
           onOpenCommit={(path, hash) => {
             setNotifOpen(null)
             setActivePath(path)
+            setHome(false)
             setFocus((f) => ({ path, hash, n: (f?.n ?? 0) + 1 }))
           }}
           onPull={(path) => void pullIncoming(path)}

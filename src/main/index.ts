@@ -42,7 +42,12 @@ async function addRecent(repo: RepoInfo): Promise<void> {
   const list = (await readRecent()).filter((r) => r.path !== repo.path)
   list.unshift(repo)
   await mkdir(app.getPath('userData'), { recursive: true })
-  await writeFile(recentFile(), JSON.stringify(list.slice(0, 15), null, 2))
+  await writeFile(recentFile(), JSON.stringify(list.slice(0, 50), null, 2))
+}
+
+async function writeRecent(list: RepoInfo[]): Promise<void> {
+  await mkdir(app.getPath('userData'), { recursive: true })
+  await writeFile(recentFile(), JSON.stringify(list, null, 2))
 }
 
 function createWindow(): void {
@@ -56,7 +61,7 @@ function createWindow(): void {
     autoHideMenuBar: true,
     icon: join(app.getAppPath(), 'build/icon.png'),
     titleBarStyle: 'hidden',
-    titleBarOverlay: { color: '#1b1d23', symbolColor: '#c9ccd3', height: 36 },
+    titleBarOverlay: { color: '#1b1d23', symbolColor: '#c9ccd3', height: 32 },
     webPreferences: {
       preload: join(__dirname, '../preload/index.js'),
       sandbox: false,
@@ -159,6 +164,28 @@ const handlers: Handlers = {
   pull: (path) => journal.record(path, 'pull', 'Pull', () => gitService.pull(path)),
   pullFastForward: (path) => journal.record(path, 'pull', 'Pull', () => gitService.pullFastForward(path)),
   undoInfo: async (path) => journal.undoInfo(path),
+  async repoSummary(path, withChanges) {
+    const summary = await gitService.repoSummary(path, withChanges)
+    if (!summary.isRepo) return summary
+    const host = await hostApi.detect(path).catch(() => null)
+    if (host) {
+      summary.host = host.kind
+      summary.project = host.kind === 'gitlab' ? host.project.split('/').slice(0, -1).join('/') || host.org : host.kind === 'github' ? host.org : host.project
+    }
+    return summary
+  },
+  async initRepo(path) {
+    await gitService.initRepo(path)
+    const repo = await gitService.openRepo(path)
+    await addRecent(repo)
+    return repo
+  },
+  async removeRecent(path) {
+    await writeRecent((await readRecent()).filter((r) => r.path !== path))
+  },
+  async clearRecent() {
+    await writeRecent([])
+  },
   backgroundFetch: gitService.backgroundFetch,
   incoming: gitService.incoming,
   undo: journal.undo,
@@ -212,6 +239,49 @@ for (const [name, fn] of Object.entries(hostApi)) {
 ipcMain.handle('settings:get', () => getSettings())
 ipcMain.handle('settings:set', (_event, patch: Partial<MainSettings>) => setSettings(patch))
 ipcMain.handle('native:version', () => app.getVersion())
+ipcMain.handle('native:versions', () => ({
+  app: app.getVersion(),
+  electron: process.versions.electron,
+  chrome: process.versions.chrome,
+  node: process.versions.node,
+  platform: `${process.platform} ${process.arch}`
+}))
+ipcMain.handle('native:window', (event, action: string) => {
+  const win = BrowserWindow.fromWebContents(event.sender)
+  const wc = event.sender
+  switch (action) {
+    case 'zoomIn':
+      wc.setZoomLevel(Math.min(wc.getZoomLevel() + 0.5, 4))
+      break
+    case 'zoomOut':
+      wc.setZoomLevel(Math.max(wc.getZoomLevel() - 0.5, -3))
+      break
+    case 'zoomReset':
+      wc.setZoomLevel(0)
+      break
+    case 'fullScreen':
+      win?.setFullScreen(!win.isFullScreen())
+      break
+    case 'devTools':
+      wc.toggleDevTools()
+      break
+    case 'reload':
+      wc.reload()
+      break
+    case 'quit':
+      app.quit()
+      break
+    case 'undo':
+    case 'redo':
+    case 'cut':
+    case 'copy':
+    case 'paste':
+    case 'selectAll':
+      wc[action]()
+      break
+  }
+  return Math.round(Math.pow(1.2, wc.getZoomLevel()) * 100)
+})
 
 ipcMain.handle('native:showInFolder', async (_event, repoPath: string, relative: string | null) => {
   const target = relative ? join(repoPath, relative) : repoPath
@@ -222,7 +292,7 @@ ipcMain.handle('native:showInFolder', async (_event, repoPath: string, relative:
 
 ipcMain.handle('native:titleBar', (event, color: string, symbolColor: string) => {
   const win = BrowserWindow.fromWebContents(event.sender)
-  if (win && process.platform === 'win32') win.setTitleBarOverlay({ color, symbolColor, height: 36 })
+  if (win && process.platform === 'win32') win.setTitleBarOverlay({ color, symbolColor, height: 32 })
 })
 
 app.whenReady().then(() => {

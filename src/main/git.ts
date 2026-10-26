@@ -5,7 +5,7 @@ import { getSettings } from './settings'
 import {
   imageMime,
   type Commit, type CommitDetails, type FileChange, type ImageDiffResult, type ImageSource,
-  type OperationState, type IncomingBranch, type Ref, type RepoInfo, type RepoRefs, type RepoStatus, type StatusFile
+  type OperationState, type IncomingBranch, type Ref, type RepoSummary, type RepoInfo, type RepoRefs, type RepoStatus, type StatusFile
 } from '@shared/types'
 
 const FIELD = '\x1f'
@@ -495,4 +495,49 @@ export async function incoming(path: string): Promise<IncomingBranch[]> {
     out.push({ branch: b.name, upstream: b.upstream, upstreamSha, behind: b.behind ?? commits.length, ahead: b.ahead ?? 0, current: b.current, commits })
   }
   return out.sort((a, b) => Number(b.current) - Number(a.current))
+}
+
+export async function repoSummary(path: string, withChanges: boolean): Promise<RepoSummary> {
+  const empty: RepoSummary = {
+    path, exists: false, isRepo: false, branch: null, detached: false, upstream: null,
+    ahead: 0, behind: 0, changes: null, project: null, host: null
+  }
+  const exists = await access(path).then(() => true, () => false)
+  if (!exists) return empty
+  let out: string
+  try {
+    out = await git(path).raw(['status', '--porcelain=v2', '--branch', withChanges ? '--untracked-files=normal' : '--untracked-files=no'])
+  } catch {
+    return { ...empty, exists: true }
+  }
+  const summary: RepoSummary = { ...empty, exists: true, isRepo: true }
+  const changes = { staged: 0, modified: 0, untracked: 0, conflicted: 0 }
+  for (const line of out.split('\n')) {
+    if (line.startsWith('# branch.head ')) {
+      const head = line.slice(14).trim()
+      summary.detached = head === '(detached)'
+      summary.branch = summary.detached ? null : head
+    } else if (line.startsWith('# branch.upstream ')) {
+      summary.upstream = line.slice(18).trim()
+    } else if (line.startsWith('# branch.ab ')) {
+      const m = /\+(\d+) -(\d+)/.exec(line)
+      if (m) {
+        summary.ahead = Number(m[1])
+        summary.behind = Number(m[2])
+      }
+    } else if (line.startsWith('1 ') || line.startsWith('2 ')) {
+      if (line[2] !== '.') changes.staged++
+      if (line[3] !== '.') changes.modified++
+    } else if (line.startsWith('u ')) {
+      changes.conflicted++
+    } else if (line.startsWith('? ')) {
+      changes.untracked++
+    }
+  }
+  if (withChanges) summary.changes = changes
+  return summary
+}
+
+export async function initRepo(path: string): Promise<void> {
+  await simpleGit({ baseDir: path, binary: binary() }).raw(['init'])
 }

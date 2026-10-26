@@ -31,6 +31,20 @@ export interface IncomingBranch {
   commits: IncomingCommit[]
 }
 
+export interface RepoSummary {
+  path: string
+  exists: boolean
+  isRepo: boolean
+  branch: string | null
+  detached: boolean
+  upstream: string | null
+  ahead: number
+  behind: number
+  changes: { staged: number; modified: number; untracked: number; conflicted: number } | null
+  project: string | null
+  host: HostKind | null
+}
+
 export interface UndoInfo {
   undo: string | null
   redo: string | null
@@ -134,6 +148,10 @@ export interface GitApi {
   pull(path: string): Promise<void>
   pullFastForward(path: string): Promise<'updated' | 'up-to-date'>
   undoInfo(path: string): Promise<UndoInfo>
+  repoSummary(path: string, withChanges: boolean): Promise<RepoSummary>
+  initRepo(path: string): Promise<RepoInfo>
+  removeRecent(path: string): Promise<void>
+  clearRecent(): Promise<void>
   backgroundFetch(path: string): Promise<void>
   incoming(path: string): Promise<IncomingBranch[]>
   undo(path: string): Promise<string>

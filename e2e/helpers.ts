@@ -4,7 +4,7 @@ import { mkdtempSync, rmSync, writeFileSync, mkdirSync } from 'fs'
 import { tmpdir } from 'os'
 import { dirname, join } from 'path'
 
-const MAIN = join(__dirname, '..', 'out', 'main', 'index.js')
+const MAIN = join(__dirname, '..')
 
 let clock = Date.parse('2026-01-01T09:00:00Z')
 

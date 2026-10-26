@@ -22,6 +22,8 @@ Grab the installer for your platform from the [releases page](https://github.com
 
 **Merge conflicts.** When a merge, cherry-pick, revert or rebase stops on conflicts, the changes panel lists them with one-click ours/theirs, and opening a file shows each conflict side by side with Use ours, Use theirs or Use both and an editable result. Abort or continue from the same banner.
 
+**Repository Management.** The folder button at the left of the tab bar (or Ctrl+T) opens a home screen listing your open, favorite and recent repositories with their project, current branch, how far each is ahead or behind, and how many files have changed. Search them, star favorites, fetch or pull many at once, and browse, clone or initialise new ones from the same place.
+
 **Several repositories at once.** Each repository opens in a tab. Drag tabs to reorder them, or collect them into named colour-coded groups that open as a dropdown list. Open several repositories at once from the file dialog, drag a tab onto a group to file it, or use the + button to open, clone or start a new group. Right-click a group and choose Pull all to fast-forward every repository in it at once. Everything is back where you left it next launch.
 
 **Finding your way.** Filter branches with Ctrl+B. View changed files as a folder tree or a flat list. Resize the sidebar, panels and the graph's columns to taste.
@@ -38,6 +40,7 @@ Grab the installer for your platform from the [releases page](https://github.com
 
 | Shortcut | Action |
 | --- | --- |
+| Ctrl+T | Repository Management |
 | Ctrl+O | Open a repository |
 | Ctrl+, | Settings |
 | Ctrl+W | Close the current tab |
@@ -46,6 +49,7 @@ Grab the installer for your platform from the [releases page](https://github.com
 | Ctrl+Z / Ctrl+Shift+Z | Undo / redo the last git action |
 | Ctrl+Enter | Commit |
 | Ctrl+S | Save the file being edited |
+| Ctrl+= / Ctrl+- / Ctrl+0 | Zoom in / out / reset |
 | Esc | Back to the graph |
 
 ## Building from source
@@ -76,7 +80,7 @@ End-to-end tests drive the built app with [Playwright](https://playwright.dev) a
 npm run test:e2e
 ```
 
-They cover the welcome screen and settings, the graph's branch column, badges and body previews, column resizing, staging and committing, discarding, file previews, branch creation, checkout and deletion with undo and redo, resolving and aborting merge conflicts, tab groups and Pull all, and the loading indicators. CI runs them on every push and only publishes a release when they pass.
+They cover the welcome screen, Repository Management, the menu bar and settings, the graph's branch column, badges and body previews, column resizing, staging and committing, discarding, file previews, branch creation, checkout and deletion with undo and redo, resolving and aborting merge conflicts, tab groups and Pull all, and the loading indicators. CI runs them on every push and only publishes a release when they pass.
 
 ### Layout
 

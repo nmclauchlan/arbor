@@ -4,7 +4,7 @@ import type { GitApi, GitMethod, HostApi, MainSettings, SettingsApi, UpdateStatu
 const methods: GitMethod[] = [
   'selectRepos', 'selectFolder', 'clone', 'gitVersion', 'initialRepo', 'openRepo', 'recentRepos', 'log', 'refs', 'status', 'stage', 'unstage', 'discard',
   'commit', 'fileDiff', 'commitDetails', 'commitFileDiff', 'checkout', 'createBranch', 'deleteBranch',
-  'fetch', 'pull', 'pullFastForward', 'undoInfo', 'undo', 'redo', 'backgroundFetch', 'incoming', 'push', 'merge', 'stashPush', 'stashPop', 'stashDrop', 'resetTo', 'cherryPick', 'revert', 'readFile', 'writeFile',
+  'fetch', 'pull', 'pullFastForward', 'undoInfo', 'undo', 'redo', 'repoSummary', 'initRepo', 'removeRecent', 'clearRecent', 'backgroundFetch', 'incoming', 'push', 'merge', 'stashPush', 'stashPop', 'stashDrop', 'resetTo', 'cherryPick', 'revert', 'readFile', 'writeFile',
   'imageDiff', 'resolveFile', 'abortOperation', 'continueOperation'
 ]
 
@@ -47,6 +47,8 @@ contextBridge.exposeInMainWorld('settings', settings)
 contextBridge.exposeInMainWorld('native', {
   platform: process.platform,
   version: () => ipcRenderer.invoke('native:version'),
+  versions: () => ipcRenderer.invoke('native:versions'),
+  window: (action: string) => ipcRenderer.invoke('native:window', action),
   setTitleBar: (color: string, symbolColor: string) => ipcRenderer.invoke('native:titleBar', color, symbolColor),
   showInFolder: (repoPath: string, relative: string | null) => ipcRenderer.invoke('native:showInFolder', repoPath, relative),
   onOpenPath: (cb: (path: string) => void) => {
