@@ -126,12 +126,12 @@ export async function refs(path: string): Promise<RepoRefs> {
   const g = git(path)
   const out = await g.raw([
     'for-each-ref',
-    `--format=%(refname)${FIELD}%(objectname)${FIELD}%(upstream:short)${FIELD}%(upstream:track)${FIELD}%(HEAD)`
+    `--format=%(refname)${FIELD}%(objectname)${FIELD}%(upstream:short)${FIELD}%(upstream:track)${FIELD}%(HEAD)${FIELD}%(*objectname)`
   ])
   const result: RepoRefs = { branches: [], remotes: [], tags: [], stashes: [], headHash: '', detached: false }
   for (const line of out.split('\n')) {
     if (!line.trim()) continue
-    const [refname, hash, upstream, track, head] = line.split(FIELD)
+    const [refname, hash, upstream, track, head, peeled] = line.split(FIELD)
     if (refname.startsWith('refs/heads/')) {
       const a = /ahead (\d+)/.exec(track ?? '')
       const b = /behind (\d+)/.exec(track ?? '')
@@ -150,7 +150,7 @@ export async function refs(path: string): Promise<RepoRefs> {
       if (name === 'HEAD') continue
       result.remotes.push({ remote: full.slice(0, slash), name, hash })
     } else if (refname.startsWith('refs/tags/')) {
-      result.tags.push({ name: refname.slice(10), hash })
+      result.tags.push({ name: refname.slice(10), hash: peeled || hash })
     }
   }
   result.headHash = (await g.revparse(['HEAD']).catch(() => '')).trim()

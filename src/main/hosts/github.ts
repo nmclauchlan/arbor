@@ -113,7 +113,8 @@ function toPr(p: GhPr, reviewers: PullRequestReviewer[] = []): PullRequest {
     isDraft: !!p.draft,
     createdAt: Date.parse(p.created_at),
     url: p.html_url,
-    reviewers
+    reviewers,
+    headSha: p.head.sha
   }
 }
 

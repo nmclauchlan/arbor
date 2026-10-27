@@ -3,7 +3,7 @@ import type { Branch, CommitBuild, HostInfo, PullRequest, Ref, RemoteBranch, Rep
 import { buildRefMenu, type FocusRef } from '../refMenu'
 import type { Actions } from '../actions'
 import { Loading } from './Spinner'
-import { BuildMarker } from './BuildStatus'
+import { BuildMarker, buildsFor } from './BuildStatus'
 import { hostName, hostPath, prNoun, prPrefix } from '../util'
 
 function Section({
@@ -210,6 +210,7 @@ export function Sidebar({
                 >
                   <span className="pr-id">{prPrefix(host.kind)}{p.id}</span>
                   <span className="name">{p.isDraft ? '[Draft] ' : ''}<Highlight text={p.title} query={q} /></span>
+                  <BuildMarker builds={buildsFor(builds, p.headSha, p.mergeSha)} />
                 </div>
               ))}
               {prsLoaded && shownPrs.length === 0 && !filtering && !prError && <div className="empty">No open {prNoun(host.kind)}s</div>}
@@ -249,6 +250,7 @@ export function Sidebar({
             onContextMenu={(e) => tagMenu(e, t)}
           >
             <span className="name">🏷 <Highlight text={t.name} query={q} /></span>
+            {builds[t.hash] && <BuildMarker builds={builds[t.hash]} />}
           </div>
         ))}
         {tags.length === 0 && !filtering && <div className="empty">No tags</div>}

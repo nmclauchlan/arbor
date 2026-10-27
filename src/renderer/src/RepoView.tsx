@@ -19,7 +19,7 @@ import { useSettings } from './settings'
 
 
 const BUILD_COMMITS = 50
-const BUILD_LOOKUPS = 100
+const BUILD_LOOKUPS = 150
 
 export function RepoView({
   repo,
@@ -86,7 +86,9 @@ export function RepoView({
     ...new Set([
       ...commits.filter((c) => c.hash !== WIP_HASH).slice(0, BUILD_COMMITS).map((c) => c.hash),
       ...(refs?.branches ?? []).map((b) => b.hash),
-      ...(refs?.remotes ?? []).map((r) => r.hash)
+      ...prs.flatMap((p) => [p.headSha, p.mergeSha].filter((s): s is string => !!s)),
+      ...(refs?.remotes ?? []).map((r) => r.hash),
+      ...(refs?.tags ?? []).map((t) => t.hash)
     ])
   ]
     .slice(0, BUILD_LOOKUPS)

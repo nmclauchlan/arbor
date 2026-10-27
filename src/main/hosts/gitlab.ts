@@ -81,6 +81,7 @@ interface GlMr {
   detailed_merge_status?: string
   merge_status?: string
   head_pipeline?: { id: number; status: string; web_url: string } | null
+  sha?: string
 }
 
 function toPr(m: GlMr, reviewers?: PullRequestReviewer[]): PullRequest {
@@ -94,7 +95,8 @@ function toPr(m: GlMr, reviewers?: PullRequestReviewer[]): PullRequest {
     isDraft: !!(m.draft || m.work_in_progress || /^(Draft|WIP):/i.test(m.title)),
     createdAt: Date.parse(m.created_at),
     url: m.web_url,
-    reviewers: reviewers ?? (m.reviewers ?? []).map((u) => ({ name: u.name || u.username, vote: 0, required: false }))
+    reviewers: reviewers ?? (m.reviewers ?? []).map((u) => ({ name: u.name || u.username, vote: 0, required: false })),
+    headSha: m.sha
   }
 }
 

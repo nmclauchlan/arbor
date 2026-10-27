@@ -40,6 +40,11 @@ export function BuildIcon({ state }: { state: BuildState }): React.JSX.Element {
   )
 }
 
+export function buildsFor(builds: Record<string, CommitBuild[]>, ...shas: (string | undefined)[]): CommitBuild[] {
+  const seen = new Set<string>()
+  return shas.flatMap((sha) => (sha ? builds[sha] ?? [] : [])).filter((b) => !seen.has(b.id) && !!seen.add(b.id))
+}
+
 export function BuildMarker({ builds }: { builds: CommitBuild[] }): React.JSX.Element | null {
   const state = rollupState(builds)
   if (!state) return null

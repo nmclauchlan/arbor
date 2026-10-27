@@ -84,6 +84,8 @@ interface AdoPr {
   reviewers: AdoReviewer[]
   mergeStatus?: string
   repository: { project: { id: string } }
+  lastMergeSourceCommit?: { commitId: string }
+  lastMergeCommit?: { commitId: string }
 }
 
 function toPr(info: HostInfo, p: AdoPr): PullRequest {
@@ -100,7 +102,9 @@ function toPr(info: HostInfo, p: AdoPr): PullRequest {
     url: `${info.webUrl}/pullrequest/${p.pullRequestId}`,
     reviewers: (p.reviewers ?? []).map(
       (r): PullRequestReviewer => ({ name: r.displayName, vote: r.vote, required: !!r.isRequired })
-    )
+    ),
+    headSha: p.lastMergeSourceCommit?.commitId,
+    mergeSha: p.lastMergeCommit?.commitId
   }
 }
 

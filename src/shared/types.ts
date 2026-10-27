@@ -285,6 +285,8 @@ export interface PullRequest {
   createdAt: number
   url: string
   reviewers: PullRequestReviewer[]
+  headSha?: string
+  mergeSha?: string
 }
 
 export interface PullRequestCheck {

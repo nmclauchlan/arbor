@@ -69,10 +69,21 @@ const githubRoutes: [string, unknown][] = [
 test('GitHub checks show on the graph and failed annotations show in the commit panel', async () => {
   const { repo, head, parent } = repoWithHost('https://github.com/acme/widgets.git')
   git(repo, 'branch', 'feature/table-menu', 'HEAD~1')
+  git(repo, 'tag', '-a', 'v1.0.0', '-m', 'Release 1.0.0', 'HEAD')
+  const pr = {
+    number: 42,
+    title: 'Add the table menu',
+    state: 'open',
+    created_at: '2026-10-01T00:00:00Z',
+    html_url: 'https://github.com/acme/widgets/pull/42',
+    user: { login: 'tester' },
+    head: { ref: 'feature/table-menu', sha: parent, label: 'acme:feature/table-menu', repo: { full_name: 'acme/widgets' } },
+    base: { ref: 'main', repo: { full_name: 'acme/widgets' } }
+  }
   const { app, page, close } = await launch(repo)
   try {
     await connect(app, page, 'github', 'https://github.com', {
-      json: githubRoutes,
+      json: [['/pulls', [pr]], ...githubRoutes],
       graphql: {
         [head]: [failedCheck],
         [parent]: [
@@ -86,6 +97,8 @@ test('GitHub checks show on the graph and failed annotations show in the commit 
     const sidebar = view(page).locator('.sidebar')
     await expect(sidebar.locator('.ref-item', { hasText: /^main/ }).locator('.build-marker')).toHaveAttribute('data-build-state', 'failed')
     await expect(sidebar.locator('.ref-item', { hasText: 'feature/table-menu' }).locator('.build-marker')).toHaveAttribute('data-build-state', 'succeeded')
+    await expect(sidebar.locator('.pr-item', { hasText: 'Add the table menu' }).locator('.build-marker')).toHaveAttribute('data-build-state', 'succeeded')
+    await expect(sidebar.locator('.ref-item', { hasText: 'v1.0.0' }).locator('.build-marker')).toHaveAttribute('data-build-state', 'failed')
 
     await row(page, 'Second change').click()
     const section = page.locator('.builds-section')
