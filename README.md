@@ -18,7 +18,7 @@
   <a href="#keyboard-shortcuts">Shortcuts</a>
 </p>
 
-![Arbor showing a commit graph with a merge commit selected](docs/screenshot.png)
+![Arbor showing a repository in a tab group, with build status on the graph and sidebar and a merged pull request's description in the commit panel](docs/screenshot.png)
 
 ## Why Arbor
 
@@ -39,7 +39,7 @@ Connect Azure DevOps Services, GitHub.com, GitHub Enterprise Server, GitLab.com 
 - Create a pull request for the current branch from the toolbar, or start one from any branch's context menu.
 - Clone any repository you can access from a searchable list, optionally straight into a tab group.
 - Copy links to branches and commits on your host from their context menus.
-- Commit messages and pull request descriptions render as Markdown, with headings, lists, code, tables and links.
+- Commit messages and pull request descriptions render as Markdown, with headings, lists, code, tables and links. Long descriptions scroll in a compact box, so the changed files stay in view.
 
 ### See CI before you merge
 
@@ -69,7 +69,7 @@ Arbor fetches your open repositories in the background, every ten minutes by def
 
 ### A complete git toolkit
 
-- **The graph.** Every branch, remote and tag on one graph with coloured lanes, merge curves and author avatars. Branches and tags have their own column, and each commit can preview the start of its description. Drag column edges to resize them, or double-click an edge to fit the column to its content.
+- **The graph.** Every branch, remote and tag on one graph with coloured lanes, merge curves and author avatars. Branches and tags have their own column, and each commit can preview the start of its description. Drag column edges to resize them, double-click an edge to fit the column to its content, or right-click the header to choose which columns to show.
 - **Everything one right-click away.** From a commit, a branch or tag badge, or a sidebar entry you can:
   - check out any branch, including a remote branch when your local copy is behind it;
   - pull and push branches you haven't checked out;
@@ -78,6 +78,16 @@ Arbor fetches your open repositories in the background, every ten minutes by def
   - rename or delete a branch locally and on the remote;
   - save a patch, and solo or hide branches in the graph.
 - **Changes.** Stage, unstage and discard per file, per folder or everything at once, in a folder tree or flat list. Click a file to see its diff, double-click to edit it in place with syntax highlighting, and commit with Ctrl+Enter.
+
+### Stage exactly what you mean
+
+Commit the change you meant to commit, not the whole file. Open any changed file to see its diff:
+
+- Every chunk has **Stage chunk** and **Discard chunk** buttons, and staged files offer **Unstage chunk**.
+- Click individual changed lines to select them, or Shift-click to select a range, then choose **Stage lines** or **Discard lines**.
+- Discarding always asks first, because it can't be undone.
+
+![Selecting two changed lines in a diff, with Stage lines and Discard lines above and chunk buttons on each chunk](docs/line-staging.png)
 
 ### See exactly what changed in an image
 
@@ -112,7 +122,14 @@ When a merge, cherry-pick, revert or rebase stops on conflicts, a banner shows t
 
 ### Make it yours
 
-Ten themes, dark and light, including Dracula, Nord, Solarized, Gruvbox, Monokai and Rosé Pine. Resize the sidebar, panels and graph columns, choose tree or flat file lists, toggle avatars and description previews, and set how often repositories refresh and how much history to load. Settings live under ⚙ or Ctrl+,.
+Arrange Arbor around the way you work:
+
+- **Panels.** Hide the branch panel or the commit panel with the buttons at either end of the toolbar, from the View menu, or by dragging a panel's edge closed. Drag the edges to resize them.
+- **Columns.** Right-click the graph header to show or hide the Branch / Tag, Graph, Author, Date and SHA columns, fit every column to its content, or reset the layout. The message column is always shown and gets the most room.
+- **Themes.** Ten themes, dark and light, including Dracula, Nord, Solarized, Gruvbox, Monokai and Rosé Pine.
+- **Settings** (⚙ or Ctrl+,) cover tree or flat file lists, author avatars and description previews, how often repositories refresh, and how much history to load.
+
+![The graph header menu with ticks for each column, and the panel buttons at both ends of the toolbar](docs/columns-menu.png)
 
 ## Organise repositories with tab groups
 
