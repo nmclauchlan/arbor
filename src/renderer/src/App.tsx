@@ -17,6 +17,7 @@ import { BrandIcon } from './components/BrandIcon'
 import { RepoView } from './RepoView'
 import { errorMessage } from './util'
 import { applyTheme, currentTheme, setTheme, THEMES, useTheme } from './themes'
+import { setPanelCollapsed, useCollapsedPanels } from './layout'
 import { syncSettingsFromMain, useSettings } from './settings'
 import { BellIcon, failedBuildKey, NotificationsPanel, type FailedBuild, type RepoIncoming } from './components/Notifications'
 import {
@@ -77,6 +78,7 @@ export default function App(): React.JSX.Element {
   const tabsRef = useRef<{ path: string; name: string }[]>([])
   const checkingRef = useRef(false)
   const theme = useTheme()
+  const collapsedPanels = useCollapsedPanels()
   const [settingsOpen, setSettingsOpen] = useState<false | { suggestBaseUrl?: string }>(false)
   const [cloneOpen, setCloneOpen] = useState<false | { group?: string }>(false)
   const [home, setHome] = useState(false)
@@ -702,6 +704,9 @@ export default function App(): React.JSX.Element {
       label: 'View',
       items: [
         { label: 'Repository Management', shortcut: `${mod}T`, checked: home || !tabs.length, onSelect: () => setHome((h) => (tabs.length ? !h : true)) },
+        { separator: true },
+        { label: 'Branch panel', checked: !collapsedPanels.includes('sidebar'), onSelect: () => setPanelCollapsed('sidebar', !collapsedPanels.includes('sidebar')) },
+        { label: 'Commit panel', checked: !collapsedPanels.includes('details'), onSelect: () => setPanelCollapsed('details', !collapsedPanels.includes('details')) },
         { separator: true },
         ...THEMES.map((t) => ({ label: t.name, checked: t.id === theme.id, onSelect: () => setTheme(t.id) })),
         { separator: true },

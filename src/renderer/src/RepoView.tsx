@@ -13,7 +13,7 @@ import { Toolbar } from './components/Toolbar'
 import { WorkingTree } from './components/WorkingTree'
 import { Splitter } from './components/Splitter'
 import { AppVersion, UpdateNotice } from './components/UpdateNotice'
-import { setLayout, useLayout } from './layout'
+import { setLayout, setPanelCollapsed, useCollapsedPanels, useLayout } from './layout'
 import { copyToClipboard, errorMessage, shortHash, WIP_HASH } from './util'
 import { useSettings } from './settings'
 
@@ -107,6 +107,9 @@ export function RepoView({
   const lastStatusJson = useRef('')
   const path = repo.path
   const layout = useLayout()
+  const collapsedPanels = useCollapsedPanels()
+  const sidebarOpen = !collapsedPanels.includes('sidebar')
+  const detailsOpen = !collapsedPanels.includes('details')
 
   const loadAll = useCallback(async () => {
     const [log, r, s, u] = await Promise.all([
@@ -558,8 +561,8 @@ export function RepoView({
 
   return (
     <div
-      className="repo-view"
-      style={{ gridTemplateColumns: `${layout.sidebar}px 4px 1fr 4px ${layout.panel}px` }}
+      className={`repo-view${sidebarOpen ? '' : ' sidebar-collapsed'}${detailsOpen ? '' : ' details-collapsed'}`}
+      style={{ gridTemplateColumns: `${sidebarOpen ? `${layout.sidebar}px 4px` : '0 0'} minmax(0, 1fr) ${detailsOpen ? `4px ${layout.panel}px` : '0 0'}` }}
     >
       <Toolbar
         repo={repo}
@@ -592,9 +595,10 @@ export function RepoView({
         <div className="sidebar" />
       )}
       <Splitter
+        className="splitter-sidebar"
         direction="vertical"
         value={layout.sidebar}
-        onChange={(v) => setLayout('sidebar', v)}
+        onChange={(v) => (v < 100 ? setPanelCollapsed('sidebar', true) : setLayout('sidebar', v))}
         onReset={() => setLayout('sidebar', 250)}
       />
       {viewing ? (
@@ -624,9 +628,10 @@ export function RepoView({
         />
       )}
       <Splitter
+        className="splitter-details"
         direction="vertical"
         value={layout.panel}
-        onChange={(v) => setLayout('panel', v)}
+        onChange={(v) => (v < 200 ? setPanelCollapsed('details', true) : setLayout('panel', v))}
         invert
         onReset={() => setLayout('panel', 440)}
       />

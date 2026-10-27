@@ -107,6 +107,16 @@ textarea { resize: vertical; font-family: inherit; }
   grid-template-columns: 250px 1fr 440px;
 }
 .repo-view[hidden] { display: none; }
+.repo-view > .sidebar { grid-column: 1; grid-row: 2; }
+.repo-view > .splitter-sidebar { grid-column: 2; grid-row: 2; }
+.repo-view > .commit-list, .repo-view > .file-viewer { grid-column: 3; grid-row: 2; }
+.repo-view > .splitter-details { grid-column: 4; grid-row: 2; }
+.repo-view > .panel { grid-column: 5; grid-row: 2; }
+.repo-view.sidebar-collapsed > .sidebar, .repo-view.sidebar-collapsed > .splitter-sidebar,
+.repo-view.details-collapsed > .panel, .repo-view.details-collapsed > .splitter-details { display: none; }
+.toolbar .panel-toggle { padding: 4px 6px; color: var(--fg-dim); }
+.toolbar .panel-toggle:hover { color: var(--fg); }
+.toolbar .panel-toggle svg { display: block; }
 .repo-view.error-view { display: flex; }
 .error-box { display: flex; flex-direction: column; gap: 10px; max-width: 520px; padding: 24px; background: var(--bg-2); border: 1px solid var(--border); border-radius: 8px; color: var(--fg); }
 .error-box h3 { margin: 0; }

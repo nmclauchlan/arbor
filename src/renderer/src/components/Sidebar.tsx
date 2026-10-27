@@ -5,6 +5,7 @@ import type { Actions } from '../actions'
 import { Loading } from './Spinner'
 import { BuildMarker, buildsFor } from './BuildStatus'
 import { hostName, hostPath, prNoun, prPrefix } from '../util'
+import { setPanelCollapsed } from '../layout'
 
 function Section({
   title,
@@ -80,8 +81,11 @@ export function Sidebar({
     const key = (e: KeyboardEvent): void => {
       if ((e.ctrlKey || e.metaKey) && e.key === 'b') {
         e.preventDefault()
-        input.current?.focus()
-        input.current?.select()
+        setPanelCollapsed('sidebar', false)
+        requestAnimationFrame(() => {
+          input.current?.focus()
+          input.current?.select()
+        })
       }
     }
     window.addEventListener('keydown', key)

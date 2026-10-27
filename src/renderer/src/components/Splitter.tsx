@@ -5,13 +5,15 @@ export function Splitter({
   value,
   onChange,
   invert,
-  onReset
+  onReset,
+  className = ''
 }: {
   direction: 'vertical' | 'horizontal'
   value: number
   onChange: (value: number) => void
   invert?: boolean
   onReset?: () => void
+  className?: string
 }): React.JSX.Element {
   const start = useCallback(
     (e: React.MouseEvent) => {
@@ -35,5 +37,5 @@ export function Splitter({
     },
     [direction, value, onChange, invert]
   )
-  return <div className={`splitter ${direction}`} onMouseDown={start} onDoubleClick={onReset} />
+  return <div className={`splitter ${direction} ${className}`.trim()} onMouseDown={start} onDoubleClick={onReset} />
 }

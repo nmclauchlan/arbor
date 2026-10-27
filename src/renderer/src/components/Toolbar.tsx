@@ -1,6 +1,18 @@
 import type { HostInfo, PullRequest, RepoInfo, RepoRefs, UndoInfo } from '@shared/types'
 import type { Actions } from '../actions'
 import { prPrefix } from '../util'
+import { setPanelCollapsed, useCollapsedPanels, type PanelName } from '../layout'
+
+function PanelIcon({ side, open }: { side: 'left' | 'right'; open: boolean }): React.JSX.Element {
+  const x = side === 'left' ? 2.5 : 10
+  return (
+    <svg viewBox="0 0 16 16" width="15" height="15" aria-hidden="true" fill="none" stroke="currentColor" strokeWidth="1.3">
+      <rect x="1.5" y="2.5" width="13" height="11" rx="1.5" />
+      <rect x={x} y="3" width="3.5" height="10" fill={open ? 'currentColor' : 'none'} stroke="none" opacity={open ? 0.55 : 1} />
+      <path d={side === 'left' ? 'M6 2.5v11' : 'M10 2.5v11'} />
+    </svg>
+  )
+}
 
 export function Toolbar({
   repo,
@@ -28,8 +40,24 @@ export function Toolbar({
   const mod = /Mac/.test(navigator.platform) ? '⌘' : 'Ctrl+'
   const current = refs?.branches.find((b) => b.current)
   const currentPr = current ? prs.find((p) => p.sourceBranch === current.name) : undefined
+  const collapsed = useCollapsedPanels()
+  const toggle = (panel: PanelName, label: string, side: 'left' | 'right'): React.JSX.Element => {
+    const open = !collapsed.includes(panel)
+    return (
+      <button
+        className="icon panel-toggle"
+        aria-pressed={open}
+        aria-label={`${open ? 'Hide' : 'Show'} the ${label}`}
+        title={`${open ? 'Hide' : 'Show'} the ${label}`}
+        onClick={() => setPanelCollapsed(panel, open)}
+      >
+        <PanelIcon side={side} open={open} />
+      </button>
+    )
+  }
   return (
     <div className="toolbar">
+      {toggle('sidebar', 'branch panel', 'left')}
       <button onClick={actions.openRepo} title="Open another repository">
         📁 {repo.name}
       </button>
@@ -94,6 +122,7 @@ export function Toolbar({
         {refs?.detached ? 'HEAD detached' : current ? `on ${current.name}` : ''}
         {current?.upstream ? ` → ${current.upstream}` : ''}
       </span>
+      {toggle('details', 'commit panel', 'right')}
     </div>
   )
 }

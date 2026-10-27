@@ -77,44 +77,43 @@ export function useLayout(): Layout {
   )
 }
 
-const HIDDEN_KEY = 'arbor.columns.hidden'
-
-function loadHidden(): string[] {
-  try {
-    const saved = JSON.parse(localStorage.getItem(HIDDEN_KEY) ?? '[]') as unknown
-    return Array.isArray(saved) ? saved.filter((c): c is string => typeof c === 'string') : []
-  } catch {
-    return []
+function flagStore(key: string): { set(flag: string, on: boolean): void; reset(): void; use(): string[] } {
+  const load = (): string[] => {
+    try {
+      const saved = JSON.parse(localStorage.getItem(key) ?? '[]') as unknown
+      return Array.isArray(saved) ? saved.filter((f): f is string => typeof f === 'string') : []
+    } catch {
+      return []
+    }
+  }
+  let flags = load()
+  const subscribers = new Set<() => void>()
+  const subscribe = (l: () => void): (() => void) => {
+    subscribers.add(l)
+    return () => subscribers.delete(l)
+  }
+  const store = (next: string[]): void => {
+    flags = next
+    try {
+      localStorage.setItem(key, JSON.stringify(flags))
+    } catch {
+      /* storage unavailable */
+    }
+    subscribers.forEach((l) => l())
+  }
+  return {
+    set: (flag, on) => store(on ? [...new Set([...flags, flag])] : flags.filter((f) => f !== flag)),
+    reset: () => store([]),
+    use: () => useSyncExternalStore(subscribe, () => flags)
   }
 }
 
-let hidden = loadHidden()
-const hiddenListeners = new Set<() => void>()
+const hiddenColumns = flagStore('arbor.columns.hidden')
+export const setColumnHidden = (col: string, hide: boolean): void => hiddenColumns.set(col, hide)
+export const resetColumns = (): void => hiddenColumns.reset()
+export const useHiddenColumns = (): string[] => hiddenColumns.use()
 
-function storeHidden(next: string[]): void {
-  hidden = next
-  try {
-    localStorage.setItem(HIDDEN_KEY, JSON.stringify(hidden))
-  } catch {
-    /* storage unavailable */
-  }
-  hiddenListeners.forEach((l) => l())
-}
-
-export function setColumnHidden(col: string, hide: boolean): void {
-  storeHidden(hide ? [...new Set([...hidden, col])] : hidden.filter((c) => c !== col))
-}
-
-export function resetColumns(): void {
-  storeHidden([])
-}
-
-export function useHiddenColumns(): string[] {
-  return useSyncExternalStore(
-    (l) => {
-      hiddenListeners.add(l)
-      return () => hiddenListeners.delete(l)
-    },
-    () => hidden
-  )
-}
+export type PanelName = 'sidebar' | 'details'
+const collapsedPanels = flagStore('arbor.panels.collapsed')
+export const setPanelCollapsed = (panel: PanelName, collapsed: boolean): void => collapsedPanels.set(panel, collapsed)
+export const useCollapsedPanels = (): string[] => collapsedPanels.use()
