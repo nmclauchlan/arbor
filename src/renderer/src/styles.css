@@ -200,7 +200,9 @@ textarea { resize: vertical; font-family: inherit; }
 .commit-header .hcell { position: relative; flex: none; height: 100%; display: flex; align-items: center; white-space: nowrap; overflow: visible; }
 .commit-header .hcell.graph { padding-left: 8px; overflow: hidden; }
 .commit-header .hcell.refs { padding-left: 8px; overflow: visible; }
-.commit-header .hcell.subject { flex: 1 1 0; min-width: 80px; }
+.commit-header .hcell.subject { flex: 1 1 0; min-width: max(120px, 35%); }
+.commit-header .hcell[data-col="colAuthor"], .commit-header .hcell[data-col="colSha"] { flex: 0 1 auto; min-width: 50px; }
+.commit-header .hcell[data-col="colDate"] { flex: 0 1 auto; min-width: 60px; }
 .commit-header .col-resize { position: absolute; top: 0; bottom: 0; width: 9px; cursor: col-resize; z-index: 2; }
 .commit-header .col-resize.right { right: -5px; }
 .commit-header .col-resize.left { left: -9px; }
@@ -224,7 +226,7 @@ textarea { resize: vertical; font-family: inherit; }
 .commit-row .graph-space { flex: none; }
 .commit-row .subject {
   flex: 1 1 0;
-  min-width: 80px;
+  min-width: max(120px, 35%);
   overflow: hidden;
   text-overflow: ellipsis;
   display: flex;
@@ -253,9 +255,9 @@ textarea { resize: vertical; font-family: inherit; }
 .avatar-initials { width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; color: #fff; font-size: 8.5px; font-weight: 700; letter-spacing: 0.02em; line-height: 1; }
 
 .toolbar-group { display: inline-flex; gap: 2px; margin-right: 6px; }
-.commit-row .author { flex: none; color: var(--fg-dim); overflow: hidden; text-overflow: ellipsis; }
-.commit-row .date { flex: none; color: var(--fg-dim); font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.commit-row .sha { flex: none; color: var(--fg-faint); font-family: var(--mono); font-size: 11px; overflow: hidden; }
+.commit-row .author { flex: 0 1 auto; min-width: 50px; color: var(--fg-dim); overflow: hidden; text-overflow: ellipsis; }
+.commit-row .date { flex: 0 1 auto; min-width: 60px; color: var(--fg-dim); font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.commit-row .sha { flex: 0 1 auto; min-width: 50px; color: var(--fg-faint); font-family: var(--mono); font-size: 11px; overflow: hidden; }
 .commit-row.wip .subject { color: var(--fg-dim); font-style: italic; }
 
 .ref-badge {
@@ -426,6 +428,8 @@ textarea { resize: vertical; font-family: inherit; }
 .submenu-anchor-point { display: none; }
 .context-menu .item { position: relative; display: flex; align-items: center; gap: 12px; padding: 6px 14px; cursor: pointer; white-space: nowrap; }
 .context-menu .item .label { flex: 1; }
+.context-menu .item .check { width: 12px; margin-right: -4px; flex: none; color: var(--accent); }
+.context-menu .item:hover .check { color: inherit; }
 .context-menu .item .hint { color: var(--fg-faint); font-size: 11.5px; }
 .context-menu .item:hover .hint, .context-menu .item.sub-open .hint { color: var(--on-accent); opacity: 0.8; }
 .context-menu .item .chev { color: var(--fg-dim); margin-right: -4px; }

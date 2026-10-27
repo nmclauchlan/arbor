@@ -43,6 +43,9 @@ test('graph columns resize by dragging the header handle', async () => {
   const { repo } = repoWithRemote(root)
   const { page, close } = await launch(repo)
   try {
+    await page.evaluate(() => localStorage.setItem('arbor.layout', JSON.stringify({ sidebar: 160, panel: 300 })))
+    await page.reload()
+    await expect(view(page).locator('.commit-row').first()).toBeVisible()
     const author = view(page).locator('.commit-header .hcell').nth(3)
     const before = (await author.boundingBox())!.width
     const handle = author.locator('.col-resize')

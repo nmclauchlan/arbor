@@ -76,3 +76,45 @@ export function useLayout(): Layout {
     () => current
   )
 }
+
+const HIDDEN_KEY = 'arbor.columns.hidden'
+
+function loadHidden(): string[] {
+  try {
+    const saved = JSON.parse(localStorage.getItem(HIDDEN_KEY) ?? '[]') as unknown
+    return Array.isArray(saved) ? saved.filter((c): c is string => typeof c === 'string') : []
+  } catch {
+    return []
+  }
+}
+
+let hidden = loadHidden()
+const hiddenListeners = new Set<() => void>()
+
+function storeHidden(next: string[]): void {
+  hidden = next
+  try {
+    localStorage.setItem(HIDDEN_KEY, JSON.stringify(hidden))
+  } catch {
+    /* storage unavailable */
+  }
+  hiddenListeners.forEach((l) => l())
+}
+
+export function setColumnHidden(col: string, hide: boolean): void {
+  storeHidden(hide ? [...new Set([...hidden, col])] : hidden.filter((c) => c !== col))
+}
+
+export function resetColumns(): void {
+  storeHidden([])
+}
+
+export function useHiddenColumns(): string[] {
+  return useSyncExternalStore(
+    (l) => {
+      hiddenListeners.add(l)
+      return () => hiddenListeners.delete(l)
+    },
+    () => hidden
+  )
+}

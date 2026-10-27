@@ -11,6 +11,7 @@ export interface MenuItem {
   separator?: boolean
   items?: MenuItem[]
   hint?: string
+  checked?: boolean
 }
 
 export interface MenuState {
@@ -35,6 +36,7 @@ function MenuList({ items, onClose, nested }: { items: MenuItem[]; onClose: () =
   const [openSub, setOpenSub] = useState<number | null>(null)
   const timer = useRef<number | undefined>(undefined)
   const list = compact(items)
+  const ticks = list.some((i) => i.checked !== undefined)
 
   useEffect(() => () => window.clearTimeout(timer.current), [])
 
@@ -51,7 +53,8 @@ function MenuList({ items, onClose, nested }: { items: MenuItem[]; onClose: () =
         ) : (
           <div
             key={i}
-            role="menuitem"
+            role={item.checked === undefined ? 'menuitem' : 'menuitemcheckbox'}
+            aria-checked={item.checked}
             aria-haspopup={item.items ? 'menu' : undefined}
             aria-expanded={item.items ? openSub === i : undefined}
             aria-disabled={item.disabled || undefined}
@@ -66,6 +69,11 @@ function MenuList({ items, onClose, nested }: { items: MenuItem[]; onClose: () =
               item.onClick?.()
             }}
           >
+            {ticks && (
+              <span className="check" aria-hidden="true">
+                {item.checked ? '✓' : ''}
+              </span>
+            )}
             <span className="label">{item.label}</span>
             {item.hint && <span className="hint">{item.hint}</span>}
             {item.items && <span className="chev">›</span>}

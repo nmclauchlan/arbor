@@ -2,7 +2,7 @@ import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import type { Commit, CommitBuild, Ref } from '@shared/types'
 import { LANE_COLORS, layoutGraph } from '../graph/layout'
 import { formatDate, shortHash, WIP_HASH } from '../util'
-import { resetLayout, setLayout, useLayout, type Layout } from '../layout'
+import { resetColumns, resetLayout, setColumnHidden, setLayout, useHiddenColumns, useLayout, type Layout } from '../layout'
 import { useSettings } from '../settings'
 import { Avatar } from '../avatars'
 import { Loading } from './Spinner'
@@ -131,6 +131,14 @@ function RefsCell({ refs, width }: { refs: Ref[]; width: number }): React.JSX.El
 }
 
 const MIN_MESSAGE = 120
+const MESSAGE_SHARE = 0.35
+const COLUMN_LABELS: Record<ColKey, string> = { colRefs: 'Branch / Tag', colGraph: 'Graph', colAuthor: 'Author', colDate: 'Date', colSha: 'SHA' }
+
+function messageRoom(header: Element | null | undefined): number {
+  const message = header?.querySelector<HTMLElement>('.hcell.subject')
+  if (!header || !message) return 0
+  return message.offsetWidth - Math.max(MIN_MESSAGE, MESSAGE_SHARE * (header as HTMLElement).clientWidth)
+}
 const FIT_SLACK = 6
 const COLS: ColKey[] = ['colRefs', 'colGraph', 'colAuthor', 'colDate', 'colSha']
 
@@ -193,9 +201,8 @@ function ColHandle({ col, width, side, onFit }: { col: ColKey; width: number; si
         e.preventDefault()
         e.stopPropagation()
         const origin = e.clientX
-        const base = width
-        const message = e.currentTarget.closest('.commit-header')?.querySelector<HTMLElement>('.hcell.subject')
-        const room = Math.max(0, (message?.offsetWidth ?? MIN_MESSAGE) - MIN_MESSAGE)
+        const base = Math.round(e.currentTarget.parentElement?.getBoundingClientRect().width ?? width)
+        const room = Math.max(0, messageRoom(e.currentTarget.closest('.commit-header')))
         let next = base
         let frame = 0
         document.body.style.cursor = 'col-resize'
@@ -228,37 +235,49 @@ function ColHandle({ col, width, side, onFit }: { col: ColKey; width: number; si
 function Header({
   graphCol,
   cols,
+  shown,
   onFit,
   onMenu
 }: {
   graphCol: number
   cols: Layout
+  shown: (col: ColKey) => boolean
   onFit: (col: ColKey) => void
   onMenu: (e: React.MouseEvent) => void
 }): React.JSX.Element {
   return (
     <div className="commit-header" onContextMenu={onMenu}>
-      <div className="hcell refs" data-col="colRefs" style={{ width: cols.colRefs }}>
-        Branch / Tag
-        <ColHandle col="colRefs" width={cols.colRefs} side="right" onFit={onFit} />
-      </div>
-      <div className="hcell graph" data-col="colGraph" style={{ width: graphCol }}>
-        Graph
-        <ColHandle col="colGraph" width={graphCol} side="right" onFit={onFit} />
-      </div>
+      {shown('colRefs') && (
+        <div className="hcell refs" data-col="colRefs" style={{ width: cols.colRefs }}>
+          Branch / Tag
+          <ColHandle col="colRefs" width={cols.colRefs} side="right" onFit={onFit} />
+        </div>
+      )}
+      {shown('colGraph') && (
+        <div className="hcell graph" data-col="colGraph" style={{ width: graphCol }}>
+          Graph
+          <ColHandle col="colGraph" width={graphCol} side="right" onFit={onFit} />
+        </div>
+      )}
       <div className="hcell subject">Message</div>
-      <div className="hcell" data-col="colAuthor" style={{ width: cols.colAuthor }}>
-        <ColHandle col="colAuthor" width={cols.colAuthor} side="left" onFit={onFit} />
-        Author
-      </div>
-      <div className="hcell" data-col="colDate" style={{ width: cols.colDate }}>
-        <ColHandle col="colDate" width={cols.colDate} side="left" onFit={onFit} />
-        Date
-      </div>
-      <div className="hcell" data-col="colSha" style={{ width: cols.colSha }}>
-        <ColHandle col="colSha" width={cols.colSha} side="left" onFit={onFit} />
-        SHA
-      </div>
+      {shown('colAuthor') && (
+        <div className="hcell" data-col="colAuthor" style={{ width: cols.colAuthor }}>
+          <ColHandle col="colAuthor" width={cols.colAuthor} side="left" onFit={onFit} />
+          Author
+        </div>
+      )}
+      {shown('colDate') && (
+        <div className="hcell" data-col="colDate" style={{ width: cols.colDate }}>
+          <ColHandle col="colDate" width={cols.colDate} side="left" onFit={onFit} />
+          Date
+        </div>
+      )}
+      {shown('colSha') && (
+        <div className="hcell" data-col="colSha" style={{ width: cols.colSha }}>
+          <ColHandle col="colSha" width={cols.colSha} side="left" onFit={onFit} />
+          SHA
+        </div>
+      )}
     </div>
   )
 }
@@ -289,6 +308,8 @@ export function CommitList({
   const listRef = useRef<HTMLDivElement>(null)
   const [range, setRange] = useState({ start: 0, end: 50 })
   const cols = useLayout()
+  const hiddenCols = useHiddenColumns()
+  const shown = (col: ColKey): boolean => !hiddenCols.includes(col)
   const { showAvatars, showBodyPreview } = useSettings()
   const laneW = showAvatars ? 24 : 16
   const lanes = Math.min(layout.laneCount, MAX_LANES)
@@ -362,10 +383,11 @@ export function CommitList({
   }
 
   const fitColumns = (list: ColKey[]): void => {
-    const message = listRef.current?.querySelector<HTMLElement>('.commit-header .hcell.subject')
-    let room = (message?.offsetWidth ?? MIN_MESSAGE) - MIN_MESSAGE
+    const header = listRef.current?.querySelector('.commit-header')
+    let room = messageRoom(header)
     const targets = list.map((c) => {
-      const from = c === 'colGraph' ? graphCol : cols[c]
+      const cell = header?.querySelector<HTMLElement>(`.hcell[data-col="${c}"]`)
+      const from = Math.round(cell?.getBoundingClientRect().width ?? (c === 'colGraph' ? graphCol : cols[c]))
       return { c, from, to: Math.ceil(fitWidth(c)) + FIT_SLACK }
     })
     for (const t of targets) if (t.to < t.from) room += t.from - t.to
@@ -400,8 +422,8 @@ export function CommitList({
           onContextMenu(c, e, focus)
         }}
       >
-        <RefsCell refs={c.refs} width={cols.colRefs} />
-        <div className="graph-space" style={{ width: graphCol }} />
+        {shown('colRefs') && <RefsCell refs={c.refs} width={cols.colRefs} />}
+        {shown('colGraph') && <div className="graph-space" style={{ width: graphCol }} />}
         <div className="subject">
           {builds?.[c.hash] && <BuildMarker builds={builds[c.hash]} />}
           <span className="text" title={c.subject}>{c.subject}</span>
@@ -413,9 +435,9 @@ export function CommitList({
         </div>
         {!isWip && (
           <>
-            <div className="author" style={{ width: cols.colAuthor }} title={`${c.author} <${c.email}>`}>{c.author}</div>
-            <div className="date" style={{ width: cols.colDate }} title={new Date(c.date).toLocaleString()}>{formatDate(c.date)}</div>
-            <div className="sha" style={{ width: cols.colSha }}>{shortHash(c.hash)}</div>
+            {shown('colAuthor') && <div className="author" style={{ width: cols.colAuthor }} title={`${c.author} <${c.email}>`}>{c.author}</div>}
+            {shown('colDate') && <div className="date" style={{ width: cols.colDate }} title={new Date(c.date).toLocaleString()}>{formatDate(c.date)}</div>}
+            {shown('colSha') && <div className="sha" style={{ width: cols.colSha }}>{shortHash(c.hash)}</div>}
           </>
         )}
       </div>
@@ -444,13 +466,28 @@ export function CommitList({
       <Header
         graphCol={graphCol}
         cols={cols}
+        shown={shown}
         onFit={(col) => fitColumns([col])}
         onMenu={(e) => {
           if (!onHeaderMenu) return
           e.preventDefault()
+          const toggle = (c: ColKey): MenuItem => ({ label: COLUMN_LABELS[c], checked: shown(c), onClick: () => setColumnHidden(c, shown(c)) })
           onHeaderMenu(e, [
-            { label: 'Fit all columns to content', onClick: () => fitColumns(COLS) },
-            { label: 'Reset column widths', onClick: () => COLS.forEach((c) => resetLayout(c)) }
+            toggle('colRefs'),
+            toggle('colGraph'),
+            { label: 'Message', checked: true, disabled: true },
+            toggle('colAuthor'),
+            toggle('colDate'),
+            toggle('colSha'),
+            { separator: true },
+            { label: 'Fit all columns to content', onClick: () => fitColumns(COLS.filter(shown)) },
+            {
+              label: 'Reset columns',
+              onClick: () => {
+                COLS.forEach((c) => resetLayout(c))
+                resetColumns()
+              }
+            }
           ])
         }}
       />
@@ -458,7 +495,8 @@ export function CommitList({
       <div className="commit-scroll" ref={container}>
         {loading && total === 0 && <Loading label="Loading history…" />}
         <div className="rows" style={{ height: total * ROW_H }}>
-          <div className="graph-clip" style={{ left: cols.colRefs + GAP, width: graphCol, height: total * ROW_H }}>
+          {shown('colGraph') && (
+          <div className="graph-clip" style={{ left: shown('colRefs') ? cols.colRefs + GAP : 0, width: graphCol, height: total * ROW_H }}>
             <svg className="graph" width={graphWidth} height={total * ROW_H}>
               {visibleEdges.map((e, i) => {
                 if (e.fromLane >= MAX_LANES && e.toLane >= MAX_LANES) return null
@@ -506,6 +544,7 @@ export function CommitList({
             </svg>
             {nodes}
           </div>
+          )}
           {rows}
         </div>
       </div>
