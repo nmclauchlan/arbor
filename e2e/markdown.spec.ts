@@ -62,3 +62,24 @@ test('commit messages render as Markdown without running embedded HTML', async (
     await close()
   }
 })
+
+test('long commit messages scroll inside a capped area instead of pushing the panel down', async () => {
+  const repo = initRepo(tempDir())
+  write(repo, 'a.txt', 'a\n')
+  git(repo, 'add', '-A')
+  const long = Array.from({ length: 80 }, (_, i) => `- Change number ${i + 1} in this very long pull request description`).join('\n')
+  git(repo, 'commit', '-q', '-m', 'Merged PR 6100: a very long description', '-m', long)
+  const { page, close } = await launch(repo)
+  try {
+    await view(page).locator('.commit-row', { hasText: 'Merged PR 6100' }).click()
+    const body = page.locator('.panel-header .markdown')
+    await expect(body.locator('li')).toHaveCount(80)
+    const size = await body.evaluate((e) => ({ client: e.clientHeight, scroll: e.scrollHeight, overflow: getComputedStyle(e).overflowY }))
+    expect(size.client).toBeLessThanOrEqual(280)
+    expect(size.scroll).toBeGreaterThan(size.client)
+    expect(size.overflow).toBe('auto')
+    await expect(page.locator('.panel-body .file-group-title').first()).toBeInViewport()
+  } finally {
+    await close()
+  }
+})

@@ -293,7 +293,7 @@ textarea { resize: vertical; font-family: inherit; }
 .panel-header h3 { margin: 0 0 4px; font-size: 14px; font-weight: 600; user-select: text; }
 .panel-header .meta { color: var(--fg-dim); font-size: 12px; user-select: text; }
 .panel-header .meta .mono { font-family: var(--mono); }
-.panel-header .body { margin-top: 8px; white-space: pre-wrap; font-size: 12px; color: var(--fg); user-select: text; }
+.panel-header .body { margin-top: 8px; max-height: min(280px, 35vh); overflow-y: auto; overscroll-behavior: contain; padding-right: 6px; white-space: pre-wrap; font-size: 12px; color: var(--fg); user-select: text; }
 .panel-header .body.markdown { white-space: normal; }
 .panel-body { flex: 1; overflow: auto; min-height: 0; }
 
@@ -525,7 +525,7 @@ textarea { resize: vertical; font-family: inherit; }
 .pr-check.failed { color: var(--red); }
 .pr-check.pending { color: var(--yellow); }
 .pr-check.unknown { color: var(--fg-faint); }
-.pr-description { padding: 8px 12px; white-space: pre-wrap; font-size: 12px; user-select: text; }
+.pr-description { margin: 0 12px 8px; padding: 8px 6px 8px 0; max-height: min(360px, 40vh); overflow-y: auto; overscroll-behavior: contain; white-space: pre-wrap; font-size: 12px; user-select: text; }
 .pr-description.markdown { white-space: normal; }
 .markdown { line-height: 1.5; overflow-wrap: anywhere; }
 .markdown > :first-child { margin-top: 0; }
