@@ -1,4 +1,4 @@
-import type { HostInfo, PullRequest, PullRequestCheck, PullRequestDetails, PullRequestReviewer } from '@shared/types'
+import type { BuildFailure, BuildState, CommitBuild, HostInfo, PullRequest, PullRequestCheck, PullRequestDetails, PullRequestReviewer } from '@shared/types'
 
 export function parseGithubRemote(remote: string, knownHosts: string[]): HostInfo | null {
   const hosts = ['github.com', ...knownHosts.map((h) => h.toLowerCase())]
@@ -238,3 +238,100 @@ export async function listRepos(baseUrl: string, token: string): Promise<import(
 }
 
 export const cloneUser = 'x-access-token'
+
+interface GhRollupNode {
+  __typename: 'CheckRun' | 'StatusContext'
+  databaseId?: number
+  name?: string
+  status?: string
+  conclusion?: string | null
+  detailsUrl?: string | null
+  completedAt?: string | null
+  checkSuite?: { workflowRun?: { workflow?: { name: string } | null } | null } | null
+  context?: string
+  state?: string
+  targetUrl?: string | null
+  description?: string | null
+}
+
+interface GhAnnotation {
+  path: string
+  start_line: number
+  annotation_level: string
+  message: string
+}
+
+const CHECKS_ACCESS = "GitHub didn't return check results. Give the token read access to checks and commit statuses in Settings."
+
+function graphqlUrl(baseUrl: string): string {
+  const api = apiBase(baseUrl)
+  return api.endsWith('/api/v3') ? api.replace(/\/v3$/, '/graphql') : `${api}/graphql`
+}
+
+function checkState(n: GhRollupNode): BuildState {
+  if (n.__typename === 'StatusContext') {
+    if (n.state === 'SUCCESS') return 'succeeded'
+    if (n.state === 'PENDING' || n.state === 'EXPECTED') return 'running'
+    return 'failed'
+  }
+  if (n.status !== 'COMPLETED') return n.status === 'IN_PROGRESS' ? 'running' : 'queued'
+  if (n.conclusion === 'SUCCESS' || n.conclusion === 'NEUTRAL') return 'succeeded'
+  if (n.conclusion === 'SKIPPED' || n.conclusion === 'STALE') return 'skipped'
+  if (n.conclusion === 'CANCELLED') return 'cancelled'
+  return 'failed'
+}
+
+export async function listBuilds(info: HostInfo, token: string, shas: string[]): Promise<Record<string, CommitBuild[]>> {
+  const out: Record<string, CommitBuild[]> = {}
+  for (let i = 0; i < shas.length; i += 50) {
+    const batch = shas.slice(i, i + 50)
+    const fields = batch
+      .map(
+        (sha, j) => `c${j}: object(oid: "${sha}") { ... on Commit { statusCheckRollup { contexts(first: 50) { nodes { __typename
+          ... on CheckRun { databaseId name status conclusion detailsUrl completedAt checkSuite { workflowRun { workflow { name } } } }
+          ... on StatusContext { context state targetUrl description } } } } } }`
+      )
+      .join('\n')
+    const query = `query($owner: String!, $name: String!) { repository(owner: $owner, name: $name) { ${fields} } }`
+    let res: { data?: { repository?: Record<string, { statusCheckRollup?: { contexts: { nodes: GhRollupNode[] } } | null } | null> | null }; errors?: { message: string }[] }
+    try {
+      res = await call(token, graphqlUrl(info.baseUrl), { method: 'POST', body: JSON.stringify({ query, variables: { owner: info.org, name: info.repo } }) })
+    } catch (e) {
+      if (e instanceof Error && /\((401|403)\)/.test(e.message)) throw new Error(CHECKS_ACCESS)
+      throw e
+    }
+    if (!res.data?.repository && res.errors?.length) throw new Error(CHECKS_ACCESS)
+    batch.forEach((sha, j) => {
+      const nodes = res.data?.repository?.[`c${j}`]?.statusCheckRollup?.contexts.nodes ?? []
+      if (!nodes.length) return
+      out[sha] = nodes.map((n): CommitBuild => {
+        if (n.__typename === 'StatusContext') {
+          return { id: `status:${n.context}`, name: n.context ?? 'status', state: checkState(n), url: n.targetUrl ?? `${info.webUrl}/commit/${sha}`, summary: n.description ?? undefined }
+        }
+        const workflow = n.checkSuite?.workflowRun?.workflow?.name
+        return {
+          id: `check:${n.databaseId}`,
+          name: workflow ? `${workflow} / ${n.name}` : n.name ?? 'check',
+          state: checkState(n),
+          url: n.detailsUrl ?? `${info.webUrl}/commit/${sha}/checks`,
+          finishedAt: n.completedAt ? Date.parse(n.completedAt) : undefined
+        }
+      })
+    })
+  }
+  return out
+}
+
+export async function buildFailures(info: HostInfo, token: string, build: CommitBuild): Promise<BuildFailure[]> {
+  if (!build.id.startsWith('check:')) return [{ step: build.name, messages: build.summary ? [build.summary] : [], url: build.url }]
+  const id = build.id.slice('check:'.length)
+  const annotations = await call<GhAnnotation[]>(token, `${repoApi(info)}/check-runs/${id}/annotations?per_page=50`).catch(() => [] as GhAnnotation[])
+  let messages = annotations
+    .filter((a) => a.annotation_level === 'failure')
+    .map((a) => (a.path && a.path !== '.github' ? `${a.path}:${a.start_line} ${a.message}` : a.message))
+  if (!messages.length) {
+    const run = await call<{ output?: { title?: string | null; summary?: string | null } }>(token, `${repoApi(info)}/check-runs/${id}`).catch(() => null)
+    messages = [run?.output?.title, run?.output?.summary].filter((m): m is string => !!m)
+  }
+  return [{ step: build.name, messages: messages.slice(0, 8), url: build.url }]
+}

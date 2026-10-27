@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import type { Commit, GraphFilter, HostInfo, PullRequest, RepoInfo, RepoRefs, RepoStatus, UndoInfo } from '@shared/types'
+import type { Commit, CommitBuild, GraphFilter, HostInfo, PullRequest, RepoInfo, RepoRefs, RepoStatus, UndoInfo } from '@shared/types'
 import { CreatePrDialog } from './components/CreatePrDialog'
 import { Loading } from './components/Spinner'
 import { buildRefMenu, type FocusRef } from './refMenu'
@@ -17,6 +17,8 @@ import { setLayout, useLayout } from './layout'
 import { copyToClipboard, errorMessage, shortHash, WIP_HASH } from './util'
 import { useSettings } from './settings'
 
+
+const BUILD_COMMITS = 50
 
 export function RepoView({
   repo,
@@ -76,6 +78,24 @@ export function RepoView({
       setPrsLoaded(true)
     }
   }, [repo.path])
+
+  const [builds, setBuilds] = useState<Record<string, CommitBuild[]>>({})
+  const [buildsError, setBuildsError] = useState<string | null>(null)
+  const buildShas = commits
+    .filter((c) => c.hash !== WIP_HASH)
+    .slice(0, BUILD_COMMITS)
+    .map((c) => c.hash)
+    .join(',')
+  const refreshBuilds = useCallback(async () => {
+    if (!buildShas) return
+    try {
+      setBuilds(await window.host.builds(repo.path, buildShas.split(',')))
+      setBuildsError(null)
+    } catch (e) {
+      setBuildsError(errorMessage(e))
+    }
+  }, [repo.path, buildShas])
+  const buildsRunning = Object.values(builds).some((list) => list.some((b) => b.state === 'running' || b.state === 'queued'))
   const lastRefsJson = useRef('')
   const lastStatusJson = useRef('')
   const path = repo.path
@@ -131,6 +151,13 @@ export function RepoView({
       window.removeEventListener('focus', onFocus)
     }
   }, [active, host, hasAccount, refreshPrs])
+
+  useEffect(() => {
+    if (!active || !host || !hasAccount) return
+    void refreshBuilds()
+    const id = setInterval(() => void refreshBuilds(), buildsRunning ? 20_000 : 120_000)
+    return () => clearInterval(id)
+  }, [active, host, hasAccount, buildsRunning, refreshBuilds])
 
   useEffect(() => {
     if (!active) return
@@ -267,11 +294,12 @@ export function RepoView({
         refresh()
         if (/Push|Fetch|Pull/.test(label)) {
           void refreshPrs()
+          void refreshBuilds()
           window.dispatchEvent(new CustomEvent('arbor:synced', { detail: path }))
         }
       }
     },
-    [refresh, refreshPrs, shell]
+    [refresh, refreshPrs, refreshBuilds, shell]
   )
 
   const conflictAware = async (fn: () => Promise<void>): Promise<void> => {
@@ -583,6 +611,7 @@ export function RepoView({
           filterNote={filterNote}
           scrollTarget={scrollTarget}
           loading={!refs}
+          builds={builds}
         />
       )}
       <Splitter
@@ -597,7 +626,7 @@ export function RepoView({
       ) : selected === WIP_HASH && status ? (
         <WorkingTree repoPath={path} status={status} actions={actions} viewing={viewing} onView={setViewing} />
       ) : selected ? (
-        <CommitPanel repoPath={path} hash={selected} shell={shell} viewing={viewing} onView={setViewing} />
+        <CommitPanel repoPath={path} hash={selected} shell={shell} viewing={viewing} onView={setViewing} builds={builds[selected]} buildsError={hasAccount ? buildsError : null} />
       ) : (
         <div className="panel">
           {refs && !commits.length ? <div className="center">No commits yet</div> : <Loading />}

@@ -1,4 +1,4 @@
-import type { HostInfo, PullRequest, PullRequestCheck, PullRequestDetails, PullRequestReviewer } from '@shared/types'
+import type { BuildFailure, BuildState, CommitBuild, HostInfo, PullRequest, PullRequestCheck, PullRequestDetails, PullRequestReviewer } from '@shared/types'
 
 const API = 'api-version=7.1'
 
@@ -199,3 +199,97 @@ export async function listRepos(baseUrl: string, token: string): Promise<import(
 }
 
 export const cloneUser = ''
+
+interface AdoBuild {
+  id: number
+  status: string
+  result?: string
+  sourceVersion: string
+  sourceBranch: string
+  finishTime?: string
+  definition: { name: string }
+  triggerInfo?: Record<string, string>
+  _links?: { web?: { href: string } }
+}
+
+interface AdoTimelineRecord {
+  type: string
+  name: string
+  result?: string | null
+  issues?: { type: string; message: string }[] | null
+}
+
+const repoIds = new Map<string, string>()
+
+async function buildAccess<T>(request: Promise<T>): Promise<T> {
+  try {
+    return await request
+  } catch (e) {
+    if (e instanceof Error && /\((401|403)\)/.test(e.message)) {
+      throw new Error('Azure DevOps refused access to build results. Add the Build (Read) scope to your token in Settings.')
+    }
+    throw e
+  }
+}
+
+function projectApi(info: HostInfo): string {
+  return `${info.baseUrl}/${encodeURIComponent(info.project)}/_apis`
+}
+
+async function repositoryId(info: HostInfo, token: string): Promise<string> {
+  const key = repoApi(info)
+  const known = repoIds.get(key)
+  if (known) return known
+  const repo = await call<{ id: string }>(token, `${key}?${API}`)
+  repoIds.set(key, repo.id)
+  return repo.id
+}
+
+function buildState(b: AdoBuild): BuildState {
+  if (b.status !== 'completed') return b.status === 'inProgress' || b.status === 'cancelling' ? 'running' : 'queued'
+  if (b.result === 'succeeded') return 'succeeded'
+  if (b.result === 'partiallySucceeded') return 'partial'
+  if (b.result === 'failed') return 'failed'
+  if (b.result === 'canceled') return 'cancelled'
+  return 'skipped'
+}
+
+export async function listBuilds(info: HostInfo, token: string, shas: string[]): Promise<Record<string, CommitBuild[]>> {
+  const id = await repositoryId(info, token)
+  const data = await buildAccess(
+    call<{ value: AdoBuild[] }>(
+      token,
+      `${projectApi(info)}/build/builds?repositoryId=${id}&repositoryType=TfsGit&queryOrder=queueTimeDescending&$top=200&${API}`
+    )
+  )
+  const wanted = new Set(shas)
+  const out: Record<string, CommitBuild[]> = {}
+  for (const b of data.value) {
+    const sha = [b.sourceVersion, b.triggerInfo?.['pr.sourceSha']].find((s) => s && wanted.has(s))
+    if (!sha) continue
+    const list = (out[sha] ??= [])
+    if (list.some((x) => x.name === b.definition.name)) continue
+    const pr = /^refs\/pull\/(\d+)\//.exec(b.sourceBranch)
+    list.push({
+      id: String(b.id),
+      name: b.definition.name,
+      state: buildState(b),
+      url: b._links?.web?.href ?? `${info.baseUrl}/${encodeURIComponent(info.project)}/_build/results?buildId=${b.id}`,
+      ref: pr ? undefined : short(b.sourceBranch),
+      pullRequest: pr ? Number(pr[1]) : undefined,
+      finishedAt: b.finishTime ? Date.parse(b.finishTime) : undefined
+    })
+  }
+  return out
+}
+
+export async function buildFailures(info: HostInfo, token: string, build: CommitBuild): Promise<BuildFailure[]> {
+  const timeline = await buildAccess(call<{ records: AdoTimelineRecord[] }>(token, `${projectApi(info)}/build/builds/${build.id}/timeline?${API}`))
+  const failed = timeline.records.filter((r) => r.result === 'failed')
+  const tasks = failed.filter((r) => r.type === 'Task')
+  return (tasks.length ? tasks : failed).map((r) => ({
+    step: r.name,
+    messages: (r.issues ?? []).filter((i) => i.type === 'error').map((i) => i.message).slice(0, 8),
+    url: build.url
+  }))
+}

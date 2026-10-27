@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import type { RepoInfo } from '@shared/types'
+import type { CommitBuild, RepoInfo } from '@shared/types'
 import type { Shell } from './actions'
 import { ContextMenu, type MenuState } from './components/ContextMenu'
 import { useDialogs } from './components/Dialog'
@@ -18,7 +18,7 @@ import { RepoView } from './RepoView'
 import { errorMessage } from './util'
 import { applyTheme, currentTheme, setTheme, THEMES, useTheme } from './themes'
 import { syncSettingsFromMain, useSettings } from './settings'
-import { BellIcon, NotificationsPanel, type RepoIncoming } from './components/Notifications'
+import { BellIcon, failedBuildKey, NotificationsPanel, type FailedBuild, type RepoIncoming } from './components/Notifications'
 import {
   assignGroup, loadSavedTabs, moveGroupToEnd, moveGroupToGroup, moveGroupToTab, moveTab, moveToEnd,
   newGroupId, nextGroupColor, reorderGroups, saveTabs,
@@ -29,6 +29,13 @@ interface Toast {
   kind: 'error' | 'info'
   text: string
 }
+
+interface ClearUndo {
+  baselines: Record<string, string>
+  builds: string[]
+}
+
+const NO_UNDO: ClearUndo = { baselines: {}, builds: [] }
 
 function loadShaMap(key: string): Record<string, string> {
   try {
@@ -65,7 +72,8 @@ export default function App(): React.JSX.Element {
   const [focus, setFocus] = useState<{ path: string; hash: string; n: number } | null>(null)
   const [seen, setSeen] = useState(() => loadShaMap('arbor.seenIncoming'))
   const [baselines] = useState(() => ({ current: loadShaMap('arbor.incomingBaselines') }))
-  const [clearUndo, setClearUndo] = useState<Record<string, string>>({})
+  const [clearUndo, setClearUndo] = useState<ClearUndo>(NO_UNDO)
+  const [dismissedBuilds, setDismissedBuilds] = useState(() => loadShaMap('arbor.dismissedBuilds'))
   const tabsRef = useRef<{ path: string; name: string }[]>([])
   const checkingRef = useRef(false)
   const theme = useTheme()
@@ -182,7 +190,12 @@ export default function App(): React.JSX.Element {
         const caughtUp: Record<string, string> = {}
         for (const u of upstreams) if (!u.count && baselines.current[prefix + u.upstream] !== u.upstreamSha) caughtUp[prefix + u.upstream] = u.upstreamSha
         updateBaselines(caughtUp)
-        setIncoming((m) => ({ ...m, [path]: { path, name, upstreams, error } }))
+        const tips = [...new Set(upstreams.map((u) => u.upstreamSha))]
+        const builds = tips.length ? await window.host.builds(path, tips).catch(() => ({}) as Record<string, CommitBuild[]>) : {}
+        const failedBuilds: FailedBuild[] = upstreams.flatMap((u) =>
+          (builds[u.upstreamSha] ?? []).filter((b) => b.state === 'failed').map((build) => ({ upstream: u.upstream, sha: u.upstreamSha, build }))
+        )
+        setIncoming((m) => ({ ...m, [path]: { path, name, upstreams, failedBuilds, error } }))
       } catch {
         setIncoming((m) => {
           const next = { ...m }
@@ -243,7 +256,11 @@ export default function App(): React.JSX.Element {
   const openPaths = new Set(tabs.map((t) => t.path))
   const incomingList = Object.values(incoming)
     .filter((r) => openPaths.has(r.path))
-    .map((r) => ({ ...r, upstreams: r.upstreams.filter((u) => u.count > 0) }))
+    .map((r) => ({
+      ...r,
+      upstreams: r.upstreams.filter((u) => u.count > 0),
+      failedBuilds: (r.failedBuilds ?? []).filter((f) => !dismissedBuilds[failedBuildKey(r.path, f)])
+    }))
   const unseenKeys = new Set<string>()
   let unseenCount = 0
   for (const r of incomingList) {
@@ -254,11 +271,18 @@ export default function App(): React.JSX.Element {
         unseenCount += u.count
       }
     }
+    for (const f of r.failedBuilds) {
+      const key = `build::${failedBuildKey(r.path, f)}`
+      if (!seen[key]) {
+        unseenKeys.add(key)
+        unseenCount += 1
+      }
+    }
   }
 
   const closeNotifications = (): void => {
     setNotifOpen(null)
-    setClearUndo({})
+    setClearUndo(NO_UNDO)
   }
 
   const openNotifications = (): void => {
@@ -268,7 +292,10 @@ export default function App(): React.JSX.Element {
     }
     setNotifOpen(new Set(unseenKeys))
     const next = { ...seen }
-    for (const r of incomingList) for (const u of r.upstreams) next[`${r.path}::${u.upstream}`] = u.upstreamSha
+    for (const r of incomingList) {
+      for (const u of r.upstreams) next[`${r.path}::${u.upstream}`] = u.upstreamSha
+      for (const f of r.failedBuilds) next[`build::${failedBuildKey(r.path, f)}`] = f.sha
+    }
     setSeen(next)
     saveShaMap('arbor.seenIncoming', next)
   }
@@ -286,7 +313,7 @@ export default function App(): React.JSX.Element {
       }
     }
     updateBaselines(changes)
-    setClearUndo((u) => ({ ...previous, ...u }))
+    setClearUndo((u) => ({ ...u, baselines: { ...previous, ...u.baselines } }))
     setIncoming((m) => {
       const next = { ...m }
       for (const [p, r] of Object.entries(m)) {
@@ -296,10 +323,26 @@ export default function App(): React.JSX.Element {
     })
   }
 
+  const updateDismissedBuilds = (next: Record<string, string>): void => {
+    setDismissedBuilds(next)
+    saveShaMap('arbor.dismissedBuilds', next)
+  }
+
+  const clearBuilds = (keys: string[]): void => {
+    if (!keys.length) return
+    updateDismissedBuilds({ ...dismissedBuilds, ...Object.fromEntries(keys.map((k) => [k, '1'])) })
+    setClearUndo((u) => ({ ...u, builds: [...u.builds, ...keys] }))
+  }
+
   const undoClear = (): void => {
-    updateBaselines(clearUndo)
-    setClearUndo({})
-    const paths = new Set(Object.keys(clearUndo).map((key) => key.slice(0, key.lastIndexOf('::'))))
+    updateBaselines(clearUndo.baselines)
+    if (clearUndo.builds.length) {
+      const next = { ...dismissedBuilds }
+      for (const k of clearUndo.builds) delete next[k]
+      updateDismissedBuilds(next)
+    }
+    setClearUndo(NO_UNDO)
+    const paths = new Set(Object.keys(clearUndo.baselines).map((key) => key.slice(0, key.lastIndexOf('::'))))
     for (const t of tabsRef.current) if (paths.has(t.path)) void refreshIncoming(t.path, t.name)
   }
 
@@ -793,7 +836,7 @@ export default function App(): React.JSX.Element {
           checking={checking}
           lastChecked={lastChecked}
           pulling={pullingRepo}
-          cleared={Object.keys(clearUndo).length}
+          cleared={Object.keys(clearUndo.baselines).length + clearUndo.builds.length}
           onOpenCommit={(path, hash) => {
             closeNotifications()
             setActivePath(path)
@@ -803,7 +846,11 @@ export default function App(): React.JSX.Element {
           onPull={(path) => void pullIncoming(path)}
           onCheckNow={() => void checkIncoming(true)}
           onClear={(path, branch) => clearIncoming(path, branch)}
-          onClearAll={() => clearIncoming(null, null)}
+          onClearAll={() => {
+            clearIncoming(null, null)
+            clearBuilds(incomingList.flatMap((r) => r.failedBuilds.map((f) => failedBuildKey(r.path, f))))
+          }}
+          onClearBuild={(key) => clearBuilds([key])}
           onUndo={undoClear}
           onClose={closeNotifications}
         />

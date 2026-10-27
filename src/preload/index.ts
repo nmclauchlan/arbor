@@ -30,7 +30,7 @@ const updater: UpdaterApi = {
 contextBridge.exposeInMainWorld('updater', updater)
 
 const hostMethods: (keyof HostApi)[] = [
-  'detect', 'listRepos', 'cloneFromHost', 'accounts', 'hasAccount', 'addAccount', 'removeAccount', 'pullRequests', 'pullRequest', 'createPullRequest'
+  'detect', 'listRepos', 'cloneFromHost', 'accounts', 'hasAccount', 'addAccount', 'removeAccount', 'pullRequests', 'pullRequest', 'createPullRequest', 'builds', 'buildFailures'
 ]
 const host: Record<string, (...args: unknown[]) => Promise<unknown>> = {}
 for (const m of hostMethods) {

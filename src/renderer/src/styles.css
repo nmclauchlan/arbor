@@ -491,6 +491,24 @@ textarea { resize: vertical; font-family: inherit; }
 .pr-vote.ok { color: var(--green); }
 .pr-vote.warn { color: var(--yellow); }
 .pr-vote.bad { color: var(--red); }
+.build-icon { flex: none; }
+.build-icon.succeeded { color: var(--green); }
+.build-icon.failed { color: var(--red); }
+.build-icon.partial, .build-icon.running, .build-icon.queued { color: var(--yellow); }
+.build-icon.cancelled, .build-icon.skipped { color: var(--fg-faint); }
+.build-icon.running circle { transform-origin: 8px 8px; animation: build-spin 1.6s linear infinite; }
+@keyframes build-spin { to { transform: rotate(360deg); } }
+.commit-row .subject .build-marker { display: inline-flex; flex: none; }
+.builds-section { margin-bottom: 6px; }
+.builds-note { padding: 2px 12px 8px; font-size: 12px; color: var(--fg-dim); }
+.build-row { padding: 4px 12px; }
+.build-head { display: flex; align-items: center; gap: 8px; min-width: 0; font-size: 12.5px; }
+.build-head .name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--fg); text-decoration: none; }
+.build-head .name:hover { text-decoration: underline; }
+.build-head .muted { font-size: 11.5px; white-space: nowrap; }
+.build-step { margin: 4px 0 2px 21px; font-size: 12px; }
+.build-step a { color: var(--fg); }
+.build-step pre { margin: 3px 0 0; padding: 6px 8px; background: var(--bg); border: 1px solid var(--border); border-radius: 4px; font-family: var(--mono); font-size: 11.5px; white-space: pre-wrap; word-break: break-word; color: var(--red); max-height: 220px; overflow: auto; user-select: text; }
 .pr-check { font-size: 10px; }
 .pr-check.succeeded { color: var(--green); }
 .pr-check.failed { color: var(--red); }
@@ -805,6 +823,13 @@ button[aria-busy='true']::before { margin-right: 6px; vertical-align: -1px; }
 .notifications-foot button { font-size: 12px; padding: 2px 8px; }
 .notifications-branch-head .diverged { font-size: 11px; color: var(--yellow); border: 1px solid currentColor; border-radius: 8px; padding: 0 6px; flex: none; }
 .unseen-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--accent); flex: none; }
+.notifications-build { display: flex; align-items: center; gap: 6px; padding: 7px 12px; border-bottom: 1px solid var(--border); font-size: 12px; min-width: 0; }
+.notifications-build .repo-name { font-weight: 600; flex: none; }
+.notifications-build .ref-badge { flex: none; }
+.notifications-build-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-align: left; background: transparent; border: none; padding: 1px 4px; color: var(--red); font-size: 12px; }
+.notifications-build-name:hover { text-decoration: underline; }
+.notifications-build a { flex: none; font-size: 11px; text-decoration: none; }
+.notifications-build .notifications-clear { color: var(--fg-dim); font-size: 11px; padding: 1px 8px; }
 .notifications-commit { display: flex; align-items: center; gap: 8px; width: 100%; text-align: left; background: transparent; border: none; border-radius: 4px; padding: 3px 6px; font-size: 12px; }
 .notifications-commit:hover { background: var(--bg-3); }
 .notifications-commit .subject { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }

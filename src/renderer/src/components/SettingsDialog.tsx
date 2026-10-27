@@ -78,10 +78,10 @@ function Accounts({ suggestBaseUrl }: { suggestBaseUrl?: string }): React.JSX.El
           </select>
           <small className="muted">
             {kind === 'azure'
-              ? 'Personal access token with Code (read & write) scope, from Organisation settings → Personal access tokens'
+              ? 'Personal access token with Code (read & write) and Build (read) scopes, from Organisation settings → Personal access tokens'
               : kind === 'gitlab'
                 ? 'Personal access token with the api scope, from Preferences → Access tokens'
-                : 'Personal access token with repository and pull-request access, from Settings → Developer settings → Tokens'}
+                : 'Personal access token with repository, pull-request, checks and commit-status access, from Settings → Developer settings → Tokens'}
           </small>
         </span>
         <span className="unit grow">

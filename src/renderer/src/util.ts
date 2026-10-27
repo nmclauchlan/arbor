@@ -19,7 +19,7 @@ export function shortHash(hash: string): string {
 }
 
 export function errorMessage(err: unknown): string {
-  if (err instanceof Error) return err.message
+  if (err instanceof Error) return err.message.replace(/^Error invoking remote method '[^']+': (Error: )?/, '')
   return String(err)
 }
 

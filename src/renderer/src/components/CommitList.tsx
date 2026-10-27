@@ -1,11 +1,12 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
-import type { Commit, Ref } from '@shared/types'
+import type { Commit, CommitBuild, Ref } from '@shared/types'
 import { LANE_COLORS, layoutGraph } from '../graph/layout'
 import { formatDate, shortHash, WIP_HASH } from '../util'
 import { resetLayout, setLayout, useLayout, type Layout } from '../layout'
 import { useSettings } from '../settings'
 import { Avatar } from '../avatars'
 import { Loading } from './Spinner'
+import { BuildMarker } from './BuildStatus'
 
 const ROW_H = 28
 const MAX_LANES = 14
@@ -196,7 +197,8 @@ export function CommitList({
   onContextMenu,
   scrollTarget,
   loading = false,
-  filterNote
+  filterNote,
+  builds
 }: {
   commits: Commit[]
   selected: string | null
@@ -205,6 +207,7 @@ export function CommitList({
   filterNote?: React.ReactNode
   scrollTarget: { hash: string; n: number } | null
   loading?: boolean
+  builds?: Record<string, CommitBuild[]>
 }): React.JSX.Element {
   const layout = useMemo(() => layoutGraph(commits), [commits])
   const container = useRef<HTMLDivElement>(null)
@@ -284,6 +287,7 @@ export function CommitList({
         <RefsCell refs={c.refs} width={cols.colRefs} />
         <div className="graph-space" style={{ width: graphCol }} />
         <div className="subject">
+          {builds?.[c.hash] && <BuildMarker builds={builds[c.hash]} />}
           <span className="text" title={c.subject}>{c.subject}</span>
           {showBodyPreview && c.body && !isWip && (
             <span className="body-preview" title={c.body}>

@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react'
-import type { CommitDetails, StatusFile } from '@shared/types'
+import type { CommitBuild, CommitDetails, StatusFile } from '@shared/types'
 import { FileList, FileViewToggle } from './FileList'
 import { Loading } from './Spinner'
+import { BuildsSection } from './BuildStatus'
 import { canEdit, type FileViewRequest } from './FileViewer'
 import { copyToClipboard, formatFullDate, revealInFolder, revealLabel, shortHash } from '../util'
 import type { Shell } from '../actions'
@@ -11,13 +12,17 @@ export function CommitPanel({
   hash,
   shell,
   viewing,
-  onView
+  onView,
+  builds,
+  buildsError
 }: {
   repoPath: string
   hash: string
   shell: Shell
   viewing: FileViewRequest | null
   onView: (request: FileViewRequest | null) => void
+  builds?: CommitBuild[]
+  buildsError?: string | null
 }): React.JSX.Element {
   const [details, setDetails] = useState<CommitDetails | null>(null)
   const [error, setError] = useState<string | null>(null)
@@ -64,6 +69,7 @@ export function CommitPanel({
         {details.body && <div className="body">{details.body}</div>}
       </div>
       <div className="panel-body">
+        <BuildsSection repoPath={repoPath} builds={builds} error={buildsError} />
         <div className="file-group-title">
           <span>{details.files.length} file{details.files.length === 1 ? '' : 's'} changed</span>
           <FileViewToggle />

@@ -1,4 +1,4 @@
-import type { HostInfo, PullRequest, PullRequestCheck, PullRequestDetails, PullRequestReviewer } from '@shared/types'
+import type { BuildFailure, BuildState, CommitBuild, HostInfo, PullRequest, PullRequestCheck, PullRequestDetails, PullRequestReviewer } from '@shared/types'
 
 export function parseGitlabRemote(remote: string, knownHosts: string[]): HostInfo | null {
   const hosts = ['gitlab.com', ...knownHosts.map((h) => h.toLowerCase())]
@@ -208,3 +208,85 @@ export async function listRepos(baseUrl: string, token: string): Promise<import(
 }
 
 export const cloneUser = 'oauth2'
+
+interface GlPipeline {
+  id: number
+  sha: string
+  ref: string
+  status: string
+  web_url: string
+  name?: string | null
+  updated_at?: string
+}
+
+interface GlFailedJob {
+  id: number
+  name: string
+  stage: string
+  failure_reason?: string
+  web_url: string
+}
+
+const PIPELINE_ACCESS = 'GitLab refused access to pipelines. The token needs the api or read_api scope.'
+
+async function pipelineAccess<T>(request: Promise<T>): Promise<T> {
+  try {
+    return await request
+  } catch (e) {
+    if (e instanceof Error && /\((401|403)\)/.test(e.message)) throw new Error(PIPELINE_ACCESS)
+    throw e
+  }
+}
+
+function pipelineState(status: string): BuildState {
+  if (status === 'success') return 'succeeded'
+  if (status === 'failed') return 'failed'
+  if (status === 'running') return 'running'
+  if (status === 'canceled' || status === 'canceling') return 'cancelled'
+  if (status === 'skipped') return 'skipped'
+  return 'queued'
+}
+
+export async function listBuilds(info: HostInfo, token: string, shas: string[]): Promise<Record<string, CommitBuild[]>> {
+  const pipelines = await pipelineAccess(call<GlPipeline[]>(token, `${projectApi(info)}/pipelines?per_page=100&order_by=id&sort=desc`))
+  const wanted = new Set(shas)
+  const out: Record<string, CommitBuild[]> = {}
+  for (const p of pipelines) {
+    if (!wanted.has(p.sha)) continue
+    const name = p.name || 'Pipeline'
+    const list = (out[p.sha] ??= [])
+    if (list.some((x) => x.name === name)) continue
+    const mr = /^refs\/merge-requests\/(\d+)\//.exec(p.ref)
+    list.push({
+      id: String(p.id),
+      name,
+      state: pipelineState(p.status),
+      url: p.web_url,
+      ref: mr ? undefined : p.ref,
+      pullRequest: mr ? Number(mr[1]) : undefined,
+      finishedAt: p.updated_at ? Date.parse(p.updated_at) : undefined
+    })
+  }
+  return out
+}
+
+function logTail(trace: string): string[] {
+  return trace
+    .replace(/\x1b\[[0-9;]*[A-Za-z]/g, '')
+    .split(/\r?\n/)
+    .map((l) => l.replace(/^.*\r/, '').replace(/section_(start|end):\d+:[^\s]*/g, '').trimEnd())
+    .filter((l) => l.trim())
+    .slice(-12)
+}
+
+export async function buildFailures(info: HostInfo, token: string, build: CommitBuild): Promise<BuildFailure[]> {
+  const jobs = await pipelineAccess(call<GlFailedJob[]>(token, `${projectApi(info)}/pipelines/${build.id}/jobs?scope[]=failed&per_page=20`))
+  return Promise.all(
+    jobs.slice(0, 5).map(async (j) => {
+      const res = await fetch(`${projectApi(info)}/jobs/${j.id}/trace`, { headers: { 'PRIVATE-TOKEN': token } }).catch(() => null)
+      const tail = res?.ok ? logTail(await res.text()) : []
+      const reason = j.failure_reason ? j.failure_reason.replace(/_/g, ' ') : ''
+      return { step: `${j.stage}: ${j.name}`, messages: tail.length ? tail : reason ? [reason] : [], url: j.web_url }
+    })
+  )
+}

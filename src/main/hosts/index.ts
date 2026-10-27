@@ -1,5 +1,5 @@
 import { simpleGit } from 'simple-git'
-import type { HostAccount, HostApi, HostInfo, HostKind, HostRepo, PullRequest, PullRequestDetails } from '@shared/types'
+import type { BuildFailure, CommitBuild, HostAccount, HostApi, HostInfo, HostKind, HostRepo, PullRequest, PullRequestDetails } from '@shared/types'
 import { gitWithEnv } from '../git'
 import { deleteAccount, findToken, listAccounts, storeAccount } from './accounts'
 import * as azure from './azure'
@@ -21,6 +21,8 @@ interface Adapter {
     description: string,
     draft: boolean
   ): Promise<PullRequest>
+  listBuilds(info: HostInfo, token: string, shas: string[]): Promise<Record<string, CommitBuild[]>>
+  buildFailures(info: HostInfo, token: string, build: CommitBuild): Promise<BuildFailure[]>
 }
 
 const adapters: Record<HostKind, Adapter | null> = { azure, github, gitlab }
@@ -152,6 +154,17 @@ export const hostApi: HostApi = {
   async pullRequest(repoPath, id) {
     const { info, token, adapter } = await requireHost(repoPath)
     return adapter.getPullRequest(info, token, id)
+  },
+  async builds(repoPath, shas) {
+    const info = detected.get(repoPath) ?? (await detect(repoPath))
+    const token = info ? findToken(info.kind, info.baseUrl) : null
+    const valid = shas.filter((s) => /^[0-9a-f]{40}$/i.test(s))
+    if (!info || !token || !valid.length) return {}
+    return adapterFor(info.kind).listBuilds(info, token, valid)
+  },
+  async buildFailures(repoPath, build) {
+    const { info, token, adapter } = await requireHost(repoPath)
+    return adapter.buildFailures(info, token, build)
   },
   async createPullRequest(repoPath, source, target, title, description, draft) {
     const { info, token, adapter } = await requireHost(repoPath)

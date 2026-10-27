@@ -291,6 +291,25 @@ export interface PullRequestCheck {
   url?: string
 }
 
+export type BuildState = 'succeeded' | 'failed' | 'partial' | 'running' | 'queued' | 'cancelled' | 'skipped'
+
+export interface CommitBuild {
+  id: string
+  name: string
+  state: BuildState
+  url: string
+  ref?: string
+  pullRequest?: number
+  summary?: string
+  finishedAt?: number
+}
+
+export interface BuildFailure {
+  step: string
+  messages: string[]
+  url?: string
+}
+
 export interface PullRequestDetails extends PullRequest {
   description: string
   mergeStatus: string
@@ -317,6 +336,8 @@ export interface HostApi {
   removeAccount(kind: HostKind, baseUrl: string): Promise<void>
   pullRequests(repoPath: string): Promise<PullRequest[]>
   pullRequest(repoPath: string, id: number): Promise<PullRequestDetails>
+  builds(repoPath: string, shas: string[]): Promise<Record<string, CommitBuild[]>>
+  buildFailures(repoPath: string, build: CommitBuild): Promise<BuildFailure[]>
   createPullRequest(
     repoPath: string,
     source: string,

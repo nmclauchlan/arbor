@@ -1,13 +1,25 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
-import type { IncomingUpstream } from '@shared/types'
+import type { CommitBuild, IncomingUpstream } from '@shared/types'
 import { formatDate, shortHash } from '../util'
 import { Spinner } from './Spinner'
+import { BuildIcon } from './BuildStatus'
 
 export interface RepoIncoming {
   path: string
   name: string
   upstreams: IncomingUpstream[]
+  failedBuilds?: FailedBuild[]
   error?: string
+}
+
+export interface FailedBuild {
+  upstream: string
+  sha: string
+  build: CommitBuild
+}
+
+export function failedBuildKey(path: string, f: FailedBuild): string {
+  return `${path}::${f.upstream}::${f.build.id}`
 }
 
 export function BellIcon(): React.JSX.Element {
@@ -31,6 +43,7 @@ export function NotificationsPanel({
   onCheckNow,
   onClear,
   onClearAll,
+  onClearBuild,
   onUndo,
   onClose
 }: {
@@ -45,6 +58,7 @@ export function NotificationsPanel({
   onCheckNow: () => void
   onClear: (path: string, upstream: string) => void
   onClearAll: () => void
+  onClearBuild: (key: string) => void
   onUndo: () => void
   onClose: () => void
 }): React.JSX.Element {
@@ -81,24 +95,47 @@ export function NotificationsPanel({
 
   const withIncoming = repos.filter((r) => r.upstreams.length)
   const total = withIncoming.reduce((n, r) => n + r.upstreams.reduce((m, u) => m + u.count, 0), 0)
+  const failures = repos.flatMap((r) => (r.failedBuilds ?? []).map((f) => ({ ...f, repo: r, key: failedBuildKey(r.path, f) })))
+  const summary = [total ? `${total} new` : '', failures.length ? `${failures.length} failed build${failures.length === 1 ? '' : 's'}` : ''].filter(Boolean).join(' · ')
 
   return (
     <div className="notifications-panel" ref={ref} style={pos} role="dialog" aria-label="Incoming commits">
       <div className="notifications-head">
         <strong>Incoming commits</strong>
         <span className="muted">
-          {total ? `${total} new` : 'Nothing new'}
+          {summary || 'Nothing new'}
           {lastChecked ? ` · checked ${formatDate(lastChecked)}` : ''}
         </span>
         <button className="icon" onClick={onCheckNow} disabled={checking} aria-busy={checking} title="Fetch all open repositories now">
           {checking ? 'Checking…' : 'Check now'}
         </button>
-        <button className="icon" onClick={onClearAll} disabled={!withIncoming.length} title="Mark these as read; only commits that arrive later will show">
+        <button className="icon" onClick={onClearAll} disabled={!withIncoming.length && !failures.length} title="Mark these as read; only commits that arrive later will show">
           Clear all
         </button>
       </div>
       <div className="notifications-body">
-        {!withIncoming.length && (
+        {failures.map((f) => (
+          <div key={f.key} className={`notifications-build${unseenKeys.has(`build::${f.key}`) ? ' unseen' : ''}`}>
+            {unseenKeys.has(`build::${f.key}`) && <span className="unseen-dot" aria-label="new" />}
+            <BuildIcon state="failed" />
+            <span className="repo-name">{f.repo.name}</span>
+            <span className="ref-badge remote">{f.upstream}</span>
+            <button
+              className="notifications-build-name"
+              onClick={() => onOpenCommit(f.repo.path, f.sha)}
+              title={`${f.build.name} failed at ${shortHash(f.sha)}. Open the commit to see the errors.`}
+            >
+              {f.build.name} failed
+            </button>
+            <a className="muted mono" href={f.build.url} target="_blank" rel="noreferrer" title="Open the build">
+              {shortHash(f.sha)}
+            </a>
+            <button className="icon notifications-clear" onClick={() => onClearBuild(f.key)} aria-label={`Clear ${f.build.name} on ${f.upstream}`}>
+              Clear
+            </button>
+          </div>
+        ))}
+        {!withIncoming.length && !failures.length && (
           <div className="notifications-empty">
             {checking ? (
               <>
