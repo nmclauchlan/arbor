@@ -78,7 +78,7 @@ export function CommitPanel({
         <FileList
           files={details.files}
           selectedPath={selected}
-          onSelect={(f) => view(f, 'diff')}
+          onSelect={(f) => (viewing?.source.kind === 'commit' && viewing.source.hash === hash && viewing.file.path === f.path ? onView(null) : view(f, 'diff'))}
           onDoubleClick={(f) => view(f, 'edit')}
           onContextMenu={(e, files, folder) => {
             e.preventDefault()

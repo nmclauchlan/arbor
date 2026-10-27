@@ -14,7 +14,7 @@ export function FileRow({
 }: {
   file: StatusFile
   selected: boolean
-  onClick: () => void
+  onClick: (e: React.MouseEvent) => void
   onDoubleClick?: () => void
   onContextMenu?: (e: React.MouseEvent) => void
   depth?: number
@@ -141,7 +141,7 @@ export function FileList({
             key={f.path}
             file={f}
             selected={selectedPath === f.path}
-            onClick={() => onSelect(f)}
+            onClick={(e) => e.detail < 2 && onSelect(f)}
             onDoubleClick={onDoubleClick ? () => onDoubleClick(f) : undefined}
             onContextMenu={onContextMenu ? (e) => onContextMenu(e, [f], null) : undefined}
           >
@@ -181,7 +181,7 @@ export function FileList({
           depth={depth}
           label={f.oldPath ? `${f.oldPath.slice(f.oldPath.lastIndexOf('/') + 1)} → ${name}` : name}
           selected={selectedPath === f.path}
-          onClick={() => onSelect(f)}
+          onClick={(e) => e.detail < 2 && onSelect(f)}
           onDoubleClick={onDoubleClick ? () => onDoubleClick(f) : undefined}
           onContextMenu={onContextMenu ? (e) => onContextMenu(e, [f], null) : undefined}
         >

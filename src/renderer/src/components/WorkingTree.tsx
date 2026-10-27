@@ -77,6 +77,12 @@ export function WorkingTree({
     onView({ file, source: { kind: 'worktree', staged: area === 'staged', status: file.status }, mode })
   }
 
+  const toggle = (area: Area, file: StatusFile, mode: 'diff' | 'conflict'): void => {
+    const open = viewing?.source.kind === 'worktree' && viewing.source.staged === (area === 'staged') && viewing.file.path === file.path
+    if (open) onView(null)
+    else view(area, file, mode)
+  }
+
   const resolveWith = (file: StatusFile, side: 'ours' | 'theirs'): Promise<void> =>
     run(() => window.git.resolveFile(repoPath, file.path, null, side))
 
@@ -180,7 +186,7 @@ export function WorkingTree({
             <FileList
               files={conflictFiles}
               selectedPath={selectedIn('unstaged')}
-              onSelect={(f) => view('unstaged', f, 'conflict')}
+              onSelect={(f) => toggle('unstaged', f, 'conflict')}
               onDoubleClick={(f) => view('unstaged', f, 'conflict')}
               onContextMenu={fileMenu('conflict')}
               actions={(f) => (
@@ -202,7 +208,7 @@ export function WorkingTree({
         <FileList
           files={unstagedFiles}
           selectedPath={selectedIn('unstaged')}
-          onSelect={(f) => view('unstaged', f, 'diff')}
+          onSelect={(f) => toggle('unstaged', f, 'diff')}
           onDoubleClick={(f) => view('unstaged', f, 'edit')}
           onContextMenu={fileMenu('unstaged')}
           actions={(f) => (
@@ -222,7 +228,7 @@ export function WorkingTree({
         <FileList
           files={status.staged}
           selectedPath={selectedIn('staged')}
-          onSelect={(f) => view('staged', f, 'diff')}
+          onSelect={(f) => toggle('staged', f, 'diff')}
           onDoubleClick={(f) => view('staged', f, 'edit')}
           onContextMenu={fileMenu('staged')}
           actions={(f) => (
