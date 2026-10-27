@@ -29,6 +29,22 @@ interface Toast {
   text: string
 }
 
+function loadShaMap(key: string): Record<string, string> {
+  try {
+    return JSON.parse(localStorage.getItem(key) ?? '{}')
+  } catch {
+    return {}
+  }
+}
+
+function saveShaMap(key: string, map: Record<string, string>): void {
+  try {
+    localStorage.setItem(key, JSON.stringify(map))
+  } catch {
+    /* storage unavailable */
+  }
+}
+
 export default function App(): React.JSX.Element {
   const [tabs, setTabs] = useState<Tab[]>([])
   const [groups, setGroups] = useState<TabGroup[]>([])
@@ -46,13 +62,8 @@ export default function App(): React.JSX.Element {
   const [notifOpen, setNotifOpen] = useState<Set<string> | null>(null)
   const [pullingRepo, setPullingRepo] = useState<string | null>(null)
   const [focus, setFocus] = useState<{ path: string; hash: string; n: number } | null>(null)
-  const [seen, setSeen] = useState<Record<string, string>>(() => {
-    try {
-      return JSON.parse(localStorage.getItem('arbor.seenIncoming') ?? '{}')
-    } catch {
-      return {}
-    }
-  })
+  const [seen, setSeen] = useState(() => loadShaMap('arbor.seenIncoming'))
+  const [dismissed, setDismissed] = useState(() => loadShaMap('arbor.dismissedIncoming'))
   const tabsRef = useRef<{ path: string; name: string }[]>([])
   const checkingRef = useRef(false)
   const theme = useTheme()
@@ -207,7 +218,13 @@ export default function App(): React.JSX.Element {
   }, [refreshIncoming])
 
   const openPaths = new Set(tabs.map((t) => t.path))
-  const incomingList = Object.values(incoming).filter((r) => openPaths.has(r.path))
+  const allIncoming = Object.values(incoming).filter((r) => openPaths.has(r.path))
+  let clearedCount = 0
+  const incomingList = allIncoming.map((r) => {
+    const branches = r.branches.filter((b) => dismissed[`${r.path}::${b.branch}`] !== b.upstreamSha)
+    clearedCount += r.branches.length - branches.length
+    return branches.length === r.branches.length ? r : { ...r, branches }
+  })
   const unseenKeys = new Set<string>()
   let unseenCount = 0
   for (const r of incomingList) {
@@ -229,11 +246,27 @@ export default function App(): React.JSX.Element {
     const next = { ...seen }
     for (const r of incomingList) for (const b of r.branches) next[`${r.path}::${b.branch}`] = b.upstreamSha
     setSeen(next)
-    try {
-      localStorage.setItem('arbor.seenIncoming', JSON.stringify(next))
-    } catch {
-      /* storage unavailable */
+    saveShaMap('arbor.seenIncoming', next)
+  }
+
+  const updateDismissed = (next: Record<string, string>): void => {
+    setDismissed(next)
+    saveShaMap('arbor.dismissedIncoming', next)
+  }
+
+  const clearIncoming = (path: string | null, branch: string | null): void => {
+    const next = { ...dismissed }
+    for (const r of incomingList) {
+      if (path && r.path !== path) continue
+      for (const b of r.branches) if (!branch || b.branch === branch) next[`${r.path}::${b.branch}`] = b.upstreamSha
     }
+    updateDismissed(next)
+  }
+
+  const restoreIncoming = (): void => {
+    const next = { ...dismissed }
+    for (const r of allIncoming) for (const b of r.branches) delete next[`${r.path}::${b.branch}`]
+    updateDismissed(next)
   }
 
   const pullIncoming = async (path: string): Promise<void> => {
@@ -689,6 +722,7 @@ export default function App(): React.JSX.Element {
           checking={checking}
           lastChecked={lastChecked}
           pulling={pullingRepo}
+          cleared={clearedCount}
           onOpenCommit={(path, hash) => {
             setNotifOpen(null)
             setActivePath(path)
@@ -697,6 +731,9 @@ export default function App(): React.JSX.Element {
           }}
           onPull={(path) => void pullIncoming(path)}
           onCheckNow={() => void checkIncoming(true)}
+          onClear={(path, branch) => clearIncoming(path, branch)}
+          onClearAll={() => clearIncoming(null, null)}
+          onRestore={restoreIncoming}
           onClose={() => setNotifOpen(null)}
         />
       )}

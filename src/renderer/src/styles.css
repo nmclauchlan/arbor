@@ -798,6 +798,11 @@ button[aria-busy='true']::before { margin-right: 6px; vertical-align: -1px; }
 .notifications-branch-head .spacer { flex: 1; }
 .notifications-branch-head button { font-size: 11px; padding: 1px 8px; }
 .notifications-branch-head .muted { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+.notifications-branch-head .notifications-clear { color: var(--fg-dim); }
+.notifications-branch-head .notifications-clear:hover { color: var(--fg); }
+.notifications-foot { display: flex; align-items: center; gap: 8px; padding: 6px 12px; border-top: 1px solid var(--border); font-size: 12px; }
+.notifications-foot .muted { flex: 1; }
+.notifications-foot button { font-size: 12px; padding: 2px 8px; }
 .notifications-branch-head .diverged { font-size: 11px; color: var(--yellow); border: 1px solid currentColor; border-radius: 8px; padding: 0 6px; flex: none; }
 .unseen-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--accent); flex: none; }
 .notifications-commit { display: flex; align-items: center; gap: 8px; width: 100%; text-align: left; background: transparent; border: none; border-radius: 4px; padding: 3px 6px; font-size: 12px; }

@@ -25,9 +25,13 @@ export function NotificationsPanel({
   checking,
   lastChecked,
   pulling,
+  cleared,
   onOpenCommit,
   onPull,
   onCheckNow,
+  onClear,
+  onClearAll,
+  onRestore,
   onClose
 }: {
   repos: RepoIncoming[]
@@ -35,9 +39,13 @@ export function NotificationsPanel({
   checking: boolean
   lastChecked: number | null
   pulling: string | null
+  cleared: number
   onOpenCommit: (path: string, hash: string) => void
   onPull: (path: string) => void
   onCheckNow: () => void
+  onClear: (path: string, branch: string) => void
+  onClearAll: () => void
+  onRestore: () => void
   onClose: () => void
 }): React.JSX.Element {
   const ref = useRef<HTMLDivElement>(null)
@@ -79,11 +87,14 @@ export function NotificationsPanel({
       <div className="notifications-head">
         <strong>Incoming commits</strong>
         <span className="muted">
-          {total ? `${total} waiting` : 'Up to date'}
+          {total ? `${total} waiting` : cleared ? 'Nothing new' : 'Up to date'}
           {lastChecked ? ` · checked ${formatDate(lastChecked)}` : ''}
         </span>
         <button className="icon" onClick={onCheckNow} disabled={checking} aria-busy={checking} title="Fetch all open repositories now">
           {checking ? 'Checking…' : 'Check now'}
+        </button>
+        <button className="icon" onClick={onClearAll} disabled={!withIncoming.length} title="Hide these until more commits arrive">
+          Clear all
         </button>
       </div>
       <div className="notifications-body">
@@ -93,6 +104,8 @@ export function NotificationsPanel({
               <>
                 <Spinner /> Fetching your repositories…
               </>
+            ) : cleared ? (
+              'Nothing new since you cleared them.'
             ) : (
               'Every open repository is up to date with its remote.'
             )}
@@ -127,6 +140,14 @@ export function NotificationsPanel({
                         Pull
                       </button>
                     )}
+                    <button
+                      className="icon notifications-clear"
+                      onClick={() => onClear(r.path, b.branch)}
+                      title="Hide until more commits arrive"
+                      aria-label={`Clear ${b.branch}`}
+                    >
+                      Clear
+                    </button>
                   </div>
                   {b.commits.map((c) => (
                     <button key={c.hash} className="notifications-commit" onClick={() => onOpenCommit(r.path, c.hash)} title={`${c.subject}\n${c.author} · ${shortHash(c.hash)}`}>
@@ -147,6 +168,16 @@ export function NotificationsPanel({
           </div>
         ))}
       </div>
+      {cleared > 0 && (
+        <div className="notifications-foot">
+          <span className="muted">
+            {cleared} cleared branch{cleared === 1 ? '' : 'es'} hidden until more commits arrive
+          </span>
+          <button className="icon" onClick={onRestore}>
+            Show again
+          </button>
+        </div>
+      )}
     </div>
   )
 }
