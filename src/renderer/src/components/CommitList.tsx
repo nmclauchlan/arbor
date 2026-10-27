@@ -7,6 +7,7 @@ import { useSettings } from '../settings'
 import { Avatar } from '../avatars'
 import { Loading } from './Spinner'
 import { BuildMarker } from './BuildStatus'
+import type { MenuItem } from './ContextMenu'
 
 const ROW_H = 28
 const MAX_LANES = 14
@@ -129,27 +130,89 @@ function RefsCell({ refs, width }: { refs: Ref[]; width: number }): React.JSX.El
   )
 }
 
-function ColHandle({ col, width, side }: { col: ColKey; width: number; side: 'left' | 'right' }): React.JSX.Element {
+const MIN_MESSAGE = 120
+const FIT_SLACK = 6
+const COLS: ColKey[] = ['colRefs', 'colGraph', 'colAuthor', 'colDate', 'colSha']
+
+let measureCtx: CanvasRenderingContext2D | null = null
+
+function fontOf(style: CSSStyleDeclaration): string {
+  return `${style.fontStyle} ${style.fontWeight} ${style.fontSize} ${style.fontFamily}`
+}
+
+function textWidth(text: string, font: string): number {
+  measureCtx ??= document.createElement('canvas').getContext('2d')
+  if (!measureCtx) return 0
+  measureCtx.font = font
+  return measureCtx.measureText(text).width
+}
+
+function labelWidth(cell: HTMLElement): number {
+  const style = getComputedStyle(cell)
+  let width = parseFloat(style.paddingLeft) + parseFloat(style.paddingRight)
+  for (const node of cell.childNodes) {
+    if (node.nodeType !== Node.TEXT_NODE || !node.textContent?.trim()) continue
+    const range = document.createRange()
+    range.selectNodeContents(node)
+    width += range.getBoundingClientRect().width
+  }
+  return width
+}
+
+function refsWidth(cell: HTMLElement): number {
+  const style = getComputedStyle(cell)
+  const padding = parseFloat(style.paddingLeft) + parseFloat(style.paddingRight)
+  let width = padding
+  let first = 0
+  let items = 0
+  for (const child of cell.children) {
+    const el = child as HTMLElement
+    const cs = getComputedStyle(el)
+    if (cs.position === 'absolute' || cs.display === 'none') continue
+    const name = el.querySelector<HTMLElement>('.ref-name')
+    const natural = el.offsetWidth + (name ? textWidth(name.textContent ?? '', fontOf(getComputedStyle(name))) - name.clientWidth : 0)
+    if (!items) first = natural
+    width += natural
+    items++
+  }
+  width += Math.max(0, items - 1) * (parseFloat(style.columnGap) || 0)
+  return items > 1 ? Math.max(width, padding + first + 34) : width
+}
+
+function ColHandle({ col, width, side, onFit }: { col: ColKey; width: number; side: 'left' | 'right'; onFit: (col: ColKey) => void }): React.JSX.Element {
   return (
     <span
       className={`col-resize ${side}`}
-      title="Drag to resize, double-click to reset"
+      title="Drag to resize, double-click to fit the content"
       onDoubleClick={(e) => {
         e.stopPropagation()
-        resetLayout(col)
+        onFit(col)
       }}
       onMouseDown={(e) => {
+        if (e.button !== 0) return
         e.preventDefault()
         e.stopPropagation()
         const origin = e.clientX
         const base = width
+        const message = e.currentTarget.closest('.commit-header')?.querySelector<HTMLElement>('.hcell.subject')
+        const room = Math.max(0, (message?.offsetWidth ?? MIN_MESSAGE) - MIN_MESSAGE)
+        let next = base
+        let frame = 0
         document.body.style.cursor = 'col-resize'
         document.body.classList.add('resizing')
         const move = (ev: MouseEvent): void => {
           const dx = ev.clientX - origin
-          setLayout(col, side === 'right' ? base + dx : base - dx)
+          next = Math.min(side === 'right' ? base + dx : base - dx, base + room)
+          if (!frame) {
+            frame = requestAnimationFrame(() => {
+              frame = 0
+              setLayout(col, next, false)
+            })
+          }
         }
         const up = (): void => {
+          if (frame) cancelAnimationFrame(frame)
+          setLayout(col, next)
           document.body.style.cursor = ''
           document.body.classList.remove('resizing')
           window.removeEventListener('mousemove', move)
@@ -162,28 +225,38 @@ function ColHandle({ col, width, side }: { col: ColKey; width: number; side: 'le
   )
 }
 
-function Header({ graphCol, cols }: { graphCol: number; cols: Layout }): React.JSX.Element {
+function Header({
+  graphCol,
+  cols,
+  onFit,
+  onMenu
+}: {
+  graphCol: number
+  cols: Layout
+  onFit: (col: ColKey) => void
+  onMenu: (e: React.MouseEvent) => void
+}): React.JSX.Element {
   return (
-    <div className="commit-header">
-      <div className="hcell refs" style={{ width: cols.colRefs }}>
+    <div className="commit-header" onContextMenu={onMenu}>
+      <div className="hcell refs" data-col="colRefs" style={{ width: cols.colRefs }}>
         Branch / Tag
-        <ColHandle col="colRefs" width={cols.colRefs} side="right" />
+        <ColHandle col="colRefs" width={cols.colRefs} side="right" onFit={onFit} />
       </div>
-      <div className="hcell graph" style={{ width: graphCol }}>
+      <div className="hcell graph" data-col="colGraph" style={{ width: graphCol }}>
         Graph
-        <ColHandle col="colGraph" width={graphCol} side="right" />
+        <ColHandle col="colGraph" width={graphCol} side="right" onFit={onFit} />
       </div>
       <div className="hcell subject">Message</div>
-      <div className="hcell" style={{ width: cols.colAuthor }}>
-        <ColHandle col="colAuthor" width={cols.colAuthor} side="left" />
+      <div className="hcell" data-col="colAuthor" style={{ width: cols.colAuthor }}>
+        <ColHandle col="colAuthor" width={cols.colAuthor} side="left" onFit={onFit} />
         Author
       </div>
-      <div className="hcell" style={{ width: cols.colDate }}>
-        <ColHandle col="colDate" width={cols.colDate} side="left" />
+      <div className="hcell" data-col="colDate" style={{ width: cols.colDate }}>
+        <ColHandle col="colDate" width={cols.colDate} side="left" onFit={onFit} />
         Date
       </div>
-      <div className="hcell" style={{ width: cols.colSha }}>
-        <ColHandle col="colSha" width={cols.colSha} side="left" />
+      <div className="hcell" data-col="colSha" style={{ width: cols.colSha }}>
+        <ColHandle col="colSha" width={cols.colSha} side="left" onFit={onFit} />
         SHA
       </div>
     </div>
@@ -198,7 +271,8 @@ export function CommitList({
   scrollTarget,
   loading = false,
   filterNote,
-  builds
+  builds,
+  onHeaderMenu
 }: {
   commits: Commit[]
   selected: string | null
@@ -208,9 +282,11 @@ export function CommitList({
   scrollTarget: { hash: string; n: number } | null
   loading?: boolean
   builds?: Record<string, CommitBuild[]>
+  onHeaderMenu?: (e: React.MouseEvent, items: MenuItem[]) => void
 }): React.JSX.Element {
   const layout = useMemo(() => layoutGraph(commits), [commits])
   const container = useRef<HTMLDivElement>(null)
+  const listRef = useRef<HTMLDivElement>(null)
   const [range, setRange] = useState({ start: 0, end: 50 })
   const cols = useLayout()
   const { showAvatars, showBodyPreview } = useSettings()
@@ -262,6 +338,46 @@ export function CommitList({
     () => layout.edges.filter((e) => e.toRow >= start && e.fromRow <= end),
     [layout.edges, start, end]
   )
+
+  const fitWidth = (col: ColKey): number => {
+    const root = listRef.current
+    if (!root) return cols[col]
+    const head = root.querySelector<HTMLElement>(`.commit-header .hcell[data-col="${col}"]`)
+    let width = head ? labelWidth(head) : 0
+    if (col === 'colGraph') return Math.max(width, graphWidth)
+    if (col === 'colRefs') {
+      for (const cell of root.querySelectorAll<HTMLElement>('.commit-row .refs-cell')) width = Math.max(width, refsWidth(cell))
+      return width
+    }
+    const cls = col === 'colAuthor' ? 'author' : col === 'colDate' ? 'date' : 'sha'
+    const sample = root.querySelector<HTMLElement>(`.commit-row .${cls}`)
+    if (!sample) return width
+    const style = getComputedStyle(sample)
+    const font = fontOf(style)
+    const values = new Set(
+      commits.filter((c) => c.hash !== WIP_HASH).map((c) => (col === 'colAuthor' ? c.author : col === 'colDate' ? formatDate(c.date) : shortHash(c.hash)))
+    )
+    for (const v of values) width = Math.max(width, textWidth(v, font) + parseFloat(style.paddingLeft) + parseFloat(style.paddingRight))
+    return width
+  }
+
+  const fitColumns = (list: ColKey[]): void => {
+    const message = listRef.current?.querySelector<HTMLElement>('.commit-header .hcell.subject')
+    let room = (message?.offsetWidth ?? MIN_MESSAGE) - MIN_MESSAGE
+    const targets = list.map((c) => {
+      const from = c === 'colGraph' ? graphCol : cols[c]
+      return { c, from, to: Math.ceil(fitWidth(c)) + FIT_SLACK }
+    })
+    for (const t of targets) if (t.to < t.from) room += t.from - t.to
+    for (const t of targets) {
+      if (t.to > t.from) {
+        const grow = Math.min(t.to - t.from, Math.max(0, room))
+        room -= grow
+        t.to = t.from + grow
+      }
+      setLayout(t.c, t.to)
+    }
+  }
 
   const rows: React.ReactNode[] = []
   const nodes: React.ReactNode[] = []
@@ -324,8 +440,20 @@ export function CommitList({
   }
 
   return (
-    <div className="commit-list">
-      <Header graphCol={graphCol} cols={cols} />
+    <div className="commit-list" ref={listRef}>
+      <Header
+        graphCol={graphCol}
+        cols={cols}
+        onFit={(col) => fitColumns([col])}
+        onMenu={(e) => {
+          if (!onHeaderMenu) return
+          e.preventDefault()
+          onHeaderMenu(e, [
+            { label: 'Fit all columns to content', onClick: () => fitColumns(COLS) },
+            { label: 'Reset column widths', onClick: () => COLS.forEach((c) => resetLayout(c)) }
+          ])
+        }}
+      />
       {filterNote}
       <div className="commit-scroll" ref={container}>
         {loading && total === 0 && <Loading label="Loading history…" />}

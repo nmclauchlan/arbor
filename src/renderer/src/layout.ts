@@ -39,20 +39,27 @@ function clamp(key: keyof Layout, value: number): number {
   return Math.min(LIMITS[key].max, Math.max(LIMITS[key].min, Math.round(value)))
 }
 
-function store(next: Layout): void {
-  current = next
+function save(): void {
   try {
     localStorage.setItem(KEY, JSON.stringify(current))
   } catch {
     /* storage unavailable */
   }
+}
+
+function store(next: Layout, persist = true): void {
+  current = next
+  if (persist) save()
   listeners.forEach((l) => l())
 }
 
-export function setLayout(key: keyof Layout, value: number): void {
+export function setLayout(key: keyof Layout, value: number, persist = true): void {
   const next = clamp(key, value)
-  if (next === current[key]) return
-  store({ ...current, [key]: next })
+  if (next === current[key]) {
+    if (persist) save()
+    return
+  }
+  store({ ...current, [key]: next }, persist)
 }
 
 export function resetLayout(key: keyof Layout): void {

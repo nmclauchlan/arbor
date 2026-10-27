@@ -620,6 +620,7 @@ export function RepoView({
           scrollTarget={scrollTarget}
           loading={!refs}
           builds={builds}
+          onHeaderMenu={actions.openMenu}
         />
       )}
       <Splitter

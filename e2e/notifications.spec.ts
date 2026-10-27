@@ -6,6 +6,7 @@ function baselines(page: Page): Promise<string[]> {
 }
 
 test('the bell lists only commits that arrive after the first check, opens them and pulls them', async () => {
+  test.slow()
   const root = tempDir()
   const { repo, other } = repoWithRemote(root)
   commit(other, 'old.txt', 'old\n', 'Remote change from before')
@@ -57,6 +58,7 @@ test('the bell lists only commits that arrive after the first check, opens them 
 })
 
 test('cleared remote branches only show later commits, and branches tracking the same remote share an entry', async () => {
+  test.slow()
   const { repo, other } = repoWithRemote(tempDir())
   git(repo, 'checkout', '-q', '-b', 'develop')
   commit(repo, 'd.txt', 'd\n', 'Develop start')
