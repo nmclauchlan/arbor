@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { isImageFile, type ImageSource, type StatusFile } from '@shared/types'
 import type { Shell } from '../actions'
 import { ConflictResolver } from './ConflictResolver'
-import { DiffView } from './DiffView'
+import { DiffView, type ApplyMode } from './DiffView'
 import { Editor } from './Editor'
 import { ImageDiff } from './ImageDiff'
 import { errorMessage, shortHash } from '../util'
@@ -62,6 +62,26 @@ export function FileViewer({
   }, [repoPath, file.path, file.status, sourceKey, mode, image])
 
   const label = file.oldPath ? `${file.oldPath} → ${file.path}` : file.path
+  const modes: ApplyMode[] | undefined =
+    source.kind === 'worktree' && file.status === 'M' ? (source.staged ? ['unstage'] : ['stage', 'discard']) : undefined
+
+  const applyPatch = async (patch: string, how: ApplyMode, lines: number): Promise<void> => {
+    if (source.kind !== 'worktree') return
+    if (how === 'discard') {
+      const ok = await shell.confirm('Discard changes', `Discard ${lines} changed line${lines === 1 ? '' : 's'} in ${file.path}? This cannot be undone.`, true)
+      if (!ok) return
+    }
+    try {
+      await window.git.applyPatch(repoPath, patch, how)
+    } catch (e) {
+      shell.showError(errorMessage(e))
+      return
+    }
+    onSaved()
+    const next = await window.git.fileDiff(repoPath, file.path, source.staged, file.status).catch(() => '')
+    if (!next.trim() && how !== 'discard') onChange({ ...request, source: { ...source, staged: !source.staged } })
+    else setDiff(next)
+  }
 
   return (
     <div className="file-viewer">
@@ -94,7 +114,7 @@ export function FileViewer({
       ) : image ? (
         <ImageDiff key={sourceKey + file.path} repoPath={repoPath} file={file.path} oldPath={file.oldPath} source={source} />
       ) : (
-        <DiffView text={diff} loading={loading} empty="No textual changes" />
+        <DiffView text={diff} loading={loading} empty="No textual changes" modes={modes} onApply={applyPatch} />
       )}
     </div>
   )

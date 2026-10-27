@@ -1,5 +1,6 @@
 import { simpleGit, SimpleGit } from 'simple-git'
-import { readFile, writeFile, access } from 'fs/promises'
+import { readFile, writeFile, access, rm } from 'fs/promises'
+import { tmpdir } from 'os'
 import { basename, join } from 'path'
 import { getSettings } from './settings'
 import {
@@ -236,6 +237,19 @@ export async function unstage(path: string, files: string[]): Promise<void> {
   const hasHead = await g.revparse(['--verify', 'HEAD']).then(() => true).catch(() => false)
   if (hasHead) await g.raw(['reset', '-q', 'HEAD', '--', ...files])
   else await g.raw(['rm', '--cached', '-r', '-q', '--', ...files])
+}
+
+export async function applyPatch(path: string, patch: string, mode: 'stage' | 'unstage' | 'discard'): Promise<void> {
+  const file = join(tmpdir(), `arbor-${process.pid}-${Date.now()}-${Math.random().toString(36).slice(2)}.patch`)
+  await writeFile(file, patch)
+  const args = ['apply', '--recount', '--whitespace=nowarn']
+  if (mode !== 'discard') args.push('--cached')
+  if (mode !== 'stage') args.push('--reverse')
+  try {
+    await git(path).raw([...args, file])
+  } finally {
+    await rm(file, { force: true })
+  }
 }
 
 export async function discard(path: string, files: string[]): Promise<void> {

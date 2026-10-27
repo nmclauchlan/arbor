@@ -152,6 +152,7 @@ export interface GitApi {
   refs(path: string): Promise<RepoRefs>
   status(path: string): Promise<RepoStatus>
   stage(path: string, files: string[]): Promise<void>
+  applyPatch(path: string, patch: string, mode: 'stage' | 'unstage' | 'discard'): Promise<void>
   unstage(path: string, files: string[]): Promise<void>
   discard(path: string, files: string[]): Promise<void>
   commit(path: string, message: string, amend: boolean): Promise<void>

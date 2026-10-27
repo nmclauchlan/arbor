@@ -143,6 +143,7 @@ const handlers: Handlers = {
   refs: gitService.refs,
   status: gitService.status,
   stage: gitService.stage,
+  applyPatch: gitService.applyPatch,
   unstage: gitService.unstage,
   discard: gitService.discard,
   commit: (path, message, amend) =>
