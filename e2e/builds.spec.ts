@@ -68,6 +68,7 @@ const githubRoutes: [string, unknown][] = [
 
 test('GitHub checks show on the graph and failed annotations show in the commit panel', async () => {
   const { repo, head, parent } = repoWithHost('https://github.com/acme/widgets.git')
+  git(repo, 'branch', 'feature/table-menu', 'HEAD~1')
   const { app, page, close } = await launch(repo)
   try {
     await connect(app, page, 'github', 'https://github.com', {
@@ -82,6 +83,9 @@ test('GitHub checks show on the graph and failed annotations show in the commit 
     })
     await expect(row(page, 'Second change').locator('.build-marker')).toHaveAttribute('data-build-state', 'failed', { timeout: 15_000 })
     await expect(row(page, 'First change').locator('.build-marker')).toHaveAttribute('data-build-state', 'succeeded')
+    const sidebar = view(page).locator('.sidebar')
+    await expect(sidebar.locator('.ref-item', { hasText: /^main/ }).locator('.build-marker')).toHaveAttribute('data-build-state', 'failed')
+    await expect(sidebar.locator('.ref-item', { hasText: 'feature/table-menu' }).locator('.build-marker')).toHaveAttribute('data-build-state', 'succeeded')
 
     await row(page, 'Second change').click()
     const section = page.locator('.builds-section')

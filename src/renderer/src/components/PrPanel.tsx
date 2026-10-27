@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Loading } from './Spinner'
+import { Markdown } from './Markdown'
 import type { HostInfo, PullRequest, PullRequestDetails } from '@shared/types'
 import type { Actions } from '../actions'
 import { errorMessage, formatFullDate, hostPath, prPrefix } from '../util'
@@ -95,7 +96,7 @@ export function PrPanel({
         {d.description && (
           <>
             <div className="file-group-title"><span>Description</span></div>
-            <div className="pr-description">{d.description}</div>
+            <Markdown className="pr-description" text={d.description} />
           </>
         )}
         <div className="file-group-title"><span>{hostPath(host)}</span></div>

@@ -3,6 +3,7 @@ import type { CommitBuild, CommitDetails, StatusFile } from '@shared/types'
 import { FileList, FileViewToggle } from './FileList'
 import { Loading } from './Spinner'
 import { BuildsSection } from './BuildStatus'
+import { Markdown } from './Markdown'
 import { canEdit, type FileViewRequest } from './FileViewer'
 import { copyToClipboard, formatFullDate, revealInFolder, revealLabel, shortHash } from '../util'
 import type { Shell } from '../actions'
@@ -66,7 +67,7 @@ export function CommitPanel({
             </>
           )}
         </div>
-        {details.body && <div className="body">{details.body}</div>}
+        {details.body && <Markdown className="body" text={details.body} />}
       </div>
       <div className="panel-body">
         <BuildsSection repoPath={repoPath} builds={builds} error={buildsError} />

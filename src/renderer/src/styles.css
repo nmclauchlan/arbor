@@ -294,6 +294,7 @@ textarea { resize: vertical; font-family: inherit; }
 .panel-header .meta { color: var(--fg-dim); font-size: 12px; user-select: text; }
 .panel-header .meta .mono { font-family: var(--mono); }
 .panel-header .body { margin-top: 8px; white-space: pre-wrap; font-size: 12px; color: var(--fg); user-select: text; }
+.panel-header .body.markdown { white-space: normal; }
 .panel-body { flex: 1; overflow: auto; min-height: 0; }
 
 .file-group-title {
@@ -515,6 +516,33 @@ textarea { resize: vertical; font-family: inherit; }
 .pr-check.pending { color: var(--yellow); }
 .pr-check.unknown { color: var(--fg-faint); }
 .pr-description { padding: 8px 12px; white-space: pre-wrap; font-size: 12px; user-select: text; }
+.pr-description.markdown { white-space: normal; }
+.markdown { line-height: 1.5; overflow-wrap: anywhere; }
+.markdown > :first-child { margin-top: 0; }
+.markdown > :last-child { margin-bottom: 0; }
+.markdown p, .markdown ul, .markdown ol, .markdown pre, .markdown blockquote, .markdown .md-table { margin: 0 0 8px; }
+.markdown h1, .markdown h2, .markdown h3, .markdown h4, .markdown h5, .markdown h6 { margin: 12px 0 6px; font-weight: 600; line-height: 1.3; }
+.markdown h1 { font-size: 15px; }
+.markdown h2 { font-size: 14px; }
+.markdown h3 { font-size: 13px; }
+.markdown h4, .markdown h5, .markdown h6 { font-size: 12px; color: var(--fg-dim); }
+.markdown ul, .markdown ol { padding-left: 20px; }
+.markdown li + li { margin-top: 3px; }
+.markdown li > ul, .markdown li > ol { margin: 3px 0 0; }
+.markdown li.task { list-style: none; margin-left: -18px; }
+.markdown li.task input { margin: 0 6px 0 0; vertical-align: -2px; }
+.markdown code { font-family: var(--mono); font-size: 11.5px; padding: 1px 4px; border-radius: 3px; background: var(--bg-3); }
+.markdown pre { padding: 8px 10px; border-radius: 4px; background: var(--bg); border: 1px solid var(--border); overflow-x: auto; }
+.markdown pre code { padding: 0; background: none; white-space: pre; }
+.markdown blockquote { padding-left: 10px; border-left: 3px solid var(--border); color: var(--fg-dim); }
+.markdown hr { border: none; border-top: 1px solid var(--border); margin: 10px 0; }
+.markdown a { color: var(--accent); text-decoration: none; }
+.markdown a:hover { text-decoration: underline; }
+.markdown .md-table { overflow-x: auto; }
+.markdown table { border-collapse: collapse; font-size: 11.5px; }
+.markdown th, .markdown td { border: 1px solid var(--border); padding: 3px 8px; text-align: left; vertical-align: top; }
+.markdown th { background: var(--bg-3); font-weight: 600; }
+.sidebar .ref-item .build-marker { display: inline-flex; flex: none; }
 .pr-dialog { width: 520px; }
 .pr-form-row { display: flex; align-items: center; gap: 8px; }
 .pr-form-row select { font: inherit; color: var(--fg); background: var(--bg); border: 1px solid var(--border); border-radius: 4px; padding: 4px 8px; flex: 1; }

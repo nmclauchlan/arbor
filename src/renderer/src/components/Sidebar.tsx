@@ -1,8 +1,9 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import type { Branch, HostInfo, PullRequest, Ref, RemoteBranch, RepoRefs, Stash, Tag } from '@shared/types'
+import type { Branch, CommitBuild, HostInfo, PullRequest, Ref, RemoteBranch, RepoRefs, Stash, Tag } from '@shared/types'
 import { buildRefMenu, type FocusRef } from '../refMenu'
 import type { Actions } from '../actions'
 import { Loading } from './Spinner'
+import { BuildMarker } from './BuildStatus'
 import { hostName, hostPath, prNoun, prPrefix } from '../util'
 
 function Section({
@@ -53,7 +54,8 @@ export function Sidebar({
   prsLoaded = true,
   graphFiltered = false,
   selectedPr,
-  onSelectPr
+  onSelectPr,
+  builds = {}
 }: {
   refs: RepoRefs
   actions: Actions
@@ -66,6 +68,7 @@ export function Sidebar({
   graphFiltered?: boolean
   selectedPr: number | null
   onSelectPr: (pr: PullRequest) => void
+  builds?: Record<string, CommitBuild[]>
 }): React.JSX.Element {
   const [query, setQuery] = useState('')
   const input = useRef<HTMLInputElement>(null)
@@ -181,6 +184,7 @@ export function Sidebar({
                 {b.ahead ? `↑${b.ahead}` : ''} {b.behind ? `↓${b.behind}` : ''}
               </span>
             ) : null}
+            {builds[b.hash] && <BuildMarker builds={builds[b.hash]} />}
           </div>
         ))}
         {branches.length === 0 && !filtering && <div className="empty">No branches</div>}
@@ -228,6 +232,7 @@ export function Sidebar({
                 onContextMenu={(e) => remoteMenu(e, r)}
               >
                 <span className="name"><Highlight text={r.name} query={q} /></span>
+                {builds[r.hash] && <BuildMarker builds={builds[r.hash]} />}
               </div>
             ))}
           </div>
