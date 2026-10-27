@@ -15,6 +15,7 @@ export interface Actions extends Shell {
   refresh(): void
   selectHash(hash: string): void
   checkout(ref: string): void
+  checkoutTracking(local: string, remote: string): void
   createBranch(startPoint: string): void
   deleteBranch(name: string): void
   merge(ref: string): void

@@ -4,7 +4,7 @@ import type { Actions } from '../actions'
 import type { MenuItem } from './ContextMenu'
 import { FileList, FileViewToggle } from './FileList'
 import { canEdit, type FileViewRequest } from './FileViewer'
-import { errorMessage, revealInFolder, revealLabel } from '../util'
+import { copyToClipboard, errorMessage, revealInFolder, revealLabel } from '../util'
 
 type Area = 'staged' | 'unstaged'
 
@@ -123,7 +123,7 @@ export function WorkingTree({
         label: 'Copy path',
         onClick: () => {
           const p = folder ?? files[0].path
-          navigator.clipboard.writeText(p)
+          void copyToClipboard(p)
           actions.showInfo(`Copied ${p}`)
         }
       })

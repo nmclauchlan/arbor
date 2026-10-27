@@ -3,7 +3,7 @@ import type { Shell } from '../actions'
 import type { MenuItem } from './ContextMenu'
 import type { Tab, TabGroup } from '../tabs'
 import { GroupColorDialog } from './GroupColorDialog'
-import { revealInFolder, revealLabel } from '../util'
+import { copyToClipboard, revealInFolder, revealLabel } from '../util'
 
 type DropHint = { path: string; after: boolean } | { group: string; after?: boolean } | null
 type Dragging = { kind: 'tab'; path: string } | { kind: 'group'; id: string } | null
@@ -132,7 +132,7 @@ export function TabBar({
       {
         label: 'Copy path',
         onClick: () => {
-          navigator.clipboard.writeText(tab.path)
+          void copyToClipboard(tab.path)
           shell.showInfo(`Copied ${tab.path}`)
         }
       }

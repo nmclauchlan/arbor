@@ -30,7 +30,9 @@ async function choose(page: Page, label: string | RegExp, submenu?: string | Reg
   const root = page.locator('.context-menu-root > .context-menu > .item')
   if (submenu) {
     await root.filter({ hasText: label }).first().hover()
-    await page.locator('.submenu-anchor .item', { hasText: submenu }).first().click()
+    const item = page.locator('.submenu-layer .item', { hasText: submenu }).first()
+    await expect(item).toBeInViewport()
+    await item.click()
   } else {
     await root.filter({ has: page.locator('.label', { hasText: label }) }).first().click()
   }
@@ -91,6 +93,30 @@ test('checkout from the submenu and pull a branch that is not checked out', asyn
     await badgeMenu(page, 'develop')
     await choose(page, 'Checkout', /^develop$/)
     await expect.poll(() => git(repo, 'rev-parse', '--abbrev-ref', 'HEAD').trim()).toBe('develop')
+  } finally {
+    await close()
+  }
+})
+
+test('check out a remote branch whose local copy is behind it', async () => {
+  const { repo, other } = setup()
+  git(other, 'fetch', '-q', 'origin')
+  git(other, 'checkout', '-q', 'develop')
+  commit(other, 'more.txt', 'more\n', 'More develop work')
+  git(other, 'push', '-q', 'origin', 'develop')
+  git(repo, 'fetch', '-q', 'origin')
+  const remoteTip = sha(repo, 'refs/remotes/origin/develop')
+  const { page, close } = await launch(repo)
+  try {
+    await view(page).locator('.ref-badge[data-ref-kind="remote"][data-ref-name="origin/develop"]').first().click({ button: 'right' })
+    await page.locator('.context-menu-root > .context-menu > .item', { hasText: /^Checkout/ }).first().hover()
+    const item = page.locator('.submenu-layer .item', { hasText: 'origin/develop' })
+    await expect(item).toBeInViewport()
+    await expect(item.locator('.hint')).toHaveText('as develop, fast-forwarded')
+    await item.click()
+    await expect.poll(() => sha(repo, 'refs/heads/develop')).toBe(remoteTip)
+    expect(git(repo, 'rev-parse', '--abbrev-ref', 'HEAD').trim()).toBe('develop')
+    await expect(page.locator('.toast')).toContainText('Checked out develop at origin/develop')
   } finally {
     await close()
   }

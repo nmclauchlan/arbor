@@ -1,4 +1,4 @@
-import { app, BrowserWindow, dialog, ipcMain, shell } from 'electron'
+import { app, BrowserWindow, clipboard, dialog, ipcMain, shell } from 'electron'
 import { join } from 'path'
 import { readFile, writeFile, mkdir, stat } from 'fs/promises'
 import * as gitService from './git'
@@ -303,6 +303,8 @@ ipcMain.handle('native:window', (event, action: string) => {
   }
   return Math.round(Math.pow(1.2, wc.getZoomLevel()) * 100)
 })
+
+ipcMain.handle('native:copy', (_event, text: string) => clipboard.writeText(text))
 
 ipcMain.handle('native:showInFolder', async (_event, repoPath: string, relative: string | null) => {
   const target = relative ? join(repoPath, relative) : repoPath

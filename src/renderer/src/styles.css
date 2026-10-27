@@ -408,7 +408,10 @@ textarea { resize: vertical; font-family: inherit; }
 }
 .context-menu-root { position: fixed; z-index: 250; }
 .context-menu-root .context-menu { position: static; max-height: calc(100vh - 16px); overflow-y: auto; }
-.context-menu-root .context-menu.nested { overflow: visible; max-height: none; }
+.context-menu-layer { position: fixed; inset: 0; z-index: 251; pointer-events: none; }
+.submenu-layer { position: fixed; pointer-events: auto; }
+.submenu-layer .context-menu { position: static; min-width: 200px; max-height: calc(100vh - 8px); overflow-y: auto; }
+.submenu-anchor-point { display: none; }
 .context-menu .item { position: relative; display: flex; align-items: center; gap: 12px; padding: 6px 14px; cursor: pointer; white-space: nowrap; }
 .context-menu .item .label { flex: 1; }
 .context-menu .item .hint { color: var(--fg-faint); font-size: 11.5px; }
@@ -416,9 +419,6 @@ textarea { resize: vertical; font-family: inherit; }
 .context-menu .item .chev { color: var(--fg-dim); margin-right: -4px; }
 .context-menu .item.sub-open { background: var(--accent); color: #fff; }
 .context-menu .item.sub-open .chev, .context-menu .item:hover .chev { color: #fff; }
-.submenu-anchor { position: absolute; left: calc(100% - 2px); top: -5px; z-index: 1; color: var(--fg); }
-.submenu-anchor.flip { left: auto; right: calc(100% - 2px); }
-.submenu-anchor .context-menu { position: static; min-width: 200px; }
 .graph-filter-note { display: flex; align-items: center; gap: 10px; padding: 4px 12px; background: color-mix(in srgb, var(--yellow) 12%, var(--bg-2)); border-bottom: 1px solid var(--border); font-size: 12px; color: var(--fg); flex: none; }
 .graph-filter-note button { padding: 1px 8px; font-size: 11.5px; }
 .context-menu .item:hover { background: var(--accent); color: #fff; }

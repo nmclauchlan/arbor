@@ -14,7 +14,7 @@ import { WorkingTree } from './components/WorkingTree'
 import { Splitter } from './components/Splitter'
 import { UpdateNotice } from './components/UpdateNotice'
 import { setLayout, useLayout } from './layout'
-import { errorMessage, shortHash, WIP_HASH } from './util'
+import { copyToClipboard, errorMessage, shortHash, WIP_HASH } from './util'
 import { useSettings } from './settings'
 
 
@@ -294,6 +294,16 @@ export function RepoView({
         setScrollTarget((t) => ({ hash, n: (t?.n ?? 0) + 1 }))
       },
       checkout: (ref) => run('Checking out', () => window.git.checkout(path, ref)),
+      checkoutTracking: (local, remote) =>
+        run('Checking out', async () => {
+          await window.git.checkout(path, local)
+          try {
+            await window.git.fastForward(path, remote)
+            shell.showInfo(`Checked out ${local} at ${remote}`)
+          } catch {
+            shell.showError(`Checked out ${local}, but it can't fast-forward to ${remote} because it has commits of its own. Pull or rebase to combine them.`)
+          }
+        }),
       createBranch: async (startPoint) => {
         const name = await shell.prompt(
           'Create branch',
@@ -370,7 +380,7 @@ export function RepoView({
         if (ok) run('Resetting', () => window.git.resetTo(path, hash, mode))
       },
       copyText: (text, what) => {
-        navigator.clipboard.writeText(text)
+        void copyToClipboard(text)
         shell.showInfo(`Copied ${what}: ${text}`)
       },
       updateBranch: (branch) => run('Pulling', () => window.git.updateBranch(path, branch), `Updated ${branch} from its upstream`),
@@ -455,7 +465,7 @@ export function RepoView({
       hideRef: (ref) => setGraphFilter((f) => ({ hide: [...new Set([...(f.hide ?? []), ref])] })),
       showAllRefs: () => setGraphFilter({}),
       copyHash: (hash) => {
-        navigator.clipboard.writeText(hash)
+        void copyToClipboard(hash)
         shell.showInfo(`Copied ${hash}`)
       },
       undo: () => {

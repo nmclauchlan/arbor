@@ -51,6 +51,7 @@ contextBridge.exposeInMainWorld('native', {
   versions: () => ipcRenderer.invoke('native:versions'),
   window: (action: string) => ipcRenderer.invoke('native:window', action),
   setTitleBar: (color: string, symbolColor: string) => ipcRenderer.invoke('native:titleBar', color, symbolColor),
+  copy: (text: string) => ipcRenderer.invoke('native:copy', text),
   showInFolder: (repoPath: string, relative: string | null) => ipcRenderer.invoke('native:showInFolder', repoPath, relative),
   onOpenPath: (cb: (path: string) => void) => {
     const handler = (_e: Electron.IpcRendererEvent, p: string): void => cb(p)

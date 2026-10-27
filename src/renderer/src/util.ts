@@ -50,6 +50,10 @@ export function revealLabel(): string {
   return 'Show in file manager'
 }
 
+export function copyToClipboard(text: string): Promise<void> {
+  return window.native ? window.native.copy(text) : navigator.clipboard.writeText(text)
+}
+
 export function revealInFolder(repoPath: string, relative: string | null): void {
   window.native?.showInFolder(repoPath, relative)
 }

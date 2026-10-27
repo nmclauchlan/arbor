@@ -1,4 +1,7 @@
-import { useEffect, useLayoutEffect, useRef, useState } from 'react'
+import { createContext, useContext, useEffect, useLayoutEffect, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
+
+const LayerContext = createContext<HTMLElement | null>(null)
 
 export interface MenuItem {
   label?: string
@@ -65,7 +68,7 @@ function MenuList({ items, onClose, nested }: { items: MenuItem[]; onClose: () =
             <span className="label">{item.label}</span>
             {item.hint && <span className="hint">{item.hint}</span>}
             {item.items && <span className="chev">›</span>}
-            {item.items && openSub === i && <Submenu items={item.items} onClose={onClose} />}
+            {item.items && openSub === i && <Submenu items={item.items} onClose={onClose} index={i} />}
           </div>
         )
       )}
@@ -73,30 +76,48 @@ function MenuList({ items, onClose, nested }: { items: MenuItem[]; onClose: () =
   )
 }
 
-function Submenu({ items, onClose }: { items: MenuItem[]; onClose: () => void }): React.JSX.Element {
+function Submenu({ items, onClose, index }: { items: MenuItem[]; onClose: () => void; index: number }): React.JSX.Element | null {
+  const layer = useContext(LayerContext)
+  const anchor = useRef<HTMLSpanElement>(null)
   const ref = useRef<HTMLDivElement>(null)
-  const [flip, setFlip] = useState({ x: false, y: 0 })
+  const [pos, setPos] = useState<{ left: number; top: number } | null>(null)
 
   useLayoutEffect(() => {
-    const el = ref.current?.firstElementChild as HTMLElement | null
-    if (!el) return
-    const rect = el.getBoundingClientRect()
-    setFlip({
-      x: rect.right > window.innerWidth - 4,
-      y: rect.bottom > window.innerHeight - 4 ? window.innerHeight - 4 - rect.bottom : 0
-    })
-  }, [])
+    const item = anchor.current?.parentElement
+    const menu = ref.current?.firstElementChild as HTMLElement | null
+    if (!item || !menu) return
+    const r = item.getBoundingClientRect()
+    const w = menu.offsetWidth
+    const h = menu.offsetHeight
+    let left = r.right - 2
+    if (left + w > window.innerWidth - 4) left = Math.max(4, r.left - w + 2)
+    let top = r.top - 5
+    if (top + h > window.innerHeight - 4) top = Math.max(4, window.innerHeight - 4 - h)
+    setPos({ left, top })
+  }, [index])
 
   return (
-    <div ref={ref} className={`submenu-anchor${flip.x ? ' flip' : ''}`} style={{ marginTop: flip.y }} onClick={(e) => e.stopPropagation()}>
-      <MenuList items={items} onClose={onClose} nested />
-    </div>
+    <span ref={anchor} className="submenu-anchor-point">
+      {layer &&
+        createPortal(
+          <div
+            ref={ref}
+            className="submenu-layer"
+            style={{ left: pos?.left ?? -9999, top: pos?.top ?? 0, visibility: pos ? 'visible' : 'hidden' }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <MenuList items={items} onClose={onClose} nested />
+          </div>,
+          layer
+        )}
+    </span>
   )
 }
 
 export function ContextMenu({ menu, onClose }: { menu: MenuState | null; onClose: () => void }): React.JSX.Element | null {
   const ref = useRef<HTMLDivElement>(null)
   const [pos, setPos] = useState({ x: 0, y: 0 })
+  const [layer, setLayer] = useState<HTMLDivElement | null>(null)
 
   useLayoutEffect(() => {
     if (!menu || !ref.current) return
@@ -125,8 +146,13 @@ export function ContextMenu({ menu, onClose }: { menu: MenuState | null; onClose
 
   if (!menu) return null
   return (
-    <div ref={ref} className="context-menu-root" style={{ left: pos.x, top: pos.y }}>
-      <MenuList items={menu.items} onClose={onClose} />
-    </div>
+    <>
+      <div ref={ref} className="context-menu-root" style={{ left: pos.x, top: pos.y }}>
+        <LayerContext.Provider value={layer}>
+          <MenuList items={menu.items} onClose={onClose} />
+        </LayerContext.Provider>
+      </div>
+      <div ref={setLayer} className="context-menu-layer" onMouseDown={(e) => e.stopPropagation()} />
+    </>
   )
 }

@@ -85,9 +85,14 @@ export function buildRefMenu({ sha, refs, focus, repoRefs, host, actions, filter
 
   const checkoutItems: MenuItem[] = [
     ...locals.filter((b) => b !== cur).map((b) => ({ label: b, onClick: () => actions.checkout(b) })),
-    ...remotes
-      .filter((r) => !locals.includes(r.name) && !repoRefs.branches.some((b) => b.name === r.name))
-      .map((r) => ({ label: `${r.remote}/${r.name}`, hint: `new local ${r.name}`, onClick: () => actions.checkout(r.name) })),
+    ...remotes.flatMap((r): MenuItem[] => {
+      const local = repoRefs.branches.find((b) => b.name === r.name)
+      const full = `${r.remote}/${r.name}`
+      if (!local) return [{ label: full, hint: `new local ${r.name}`, onClick: () => actions.checkout(r.name) }]
+      if (local.current) return []
+      if (local.hash === sha) return locals.includes(r.name) ? [] : [{ label: full, hint: `as ${r.name}`, onClick: () => actions.checkout(r.name) }]
+      return [{ label: full, hint: `as ${r.name}, fast-forwarded`, onClick: () => actions.checkoutTracking(r.name, full) }]
+    }),
     { label: `${shortHash(sha)} (detached HEAD)`, onClick: () => actions.checkout(sha) }
   ]
   const worktreeItems: MenuItem[] = [

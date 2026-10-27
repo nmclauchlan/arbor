@@ -3,7 +3,7 @@ import type { CommitDetails, StatusFile } from '@shared/types'
 import { FileList, FileViewToggle } from './FileList'
 import { Loading } from './Spinner'
 import { canEdit, type FileViewRequest } from './FileViewer'
-import { formatFullDate, revealInFolder, revealLabel, shortHash } from '../util'
+import { copyToClipboard, formatFullDate, revealInFolder, revealLabel, shortHash } from '../util'
 import type { Shell } from '../actions'
 
 export function CommitPanel({
@@ -82,7 +82,7 @@ export function CommitPanel({
               {
                 label: 'Copy path',
                 onClick: () => {
-                  navigator.clipboard.writeText(target)
+                  void copyToClipboard(target)
                   shell.showInfo(`Copied ${target}`)
                 }
               }
