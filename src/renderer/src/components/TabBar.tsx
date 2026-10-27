@@ -75,7 +75,7 @@ export function TabBar({
   }, [tabs, groups])
 
   useEffect(() => {
-    scroller.current?.querySelector('.tab.active')?.scrollIntoView({ inline: 'nearest', block: 'nearest' })
+    scroller.current?.querySelector('.tab.active, .tab-group.has-active')?.scrollIntoView({ inline: 'nearest', block: 'nearest' })
   }, [activePath])
 
   useEffect(() => {
@@ -233,7 +233,7 @@ export function TabBar({
     )
   }
 
-  const renderChip = (group: TabGroup, count: number, hasActive: boolean): React.ReactNode => {
+  const renderChip = (group: TabGroup, count: number, active?: Tab): React.ReactNode => {
     const isOpen = openGroup === group.id
     const groupHint = hint && 'group' in hint && hint.group === group.id ? hint : null
     const hintCls = groupHint ? (groupHint.after === undefined ? ' drop-target' : groupHint.after ? ' drop-after' : ' drop-before') : ''
@@ -245,9 +245,10 @@ export function TabBar({
           if (element) groupChips.current.set(group.id, element)
           else groupChips.current.delete(group.id)
         }}
-        className={`tab-group${count === 0 ? ' empty' : ''}${isOpen ? ' open' : ''}${hasActive ? ' has-active' : ''}${isDragging ? ' dragging' : ''}${hintCls}`}
+        className={`tab-group${count === 0 ? ' empty' : ''}${isOpen ? ' open' : ''}${active ? ' has-active' : ''}${isDragging ? ' dragging' : ''}${hintCls}`}
         style={{ '--group-color': group.color } as React.CSSProperties}
-        title={count === 0 ? `${group.name}: empty group` : `${group.name}: ${count} repositor${count === 1 ? 'y' : 'ies'}`}
+        title={count === 0 ? `${group.name}: empty group` : `${group.name}: ${count} repositor${count === 1 ? 'y' : 'ies'}${active ? `, showing ${active.name}` : ''}`}
+        aria-current={active ? 'page' : undefined}
         role="button"
         tabIndex={0}
         aria-expanded={isOpen}
@@ -314,14 +315,12 @@ export function TabBar({
     if (rendered.has(group.id)) continue
     rendered.add(group.id)
     const members = tabs.filter((t) => t.group === group.id)
-    const activeMember = members.find((t) => t.path === activePath)
-    items.push(renderChip(group, members.length, !!activeMember))
-    if (activeMember) items.push(renderTab(activeMember, group))
+    items.push(renderChip(group, members.length, members.find((t) => t.path === activePath)))
   }
   for (const group of groups) {
     if (rendered.has(group.id)) continue
     rendered.add(group.id)
-    items.push(renderChip(group, 0, false))
+    items.push(renderChip(group, 0))
   }
 
   const addMenu = (e: React.MouseEvent): void => {

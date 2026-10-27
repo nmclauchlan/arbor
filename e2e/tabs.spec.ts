@@ -27,7 +27,13 @@ test('repositories open as tabs and can be filed into a new group', async () => 
     await expect(chip.locator('.count')).toHaveText('1')
 
     await chip.click()
-    await expect(page.locator('.group-dropdown .group-row', { hasText: 'beta' })).toBeVisible()
+    await page.locator('.group-dropdown .group-row', { hasText: 'beta' }).click()
+    await expect(chip).toHaveClass(/has-active/)
+    await expect(chip).toHaveAttribute('title', /showing beta/)
+    await expect(tabs).toHaveText(['alpha'])
+
+    await page.locator('.tabs .tab', { hasText: 'alpha' }).click()
+    await expect(chip).not.toHaveClass(/has-active/)
   } finally {
     await close()
   }
