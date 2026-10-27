@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test'
-import { commit, git, launch, repoWithRemote, tempDir, view } from './helpers'
+import { commit, git, initRepo, launch, repoWithRemote, tempDir, view } from './helpers'
 
 test('graph shows the branch column, merged local and remote badges, tags and body previews', async () => {
   const root = tempDir()
@@ -54,6 +54,22 @@ test('graph columns resize by dragging the header handle', async () => {
     await page.mouse.move(cx - 40, cy, { steps: 4 })
     await page.mouse.up()
     await expect.poll(async () => Math.round((await author.boundingBox())!.width)).toBe(Math.round(before + 40))
+  } finally {
+    await close()
+  }
+})
+
+test('the checked-out branch badge uses dark text on light theme accents and white on darker ones', async () => {
+  const repo = initRepo(tempDir())
+  commit(repo, 'a.txt', 'a\n', 'Initial')
+  const { page, close } = await launch(repo)
+  try {
+    const badge = view(page).locator('.ref-badge.branch.head').first()
+    for (const [theme, colour] of [['monokai', 'rgb(39, 40, 34)'], ['nord', 'rgb(46, 52, 64)'], ['arbor-dark', 'rgb(255, 255, 255)']]) {
+      await page.evaluate((id) => localStorage.setItem('arbor.theme', id), theme)
+      await page.reload()
+      await expect(badge, theme).toHaveCSS('color', colour)
+    }
   } finally {
     await close()
   }

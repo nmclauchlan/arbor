@@ -9,6 +9,20 @@ export interface Theme {
 
 const KEY = 'arbor.theme'
 
+function luminance(hex: string): number {
+  const n = parseInt(hex.slice(1), 16)
+  const [r, g, b] = [n >> 16, (n >> 8) & 255, n & 255].map((c) => {
+    const s = c / 255
+    return s <= 0.03928 ? s / 12.92 : ((s + 0.055) / 1.055) ** 2.4
+  })
+  return 0.2126 * r + 0.7152 * g + 0.0722 * b
+}
+
+// White stays on mid-tone accents; only accents too light for it switch to dark text.
+function textOn(background: string, darkText: string): string {
+  return 1.05 / (luminance(background) + 0.05) < 2.5 ? darkText : '#fff'
+}
+
 function palette(
   dark: boolean,
   bg: [string, string, string, string],
@@ -22,7 +36,7 @@ function palette(
     bg: bg[0], 'bg-2': bg[1], 'bg-3': bg[2], 'bg-4': bg[3],
     border,
     fg: fg[0], 'fg-dim': fg[1], 'fg-faint': fg[2],
-    accent: accent[0], 'accent-2': accent[1],
+    accent: accent[0], 'accent-2': accent[1], 'on-accent': textOn(accent[0], dark ? bg[0] : fg[0]),
     green: colors.green, red: colors.red, yellow: colors.yellow, purple: colors.purple,
     'add-bg': dark ? 'rgba(88, 195, 107, 0.14)' : 'rgba(46, 160, 67, 0.15)',
     'del-bg': dark ? 'rgba(232, 83, 74, 0.14)' : 'rgba(207, 34, 46, 0.14)',
