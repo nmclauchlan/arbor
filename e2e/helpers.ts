@@ -88,7 +88,11 @@ export async function launch(repoPath?: string, userData = tempDir('arbor-profil
     userData,
     close: async () => {
       await app.close().catch(() => undefined)
-      rmSync(userData, { recursive: true, force: true, maxRetries: 5, retryDelay: 200 })
+      try {
+        rmSync(userData, { recursive: true, force: true, maxRetries: 5, retryDelay: 200 })
+      } catch {
+        // Windows can keep Electron's helper processes alive briefly; a leftover temp profile is harmless.
+      }
     }
   }
 }
