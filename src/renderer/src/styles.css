@@ -109,11 +109,13 @@ textarea { resize: vertical; font-family: inherit; }
 .repo-view[hidden] { display: none; }
 .repo-view > .sidebar { grid-column: 1; grid-row: 2; }
 .repo-view > .splitter-sidebar { grid-column: 2; grid-row: 2; }
-.repo-view > .commit-list, .repo-view > .file-viewer { grid-column: 3; grid-row: 2; }
+.repo-view > .commit-list { grid-column: 3; grid-row: 2; }
+.repo-view > .file-viewer { grid-column: 1 / 4; grid-row: 2; }
 .repo-view > .splitter-details { grid-column: 4; grid-row: 2; }
 .repo-view > .panel { grid-column: 5; grid-row: 2; }
 .repo-view.sidebar-collapsed > .sidebar, .repo-view.sidebar-collapsed > .splitter-sidebar,
-.repo-view.details-collapsed > .panel, .repo-view.details-collapsed > .splitter-details { display: none; }
+.repo-view.details-collapsed > .panel, .repo-view.details-collapsed > .splitter-details,
+.repo-view.viewing > .sidebar, .repo-view.viewing > .splitter-sidebar { display: none; }
 .toolbar .panel-toggle { padding: 4px 6px; color: var(--fg-dim); }
 .toolbar .panel-toggle:hover { color: var(--fg); }
 .toolbar .panel-toggle svg { display: block; }

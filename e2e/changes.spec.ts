@@ -70,8 +70,13 @@ test('clicking a changed file previews its diff in the main view', async () => {
     await v.locator('.file-item', { hasText: 'notes.md' }).click()
     await expect(v.locator('.file-viewer')).toBeVisible()
     await expect(v.locator('.file-viewer .diff tr.add')).toContainText('world')
+    await expect(v.locator('.sidebar')).toBeHidden()
+    const viewer = (await v.locator('.file-viewer').boundingBox())!
+    const repoView = (await v.boundingBox())!
+    expect(Math.round(viewer.x)).toBe(Math.round(repoView.x))
     await v.locator('.file-item', { hasText: 'notes.md' }).click()
     await expect(v.locator('.file-viewer')).toBeHidden()
+    await expect(v.locator('.sidebar')).toBeVisible()
     await v.locator('.file-item', { hasText: 'notes.md' }).click()
     await expect(v.locator('.file-viewer')).toBeVisible()
     await page.keyboard.press('Escape')

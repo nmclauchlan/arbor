@@ -649,7 +649,7 @@ export function RepoView({
 
   return (
     <div
-      className={`repo-view${sidebarOpen ? '' : ' sidebar-collapsed'}${detailsOpen ? '' : ' details-collapsed'}`}
+      className={`repo-view${sidebarOpen ? '' : ' sidebar-collapsed'}${detailsOpen ? '' : ' details-collapsed'}${viewing ? ' viewing' : ''}`}
       style={{ gridTemplateColumns: `${sidebarOpen ? `${layout.sidebar}px 4px` : '0 0'} minmax(0, 1fr) ${detailsOpen ? `4px ${layout.panel}px` : '0 0'}` }}
     >
       <Toolbar
