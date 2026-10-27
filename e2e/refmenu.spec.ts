@@ -156,6 +156,7 @@ test('create, push and delete tags from the commit menu', async () => {
     await answerPrompt(page, 'v2.0.1')
     await answerPrompt(page, 'Second release')
     await expect.poll(() => (sha(repo, 'refs/tags/v2.0.1') ? git(repo, 'cat-file', '-t', 'v2.0.1').trim() : '')).toBe('tag')
+    await expect(row.locator('[data-ref-kind="tag"][data-ref-name="v2.0.0"]').first()).toBeAttached()
 
     await row.locator('.subject').click({ button: 'right' })
     await choose(page, 'Tag v2.0.0', /^Push to origin$/)
