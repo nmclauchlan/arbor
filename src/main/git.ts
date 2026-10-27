@@ -22,7 +22,7 @@ function git(path: string): SimpleGit {
 
 const GUARDED_NON_GIT = new Set(['EDITOR', 'VISUAL', 'PAGER', 'PREFIX', 'SSH_ASKPASS'])
 
-export function gitWithEnv(extra: Record<string, string>, baseDir?: string): SimpleGit {
+export function gitWithEnv(extra: Record<string, string>, baseDir?: string, blockTimeoutMs?: number): SimpleGit {
   const env: Record<string, string> = {}
   for (const [k, v] of Object.entries(process.env)) {
     if (v === undefined) continue
@@ -35,6 +35,7 @@ export function gitWithEnv(extra: Record<string, string>, baseDir?: string): Sim
     ...(baseDir ? { baseDir } : {}),
     binary: binary(),
     allowEnvironment: Object.keys(extra),
+    ...(blockTimeoutMs ? { timeout: { block: blockTimeoutMs } } : {}),
     unsafe: { allowUnsafeEditor: true, allowUnsafeConfigEnvCount: true }
   }).env(env)
 }
@@ -483,7 +484,7 @@ export async function continueOperation(path: string, message: string): Promise<
 export const gitFor = git
 
 export async function backgroundFetch(path: string): Promise<void> {
-  await gitWithEnv({ GIT_TERMINAL_PROMPT: '0', GCM_INTERACTIVE: 'never' }, path).raw(['fetch', '--all', '--prune', '--quiet'])
+  await gitWithEnv({ GIT_TERMINAL_PROMPT: '0', GCM_INTERACTIVE: 'never' }, path, 45_000).raw(['fetch', '--all', '--prune', '--quiet'])
 }
 
 export async function incoming(path: string): Promise<IncomingBranch[]> {

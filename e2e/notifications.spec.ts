@@ -47,7 +47,8 @@ test('the bell lists incoming commits after a fetch, opens them and pulls them',
 test('the notifications panel sits below the bell and closes while a check is still running', async () => {
   const repo = initRepo(tempDir())
   commit(repo, 'a.txt', 'a\n', 'Initial')
-  git(repo, 'remote', 'add', 'origin', 'http://10.255.255.1/unreachable.git')
+  git(repo, 'remote', 'add', 'origin', 'ssh://git@example.invalid/slow.git')
+  git(repo, 'config', 'core.sshCommand', 'sleep 4; false')
   const { page, close } = await launch(repo)
   try {
     const bell = page.getByRole('button', { name: /^Notifications/ })
