@@ -69,7 +69,7 @@ Arbor fetches your open repositories in the background, every ten minutes by def
 
 ### A complete git toolkit
 
-- **The graph.** Every branch, remote and tag on one graph with coloured lanes, merge curves and author avatars. Branches and tags have their own column, and each commit can preview the start of its description. Drag column edges to resize them.
+- **The graph.** Every branch, remote and tag on one graph with coloured lanes, merge curves and author avatars. Branches and tags have their own column, and each commit can preview the start of its description. Drag column edges to resize them, or double-click an edge to fit the column to its content.
 - **Everything one right-click away.** From a commit, a branch or tag badge, or a sidebar entry you can:
   - check out any branch, including a remote branch when your local copy is behind it;
   - pull and push branches you haven't checked out;
@@ -78,8 +78,31 @@ Arbor fetches your open repositories in the background, every ten minutes by def
   - rename or delete a branch locally and on the remote;
   - save a patch, and solo or hide branches in the graph.
 - **Changes.** Stage, unstage and discard per file, per folder or everything at once, in a folder tree or flat list. Click a file to see its diff, double-click to edit it in place with syntax highlighting, and commit with Ctrl+Enter.
-- **Image diffs.** Changed images get side-by-side, swipe, onion-skin and difference views.
-- **Merge conflicts.** When a merge, cherry-pick, revert or rebase stops, conflicted files are listed with one-click ours or theirs. Opening a file shows each conflict side by side with an editable result. Abort or continue from the same banner.
+
+### See exactly what changed in an image
+
+Design and asset changes deserve better than "binary file changed". Select any changed image, in a commit or in your uncommitted work, to compare the two versions four ways:
+
+- **2-up** shows the old and new versions side by side with their dimensions.
+- **Swipe** drags a divider across the image to reveal one version over the other.
+- **Onion skin** fades smoothly between the two.
+- **Difference** blends them so only changed pixels show; anything identical appears black.
+
+![Comparing two versions of an image side by side](docs/image-compare.png)
+
+![Swiping between two versions of an image](docs/image-swipe.png)
+
+### Resolve merge conflicts without leaving Arbor
+
+When a merge, cherry-pick, revert or rebase stops on conflicts, a banner shows the operation in progress and the changes panel lists every conflicted file. Open one to work through it:
+
+- Each conflict shows your side (HEAD) and theirs (the incoming branch) next to each other.
+- Resolve a conflict with **Use ours**, **Use theirs**, **Use both** or **Both, theirs first**, or settle every conflict at once with **All ours** or **All theirs**.
+- Take the whole file from either side with **File: ours** or **File: theirs**.
+- The merged result is a full editor with syntax highlighting, so you can adjust it before choosing **Mark resolved**.
+- **Commit merge** (or **Continue** for a rebase, cherry-pick or revert) and **Abort** sit in the same banner.
+
+![Resolving a merge conflict, with one of two conflicts settled and the merged result below](docs/merge-conflicts.png)
 
 ### Safe by design
 
@@ -108,7 +131,7 @@ Tab groups keep related repositories together: a product's API, web app and infr
 
 ![Right-clicking a repository tab to move it into a group](docs/tab-move-to-group.png)
 
-**Switch between repositories.** Click a group to drop down its repositories, then click one to open it. The repository you're working in stays visible as a tab next to its group. Ctrl+P jumps to any repository directly.
+**Switch between repositories.** Click a group to drop down its repositories, then click one to open it. The group holding the repository you have open is highlighted, and its list marks which one is open. Ctrl+P jumps to any repository directly.
 
 **Manage the group.** Right-click a group, or use **⋯** in its list:
 
