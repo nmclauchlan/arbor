@@ -53,6 +53,7 @@ const SHORTCUTS: [string, string][] = [
   ['Ctrl+Tab / Ctrl+Shift+Tab', 'Next / previous tab'],
   ['Ctrl+Z / Ctrl+Shift+Z', 'Undo / redo the last git action'],
   ['Ctrl+B', 'Filter branches'],
+  ['Ctrl+F', 'Search commits'],
   ['Ctrl+Enter', 'Commit'],
   ['Ctrl+S', 'Save the file being edited'],
   ['Ctrl+, ', 'Settings'],

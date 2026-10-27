@@ -1,11 +1,12 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import type { Commit, CommitBuild, GraphFilter, HostInfo, PullRequest, RepoInfo, RepoRefs, RepoStatus, UndoInfo } from '@shared/types'
+import type { Commit, CommitBuild, CommitSearchMode, GraphFilter, HostInfo, PullRequest, RepoInfo, RepoRefs, RepoStatus, UndoInfo } from '@shared/types'
 import { CreatePrDialog } from './components/CreatePrDialog'
 import { Loading } from './components/Spinner'
 import { buildRefMenu, type FocusRef } from './refMenu'
 import { PrPanel } from './components/PrPanel'
 import type { Actions, Shell } from './actions'
 import { CommitList } from './components/CommitList'
+import { CommitSearch } from './components/CommitSearch'
 import { CommitPanel } from './components/CommitPanel'
 import { FileViewer, type FileViewRequest } from './components/FileViewer'
 import { Sidebar } from './components/Sidebar'
@@ -43,6 +44,10 @@ export function RepoView({
   const [status, setStatus] = useState<RepoStatus | null>(null)
   const [selected, setSelected] = useState<string | null>(null)
   const [scrollTarget, setScrollTarget] = useState<{ hash: string; n: number } | null>(null)
+  const [search, setSearch] = useState<{ query: string; mode: CommitSearchMode; focus: number } | null>(null)
+  const [searchHits, setSearchHits] = useState<string[]>([])
+  const [searching, setSearching] = useState(false)
+  const rowsRef = useRef<Commit[]>([])
   const [busy, setBusy] = useState<string | null>(null)
   const [viewing, setViewing] = useState<FileViewRequest | null>(null)
   const [undoInfo, setUndoInfo] = useState<UndoInfo>({ undo: null, redo: null })
@@ -212,6 +217,45 @@ export function RepoView({
     setViewing(null)
   }, [selected])
 
+  const openSearch = useCallback(() => {
+    setViewing(null)
+    setSearch((s) => ({ query: s?.query ?? '', mode: s?.mode ?? 'all', focus: (s?.focus ?? 0) + 1 }))
+  }, [])
+
+  const searchKey = search ? `${search.mode}\u0000${search.query.trim()}` : ''
+  useEffect(() => {
+    const [mode, query] = searchKey.split('\u0000') as [CommitSearchMode, string]
+    if (!query) {
+      setSearchHits([])
+      setSearching(false)
+      return
+    }
+    let cancelled = false
+    setSearching(true)
+    const timer = setTimeout(() => {
+      window.git
+        .searchCommits(path, query, mode, graphFilter)
+        .then((found) => {
+          if (cancelled) return
+          setSearchHits(found)
+          const hits = new Set(found)
+          const first = rowsRef.current.find((c) => hits.has(c.hash))
+          if (first) {
+            wantHash.current = null
+            setSelectedPr(null)
+            setSelected(first.hash)
+            setScrollTarget((t) => ({ hash: first.hash, n: (t?.n ?? 0) + 1 }))
+          }
+        })
+        .catch(() => !cancelled && setSearchHits([]))
+        .finally(() => !cancelled && setSearching(false))
+    }, 250)
+    return () => {
+      cancelled = true
+      clearTimeout(timer)
+    }
+  }, [searchKey, path, graphFilter])
+
   useEffect(() => {
     if (!active) return
     const key = (e: KeyboardEvent): void => {
@@ -220,7 +264,10 @@ export function RepoView({
       if (t instanceof HTMLElement && t.closest('input, textarea, select, [contenteditable="true"], .cm-editor')) return
       if (document.querySelector('.overlay, .dialog')) return
       const k = e.key.toLowerCase()
-      if (k === 'z' && !e.shiftKey) {
+      if (k === 'f' && !e.shiftKey) {
+        e.preventDefault()
+        openSearch()
+      } else if (k === 'z' && !e.shiftKey) {
         e.preventDefault()
         actionsRef.current?.undo()
       } else if ((k === 'z' && e.shiftKey) || k === 'y') {
@@ -258,6 +305,10 @@ export function RepoView({
     }
     return [wip, ...commits]
   }, [commits, hasWip, refs, status])
+
+  useEffect(() => {
+    rowsRef.current = rows
+  }, [rows])
 
   const wantHash = useRef<string | null>(null)
   useEffect(() => {
@@ -530,6 +581,43 @@ export function RepoView({
     actions.openMenu(e, buildRefMenu({ sha: c.hash, refs: c.refs, focus, repoRefs: refs, host, actions, filtered }))
   }
 
+  const searchQuery = search?.query.trim() ?? ''
+  const localSha = search && /^[0-9a-f]{4,}$/i.test(searchQuery) && (search.mode === 'all' || search.mode === 'sha')
+    ? commits.filter((c) => c.hash.startsWith(searchQuery.toLowerCase())).map((c) => c.hash)
+    : []
+  const hitSet = searchQuery ? new Set([...searchHits, ...localSha]) : null
+  const loadedHits = hitSet ? rows.filter((c) => hitSet.has(c.hash)).map((c) => c.hash) : []
+
+  const jumpTo = (hash: string): void => {
+    wantHash.current = null
+    setSelectedPr(null)
+    setSelected(hash)
+    setScrollTarget((t) => ({ hash, n: (t?.n ?? 0) + 1 }))
+  }
+
+  const stepSearch = (direction: 1 | -1): void => {
+    if (!loadedHits.length) return
+    const at = loadedHits.indexOf(selected ?? '')
+    const next = at === -1 ? (direction === 1 ? 0 : loadedHits.length - 1) : (at + direction + loadedHits.length) % loadedHits.length
+    jumpTo(loadedHits[next])
+  }
+
+  const searchBar = search ? (
+    <CommitSearch
+      query={search.query}
+      mode={search.mode}
+      focusKey={search.focus}
+      searching={searching}
+      total={loadedHits.length}
+      position={loadedHits.indexOf(selected ?? '') + 1}
+      older={hitSet ? hitSet.size - loadedHits.length : 0}
+      onQuery={(query) => setSearch((s) => (s ? { ...s, query } : s))}
+      onMode={(mode) => setSearch((s) => (s ? { ...s, mode } : s))}
+      onStep={stepSearch}
+      onClose={() => setSearch(null)}
+    />
+  ) : null
+
   const filterNote = filtered ? (
     <div className="graph-filter-note" role="status">
       {graphFilter.solo?.length
@@ -574,6 +662,7 @@ export function RepoView({
         prs={prs}
         onCreatePr={() => setCreatingPr(refs?.branches.find((b) => b.current)?.name ?? false)}
         onViewPr={(pr) => setSelectedPr(pr)}
+        onSearch={openSearch}
         undoInfo={undoInfo}
       />
       {refs ? (
@@ -625,6 +714,8 @@ export function RepoView({
           loading={!refs}
           builds={builds}
           onHeaderMenu={actions.openMenu}
+          searchBar={searchBar}
+          matches={hitSet}
         />
       )}
       <Splitter

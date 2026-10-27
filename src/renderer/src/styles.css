@@ -203,6 +203,12 @@ textarea { resize: vertical; font-family: inherit; }
 }
 .commit-list .rows { position: relative; }
 .commit-list { display: flex; flex-direction: column; overflow: hidden; }
+.commit-search { display: flex; align-items: center; gap: 6px; padding: 5px 8px; background: var(--bg-2); border-bottom: 1px solid var(--border); flex: none; }
+.commit-search input { flex: 1; min-width: 120px; max-width: 360px; }
+.commit-search select { max-width: 190px; }
+.commit-search-count { display: inline-flex; align-items: center; gap: 6px; min-width: 70px; color: var(--fg-dim); font-size: 12px; white-space: nowrap; }
+.commit-list.searching .commit-row:not(.match):not(.selected) { opacity: 0.38; }
+.commit-list.searching .commit-row.match .subject .text { color: var(--fg); font-weight: 600; }
 .commit-scroll { flex: 1; min-height: 0; overflow-y: auto; overflow-x: hidden; position: relative; scrollbar-gutter: stable; }
 .commit-list .graph-clip { position: absolute; top: 0; left: 0; overflow: hidden; pointer-events: none; z-index: 1; }
 .commit-list svg.graph { position: absolute; top: 0; left: 0; pointer-events: none; }

@@ -140,6 +140,7 @@ const handlers: Handlers = {
   },
   recentRepos: readRecent,
   log: gitService.log,
+  searchCommits: gitService.searchCommits,
   refs: gitService.refs,
   status: gitService.status,
   stage: gitService.stage,

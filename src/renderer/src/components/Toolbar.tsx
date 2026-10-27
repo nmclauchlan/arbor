@@ -24,6 +24,7 @@ export function Toolbar({
   prs,
   onCreatePr,
   onViewPr,
+  onSearch,
   undoInfo
 }: {
   repo: RepoInfo
@@ -35,6 +36,7 @@ export function Toolbar({
   prs: PullRequest[]
   onCreatePr: () => void
   onViewPr: (pr: PullRequest) => void
+  onSearch: () => void
   undoInfo: UndoInfo
 }): React.JSX.Element {
   const mod = /Mac/.test(navigator.platform) ? '⌘' : 'Ctrl+'
@@ -117,6 +119,9 @@ export function Toolbar({
           </button>
         )
       )}
+      <button onClick={onSearch} title={`Search commits (${mod}F)`}>
+        ⌕ Search
+      </button>
       <div className="spacer" />
       <span className="muted">
         {refs?.detached ? 'HEAD detached' : current ? `on ${current.name}` : ''}

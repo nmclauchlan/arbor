@@ -4,6 +4,7 @@ import { tmpdir } from 'os'
 import { basename, join } from 'path'
 import { getSettings } from './settings'
 import {
+  type CommitSearchMode,
   imageMime,
   type Commit, type CommitDetails, type FileChange, type ImageDiffResult, type ImageSource,
   type OperationState, type IncomingUpstream, type Ref, type RepoSummary, type GraphFilter, type RepoInfo, type RepoRefs, type RepoStatus, type StatusFile
@@ -91,6 +92,34 @@ function logSelection(filter?: GraphFilter): string[] {
   for (const r of hide) if (r.startsWith('refs/tags/')) args.push(`--exclude=${r.slice(10)}`)
   args.push('--tags', 'HEAD')
   return args
+}
+
+export async function searchCommits(path: string, query: string, mode: CommitSearchMode, filter?: GraphFilter): Promise<string[]> {
+  const q = query.trim()
+  if (!q) return []
+  const run = (args: string[]): Promise<string[]> =>
+    gitWithEnv({}, path, 30_000)
+      .raw(['log', ...logSelection(filter), '--format=%H', '-n', '2000', ...args])
+      .then(
+        (out) => out.split('\n').map((l) => l.trim()).filter(Boolean),
+        () => []
+      )
+  const sha = async (): Promise<string[]> => {
+    if (!/^[0-9a-f]{4,40}$/i.test(q)) return []
+    const full = (await git(path).revparse(['--verify', '-q', `${q}^{commit}`]).catch(() => '')).trim()
+    return full ? [full] : []
+  }
+  const message = (): Promise<string[]> => run(['-i', '-F', `--grep=${q}`])
+  const author = (): Promise<string[]> => run(['-i', '-F', `--author=${q}`])
+  const searches: Record<CommitSearchMode, () => Promise<string[]>[]> = {
+    all: () => [message(), author(), sha()],
+    message: () => [message()],
+    author: () => [author()],
+    sha: () => [sha()],
+    file: () => [run(['--', `:(glob,icase)**/*${q}*`, `:(glob,icase)**/*${q}*/**`])],
+    code: () => [run([`-S${q}`])]
+  }
+  return [...new Set((await Promise.all(searches[mode]())).flat())]
 }
 
 export async function log(path: string, limit: number, filter?: GraphFilter): Promise<Commit[]> {

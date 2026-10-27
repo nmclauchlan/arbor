@@ -697,7 +697,8 @@ export default function App(): React.JSX.Element {
         { label: 'Paste', shortcut: `${mod}V`, onSelect: () => void window.native?.window('paste') },
         { label: 'Select all', shortcut: `${mod}A`, onSelect: () => void window.native?.window('selectAll') },
         { separator: true },
-        { label: 'Find branch', shortcut: `${mod}B`, disabled: home || !tabs.length, onSelect: () => sendKey('b') }
+        { label: 'Find branch', shortcut: `${mod}B`, disabled: home || !tabs.length, onSelect: () => sendKey('b') },
+        { label: 'Find commit', shortcut: `${mod}F`, disabled: home || !tabs.length, onSelect: () => sendKey('f') }
       ]
     },
     {

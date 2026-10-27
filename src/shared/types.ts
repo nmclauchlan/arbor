@@ -87,6 +87,8 @@ export interface Stash {
   hash: string
 }
 
+export type CommitSearchMode = 'all' | 'message' | 'author' | 'sha' | 'file' | 'code'
+
 export interface RepoRefs {
   branches: Branch[]
   remotes: RemoteBranch[]
@@ -136,6 +138,7 @@ export interface GitApi {
   openRepo(path: string): Promise<RepoInfo>
   recentRepos(): Promise<RepoInfo[]>
   log(path: string, limit: number, filter?: GraphFilter): Promise<Commit[]>
+  searchCommits(path: string, query: string, mode: CommitSearchMode, filter?: GraphFilter): Promise<string[]>
   updateBranch(path: string, branch: string): Promise<void>
   pushBranch(path: string, branch: string): Promise<void>
   setUpstream(path: string, branch: string, upstream: string): Promise<void>

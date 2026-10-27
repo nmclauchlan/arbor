@@ -291,7 +291,9 @@ export function CommitList({
   loading = false,
   filterNote,
   builds,
-  onHeaderMenu
+  onHeaderMenu,
+  searchBar,
+  matches
 }: {
   commits: Commit[]
   selected: string | null
@@ -302,6 +304,8 @@ export function CommitList({
   loading?: boolean
   builds?: Record<string, CommitBuild[]>
   onHeaderMenu?: (e: React.MouseEvent, items: MenuItem[]) => void
+  searchBar?: React.ReactNode
+  matches?: Set<string> | null
 }): React.JSX.Element {
   const layout = useMemo(() => layoutGraph(commits), [commits])
   const container = useRef<HTMLDivElement>(null)
@@ -411,7 +415,7 @@ export function CommitList({
       <div
         key={c.hash}
         data-hash={c.hash}
-        className={`commit-row${selected === c.hash ? ' selected' : ''}${isWip ? ' wip' : ''}`}
+        className={`commit-row${selected === c.hash ? ' selected' : ''}${isWip ? ' wip' : ''}${matches?.has(c.hash) ? ' match' : ''}`}
         style={{ top: i * ROW_H }}
         onClick={() => onSelect(c.hash)}
         onContextMenu={(e) => {
@@ -462,7 +466,8 @@ export function CommitList({
   }
 
   return (
-    <div className="commit-list" ref={listRef}>
+    <div className={`commit-list${matches ? ' searching' : ''}`} ref={listRef}>
+      {searchBar}
       <Header
         graphCol={graphCol}
         cols={cols}
