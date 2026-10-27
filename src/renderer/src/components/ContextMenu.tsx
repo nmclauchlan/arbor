@@ -17,6 +17,7 @@ export interface MenuState {
   x: number
   y: number
   items: MenuItem[]
+  above?: boolean
 }
 
 function compact(items: MenuItem[]): MenuItem[] {
@@ -124,7 +125,7 @@ export function ContextMenu({ menu, onClose }: { menu: MenuState | null; onClose
     const el = ref.current.firstElementChild as HTMLElement | null
     const rect = (el ?? ref.current).getBoundingClientRect()
     const x = Math.max(4, Math.min(menu.x, window.innerWidth - rect.width - 4))
-    const y = Math.max(4, Math.min(menu.y, window.innerHeight - rect.height - 4))
+    const y = Math.max(4, Math.min(menu.above ? menu.y - rect.height - 4 : menu.y, window.innerHeight - rect.height - 4))
     setPos({ x, y })
   }, [menu])
 

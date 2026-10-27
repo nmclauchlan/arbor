@@ -12,7 +12,7 @@ import { Sidebar } from './components/Sidebar'
 import { Toolbar } from './components/Toolbar'
 import { WorkingTree } from './components/WorkingTree'
 import { Splitter } from './components/Splitter'
-import { UpdateNotice } from './components/UpdateNotice'
+import { AppVersion, UpdateNotice } from './components/UpdateNotice'
 import { setLayout, useLayout } from './layout'
 import { copyToClipboard, errorMessage, shortHash, WIP_HASH } from './util'
 import { useSettings } from './settings'
@@ -666,6 +666,7 @@ export function RepoView({
         {busy && <span className="spin" role="status">{busy}…</span>}
         <span className="spacer" />
         <UpdateNotice />
+        <AppVersion />
       </div>
     </div>
   )

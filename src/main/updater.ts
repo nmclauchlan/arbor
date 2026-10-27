@@ -1,6 +1,6 @@
 import { app, BrowserWindow, ipcMain } from 'electron'
 import { autoUpdater } from 'electron-updater'
-import type { UpdateStatus } from '@shared/types'
+import type { UpdateCheckOutcome, UpdateStatus } from '@shared/types'
 import { getSettings } from './settings'
 
 const CHECK_INTERVAL_MS = 6 * 60 * 60 * 1000
@@ -24,12 +24,12 @@ export function setupUpdater(): void {
   if (fake) {
     const state = fake as UpdateStatus['state']
     broadcast({ state, version: '9.9.9', percent: state === 'downloading' ? 42 : undefined })
-    ipcMain.handle('update:check', () => undefined)
+    ipcMain.handle('update:check', (): UpdateCheckOutcome => 'unavailable')
     return
   }
 
   if (!app.isPackaged) {
-    ipcMain.handle('update:check', () => undefined)
+    ipcMain.handle('update:check', (): UpdateCheckOutcome => 'unavailable')
     return
   }
 
@@ -46,12 +46,17 @@ export function setupUpdater(): void {
   autoUpdater.on('update-downloaded', (info) => broadcast({ state: 'downloaded', version: info.version }))
   autoUpdater.on('error', (err) => broadcast({ state: 'error', message: err.message.split('\n')[0] }))
 
-  const check = (): void => {
-    autoUpdater.checkForUpdates().catch(() => undefined)
+  const check = async (): Promise<UpdateCheckOutcome> => {
+    try {
+      const result = await autoUpdater.checkForUpdates()
+      return result?.isUpdateAvailable ? 'available' : 'current'
+    } catch {
+      return 'error'
+    }
   }
   ipcMain.handle('update:check', () => check())
   const auto = (): void => {
-    if (getSettings().autoUpdate) check()
+    if (getSettings().autoUpdate) void check()
   }
   setTimeout(auto, 5000)
   setInterval(auto, CHECK_INTERVAL_MS)

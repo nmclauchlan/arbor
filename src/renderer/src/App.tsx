@@ -6,13 +6,13 @@ import { useDialogs } from './components/Dialog'
 import { TabBar } from './components/TabBar'
 import { SettingsDialog } from './components/SettingsDialog'
 import { CloneDialog } from './components/CloneDialog'
-import { UpdateNotice } from './components/UpdateNotice'
+import { AppVersion, UpdateNotice } from './components/UpdateNotice'
 import { Welcome } from './components/Welcome'
 import { MenuBar, type MenuDef } from './components/MenuBar'
 import { RepoManager } from './components/RepoManager'
 import { RepoSwitcher, type SwitcherEntry } from './components/RepoSwitcher'
 import { AboutDialog, ShortcutsDialog } from './components/InfoDialogs'
-import { parentName, revealInFolder } from './util'
+import { copyToClipboard, parentName, revealInFolder } from './util'
 import { BrandIcon } from './components/BrandIcon'
 import { RepoView } from './RepoView'
 import { errorMessage } from './util'
@@ -422,6 +422,44 @@ export default function App(): React.JSX.Element {
 
   const closeMenu = useCallback(() => setMenu(null), [])
 
+  const checkForUpdates = useCallback(async () => {
+    showInfo('Checking for updates…')
+    const [outcome, version] = await Promise.all([window.updater.check(), window.native?.version() ?? Promise.resolve('')])
+    if (outcome === 'current') showInfo(`Arbor ${version} is the latest version`)
+    else if (outcome === 'unavailable') showInfo('Updates are only checked in installed builds of Arbor')
+    else if (outcome === 'error') showError("Couldn't check for updates. Try again later.")
+  }, [showInfo, showError])
+
+  useEffect(() => {
+    const onMenu = (e: Event): void => {
+      const { x, y } = (e as CustomEvent<{ x: number; y: number }>).detail
+      void Promise.all([window.updater.status(), window.native?.version() ?? Promise.resolve('')]).then(([status, version]) => {
+        const busy = status.state === 'checking' || status.state === 'available' || status.state === 'downloading'
+        setMenu({
+          x,
+          y,
+          above: true,
+          items: [
+            status.state === 'downloaded'
+              ? { label: `Restart to install Arbor ${status.version}`, onClick: () => void window.updater.install() }
+              : { label: busy ? 'Checking for updates…' : 'Check for updates', disabled: busy, onClick: () => void checkForUpdates() },
+            { separator: true },
+            { label: 'Release notes', onClick: () => window.open(`https://github.com/nmclauchlan/arbor/releases/tag/v${version}`) },
+            {
+              label: 'Copy version',
+              onClick: () => {
+                void copyToClipboard(version)
+                showInfo(`Copied ${version}`)
+              }
+            }
+          ]
+        })
+      })
+    }
+    window.addEventListener('arbor:version-menu', onMenu)
+    return () => window.removeEventListener('arbor:version-menu', onMenu)
+  }, [checkForUpdates, showInfo])
+
   const themeMenu = (e: React.MouseEvent): void => {
     shell.openMenu(
       e,
@@ -684,13 +722,7 @@ export default function App(): React.JSX.Element {
         { label: 'Release notes', onSelect: () => window.open('https://github.com/nmclauchlan/arbor/releases') },
         { label: 'Report an issue', onSelect: () => window.open('https://github.com/nmclauchlan/arbor/issues/new') },
         { separator: true },
-        {
-          label: 'Check for updates',
-          onSelect: () => {
-            void window.updater.check()
-            showInfo('Checking for updates…')
-          }
-        },
+        { label: 'Check for updates', onSelect: () => void checkForUpdates() },
         { label: 'About Arbor', onSelect: () => setInfoDialog('about') }
       ]
     }
@@ -790,6 +822,7 @@ export default function App(): React.JSX.Element {
           <div className="statusbar">
             <span className="spacer" />
             <UpdateNotice />
+        <AppVersion />
           </div>
         </>
       ) : (

@@ -230,6 +230,8 @@ export interface UpdateStatus {
   message?: string
 }
 
+export type UpdateCheckOutcome = 'available' | 'current' | 'unavailable' | 'error'
+
 export interface MainSettings {
   gitPath: string
   autoUpdate: boolean
@@ -242,7 +244,7 @@ export interface SettingsApi {
 
 export interface UpdaterApi {
   status(): Promise<UpdateStatus>
-  check(): Promise<void>
+  check(): Promise<UpdateCheckOutcome>
   install(): Promise<void>
   onStatus(cb: (status: UpdateStatus) => void): () => void
 }

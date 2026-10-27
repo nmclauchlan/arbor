@@ -22,6 +22,31 @@ function subscribe(cb: (s: UpdateStatus) => void): () => void {
   return () => listeners.delete(cb)
 }
 
+let version: Promise<string> | null = null
+
+export function AppVersion(): React.JSX.Element | null {
+  const [text, setText] = useState('')
+  useEffect(() => {
+    let cancelled = false
+    version ??= window.native?.version() ?? Promise.resolve('')
+    void version.then((v) => !cancelled && setText(v))
+    return () => {
+      cancelled = true
+    }
+  }, [])
+  if (!text) return null
+  const open = (e: React.MouseEvent): void => {
+    e.preventDefault()
+    const rect = e.currentTarget.getBoundingClientRect()
+    window.dispatchEvent(new CustomEvent('arbor:version-menu', { detail: { x: rect.left, y: rect.top } }))
+  }
+  return (
+    <button className="app-version" title={`Arbor ${text}. Right-click to check for updates`} onClick={open} onContextMenu={open}>
+      v{text}
+    </button>
+  )
+}
+
 export function UpdateNotice(): React.JSX.Element | null {
   const [status, setStatus] = useState<UpdateStatus>(current)
   useEffect(() => subscribe(setStatus), [])

@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import type { RepoInfo, RepoSummary } from '@shared/types'
 import { parentName, revealLabel } from '../util'
 import { Spinner } from './Spinner'
-import { UpdateNotice } from './UpdateNotice'
+import { AppVersion, UpdateNotice } from './UpdateNotice'
 
 type SectionId = 'open' | 'favorites' | 'recent'
 
@@ -360,6 +360,7 @@ export function RepoManager({
         </span>
         <span className="spacer" />
         <UpdateNotice />
+        <AppVersion />
       </div>
     </main>
   )
