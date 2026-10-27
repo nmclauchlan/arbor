@@ -21,13 +21,12 @@ export interface IncomingCommit {
   date: number
 }
 
-export interface IncomingBranch {
-  branch: string
+export interface IncomingUpstream {
   upstream: string
   upstreamSha: string
-  behind: number
-  ahead: number
-  current: boolean
+  since: string | null
+  count: number
+  branches: { name: string; current: boolean; ahead: number; behind: number }[]
   commits: IncomingCommit[]
 }
 
@@ -171,7 +170,7 @@ export interface GitApi {
   removeRecent(path: string): Promise<void>
   clearRecent(): Promise<void>
   backgroundFetch(path: string): Promise<void>
-  incoming(path: string): Promise<IncomingBranch[]>
+  incoming(path: string, since: Record<string, string>): Promise<IncomingUpstream[]>
   undo(path: string): Promise<string>
   redo(path: string): Promise<string>
   push(path: string, setUpstream: boolean): Promise<void>

@@ -63,7 +63,8 @@ export default function App(): React.JSX.Element {
   const [pullingRepo, setPullingRepo] = useState<string | null>(null)
   const [focus, setFocus] = useState<{ path: string; hash: string; n: number } | null>(null)
   const [seen, setSeen] = useState(() => loadShaMap('arbor.seenIncoming'))
-  const [dismissed, setDismissed] = useState(() => loadShaMap('arbor.dismissedIncoming'))
+  const [baselines] = useState(() => ({ current: loadShaMap('arbor.incomingBaselines') }))
+  const [clearUndo, setClearUndo] = useState<Record<string, string>>({})
   const tabsRef = useRef<{ path: string; name: string }[]>([])
   const checkingRef = useRef(false)
   const theme = useTheme()
@@ -158,18 +159,38 @@ export default function App(): React.JSX.Element {
 
   tabsRef.current = tabs
 
-  const refreshIncoming = useCallback(async (path: string, name: string, error?: string) => {
-    try {
-      const branches = await window.git.incoming(path)
-      setIncoming((m) => ({ ...m, [path]: { path, name, branches, error } }))
-    } catch {
-      setIncoming((m) => {
-        const next = { ...m }
-        delete next[path]
-        return next
-      })
-    }
-  }, [])
+  const updateBaselines = useCallback(
+    (changes: Record<string, string>) => {
+      if (!Object.keys(changes).length) return
+      baselines.current = { ...baselines.current, ...changes }
+      saveShaMap('arbor.incomingBaselines', baselines.current)
+    },
+    [baselines]
+  )
+
+  const refreshIncoming = useCallback(
+    async (path: string, name: string, error?: string) => {
+      const prefix = `${path}::`
+      const since: Record<string, string> = {}
+      for (const [key, sha] of Object.entries(baselines.current)) if (key.startsWith(prefix)) since[key.slice(prefix.length)] = sha
+      try {
+        const upstreams = (await window.git.incoming(path, since)).map((u) =>
+          u.count && baselines.current[prefix + u.upstream] === u.upstreamSha ? { ...u, count: 0, commits: [] } : u
+        )
+        const caughtUp: Record<string, string> = {}
+        for (const u of upstreams) if (!u.count && baselines.current[prefix + u.upstream] !== u.upstreamSha) caughtUp[prefix + u.upstream] = u.upstreamSha
+        updateBaselines(caughtUp)
+        setIncoming((m) => ({ ...m, [path]: { path, name, upstreams, error } }))
+      } catch {
+        setIncoming((m) => {
+          const next = { ...m }
+          delete next[path]
+          return next
+        })
+      }
+    },
+    [baselines, updateBaselines]
+  )
 
   const checkIncoming = useCallback(
     async (doFetch: boolean) => {
@@ -218,55 +239,66 @@ export default function App(): React.JSX.Element {
   }, [refreshIncoming])
 
   const openPaths = new Set(tabs.map((t) => t.path))
-  const allIncoming = Object.values(incoming).filter((r) => openPaths.has(r.path))
-  let clearedCount = 0
-  const incomingList = allIncoming.map((r) => {
-    const branches = r.branches.filter((b) => dismissed[`${r.path}::${b.branch}`] !== b.upstreamSha)
-    clearedCount += r.branches.length - branches.length
-    return branches.length === r.branches.length ? r : { ...r, branches }
-  })
+  const incomingList = Object.values(incoming)
+    .filter((r) => openPaths.has(r.path))
+    .map((r) => ({ ...r, upstreams: r.upstreams.filter((u) => u.count > 0) }))
   const unseenKeys = new Set<string>()
   let unseenCount = 0
   for (const r of incomingList) {
-    for (const b of r.branches) {
-      const key = `${r.path}::${b.branch}`
-      if (seen[key] !== b.upstreamSha) {
+    for (const u of r.upstreams) {
+      const key = `${r.path}::${u.upstream}`
+      if (seen[key] !== u.upstreamSha) {
         unseenKeys.add(key)
-        unseenCount += b.behind
+        unseenCount += u.count
       }
     }
   }
 
+  const closeNotifications = (): void => {
+    setNotifOpen(null)
+    setClearUndo({})
+  }
+
   const openNotifications = (): void => {
     if (notifOpen) {
-      setNotifOpen(null)
+      closeNotifications()
       return
     }
     setNotifOpen(new Set(unseenKeys))
     const next = { ...seen }
-    for (const r of incomingList) for (const b of r.branches) next[`${r.path}::${b.branch}`] = b.upstreamSha
+    for (const r of incomingList) for (const u of r.upstreams) next[`${r.path}::${u.upstream}`] = u.upstreamSha
     setSeen(next)
     saveShaMap('arbor.seenIncoming', next)
   }
 
-  const updateDismissed = (next: Record<string, string>): void => {
-    setDismissed(next)
-    saveShaMap('arbor.dismissedIncoming', next)
-  }
-
-  const clearIncoming = (path: string | null, branch: string | null): void => {
-    const next = { ...dismissed }
+  const clearIncoming = (path: string | null, upstream: string | null): void => {
+    const previous: Record<string, string> = {}
+    const changes: Record<string, string> = {}
     for (const r of incomingList) {
       if (path && r.path !== path) continue
-      for (const b of r.branches) if (!branch || b.branch === branch) next[`${r.path}::${b.branch}`] = b.upstreamSha
+      for (const u of r.upstreams) {
+        if (upstream && u.upstream !== upstream) continue
+        const key = `${r.path}::${u.upstream}`
+        previous[key] = u.since ?? u.upstreamSha
+        changes[key] = u.upstreamSha
+      }
     }
-    updateDismissed(next)
+    updateBaselines(changes)
+    setClearUndo((u) => ({ ...previous, ...u }))
+    setIncoming((m) => {
+      const next = { ...m }
+      for (const [p, r] of Object.entries(m)) {
+        next[p] = { ...r, upstreams: r.upstreams.map((u) => (changes[`${p}::${u.upstream}`] ? { ...u, count: 0, commits: [] } : u)) }
+      }
+      return next
+    })
   }
 
-  const restoreIncoming = (): void => {
-    const next = { ...dismissed }
-    for (const r of allIncoming) for (const b of r.branches) delete next[`${r.path}::${b.branch}`]
-    updateDismissed(next)
+  const undoClear = (): void => {
+    updateBaselines(clearUndo)
+    setClearUndo({})
+    const paths = new Set(Object.keys(clearUndo).map((key) => key.slice(0, key.lastIndexOf('::'))))
+    for (const t of tabsRef.current) if (paths.has(t.path)) void refreshIncoming(t.path, t.name)
   }
 
   const pullIncoming = async (path: string): Promise<void> => {
@@ -722,9 +754,9 @@ export default function App(): React.JSX.Element {
           checking={checking}
           lastChecked={lastChecked}
           pulling={pullingRepo}
-          cleared={clearedCount}
+          cleared={Object.keys(clearUndo).length}
           onOpenCommit={(path, hash) => {
-            setNotifOpen(null)
+            closeNotifications()
             setActivePath(path)
             setHome(false)
             setFocus((f) => ({ path, hash, n: (f?.n ?? 0) + 1 }))
@@ -733,8 +765,8 @@ export default function App(): React.JSX.Element {
           onCheckNow={() => void checkIncoming(true)}
           onClear={(path, branch) => clearIncoming(path, branch)}
           onClearAll={() => clearIncoming(null, null)}
-          onRestore={restoreIncoming}
-          onClose={() => setNotifOpen(null)}
+          onUndo={undoClear}
+          onClose={closeNotifications}
         />
       )}
       <ContextMenu menu={menu} onClose={closeMenu} />

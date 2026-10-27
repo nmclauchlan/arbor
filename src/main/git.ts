@@ -5,7 +5,7 @@ import { getSettings } from './settings'
 import {
   imageMime,
   type Commit, type CommitDetails, type FileChange, type ImageDiffResult, type ImageSource,
-  type OperationState, type IncomingBranch, type Ref, type RepoSummary, type GraphFilter, type RepoInfo, type RepoRefs, type RepoStatus, type StatusFile
+  type OperationState, type IncomingUpstream, type Ref, type RepoSummary, type GraphFilter, type RepoInfo, type RepoRefs, type RepoStatus, type StatusFile
 } from '@shared/types'
 
 const FIELD = '\x1f'
@@ -487,17 +487,24 @@ export async function backgroundFetch(path: string): Promise<void> {
   await gitWithEnv({ GIT_TERMINAL_PROMPT: '0', GCM_INTERACTIVE: 'never' }, path, 45_000).raw(['fetch', '--all', '--prune', '--quiet'])
 }
 
-export async function incoming(path: string): Promise<IncomingBranch[]> {
+export async function incoming(path: string, since: Record<string, string> = {}): Promise<IncomingUpstream[]> {
   const g = git(path)
   const r = await refs(path)
-  const out: IncomingBranch[] = []
-  for (const b of r.branches) {
-    if (!b.upstream || !b.behind) continue
-    const upstreamSha = (await g.revparse([b.upstream]).catch(() => '')).trim()
+  const tracking = new Map<string, typeof r.branches>()
+  for (const b of r.branches) if (b.upstream) tracking.set(b.upstream, [...(tracking.get(b.upstream) ?? []), b])
+  const out: IncomingUpstream[] = []
+  for (const [upstream, locals] of tracking) {
+    const upstreamSha = (await g.revparse(['--verify', '-q', `${upstream}^{commit}`]).catch(() => '')).trim()
     if (!upstreamSha) continue
-    const log = await g
-      .raw(['log', `refs/heads/${b.name}..${upstreamSha}`, '-n', '10', `--format=%H${FIELD}%an${FIELD}%at${FIELD}%s${RECORD}`])
-      .catch(() => '')
+    const branches = locals.map((b) => ({ name: b.name, current: b.current, ahead: b.ahead ?? 0, behind: b.behind ?? 0 }))
+    const base = since[upstream] ? (await g.revparse(['--verify', '-q', `${since[upstream]}^{commit}`]).catch(() => '')).trim() : ''
+    if (!base || base === upstreamSha) {
+      out.push({ upstream, upstreamSha, since: base || null, count: 0, branches, commits: [] })
+      continue
+    }
+    const range = [upstreamSha, `^${base}`, ...locals.map((b) => `^refs/heads/${b.name}`)]
+    const count = Number((await g.raw(['rev-list', '--count', ...range]).catch(() => '0')).trim()) || 0
+    const log = count ? await g.raw(['log', ...range, '-n', '10', `--format=%H${FIELD}%an${FIELD}%at${FIELD}%s${RECORD}`]).catch(() => '') : ''
     const commits = log
       .split(RECORD)
       .map((l) => l.replace(/^\n/, ''))
@@ -506,9 +513,10 @@ export async function incoming(path: string): Promise<IncomingBranch[]> {
         const [hash, author, at, subject] = l.split(FIELD)
         return { hash, author, date: Number(at) * 1000, subject }
       })
-    out.push({ branch: b.name, upstream: b.upstream, upstreamSha, behind: b.behind ?? commits.length, ahead: b.ahead ?? 0, current: b.current, commits })
+    out.push({ upstream, upstreamSha, since: base, count, branches, commits })
   }
-  return out.sort((a, b) => Number(b.current) - Number(a.current))
+  const tracksCurrent = (u: IncomingUpstream): number => Number(u.branches.some((b) => b.current))
+  return out.sort((a, b) => tracksCurrent(b) - tracksCurrent(a))
 }
 
 export async function repoSummary(path: string, withChanges: boolean): Promise<RepoSummary> {

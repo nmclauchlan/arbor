@@ -1,13 +1,16 @@
-import { expect, test } from '@playwright/test'
+import { expect, test, type Page } from '@playwright/test'
 import { commit, git, initRepo, launch, repoWithRemote, tempDir, view } from './helpers'
 
-test('the bell lists incoming commits after a fetch, opens them and pulls them', async () => {
+function baselines(page: Page): Promise<string[]> {
+  return page.evaluate(() => Object.values(JSON.parse(localStorage.getItem('arbor.incomingBaselines') ?? '{}')) as string[])
+}
+
+test('the bell lists only commits that arrive after the first check, opens them and pulls them', async () => {
   const root = tempDir()
   const { repo, other } = repoWithRemote(root)
-  commit(other, 'one.txt', '1\n', 'Remote change one')
-  commit(other, 'two.txt', '2\n', 'Remote change two')
+  commit(other, 'old.txt', 'old\n', 'Remote change from before')
   git(other, 'push', '-q', 'origin', 'main')
-  const latest = git(other, 'rev-parse', 'HEAD').trim()
+  const before = git(other, 'rev-parse', 'HEAD').trim()
 
   const { page, close } = await launch(repo)
   try {
@@ -19,10 +22,19 @@ test('the bell lists incoming commits after a fetch, opens them and pulls them',
     const panel = page.locator('.notifications-panel')
     await expect(panel).toBeVisible()
     await panel.getByRole('button', { name: 'Check now' }).click()
+    await expect.poll(() => baselines(page), { timeout: 20_000 }).toContain(before)
+    await expect(panel.locator('.notifications-branch')).toHaveCount(0)
+    await expect(panel.locator('.notifications-empty')).toContainText('No new commits')
 
-    const branch = panel.locator('.notifications-branch', { hasText: 'main' })
-    await expect(branch).toContainText('2 new from origin/main', { timeout: 20_000 })
-    await expect(branch.locator('.notifications-commit')).toHaveCount(2)
+    commit(other, 'one.txt', '1\n', 'Remote change one')
+    commit(other, 'two.txt', '2\n', 'Remote change two')
+    git(other, 'push', '-q', 'origin', 'main')
+    const latest = git(other, 'rev-parse', 'HEAD').trim()
+    await panel.getByRole('button', { name: 'Check now' }).click()
+
+    const entry = panel.locator('.notifications-branch', { hasText: 'origin/main' })
+    await expect(entry).toContainText('2 new', { timeout: 20_000 })
+    await expect(entry.locator('.notifications-commit')).toHaveCount(2)
 
     await page.keyboard.press('Escape')
     await expect(panel).toBeHidden()
@@ -35,7 +47,7 @@ test('the bell lists incoming commits after a fetch, opens them and pulls them',
     await expect(view(page).locator('.commit-row.selected')).toHaveAttribute('data-hash', latest)
 
     await bell.click()
-    await panel.locator('.notifications-branch', { hasText: 'main' }).getByRole('button', { name: 'Pull' }).click()
+    await entry.getByRole('button', { name: 'Pull' }).click()
     await expect(page.locator('.toast')).toContainText('Pulled repo')
     await expect(panel.locator('.notifications-branch')).toHaveCount(0)
     expect(git(repo, 'rev-parse', 'HEAD').trim()).toBe(latest)
@@ -44,60 +56,64 @@ test('the bell lists incoming commits after a fetch, opens them and pulls them',
   }
 })
 
-test('incoming branches can be cleared one at a time or all at once, and return when more commits arrive', async () => {
-  const root = tempDir()
-  const { repo, other } = repoWithRemote(root)
+test('cleared remote branches only show later commits, and branches tracking the same remote share an entry', async () => {
+  const { repo, other } = repoWithRemote(tempDir())
   git(repo, 'checkout', '-q', '-b', 'develop')
   commit(repo, 'd.txt', 'd\n', 'Develop start')
   git(repo, 'push', '-q', '-u', 'origin', 'develop')
   git(repo, 'checkout', '-q', 'main')
-  git(other, 'fetch', '-q', 'origin')
-  git(other, 'checkout', '-q', 'develop')
-  commit(other, 'd2.txt', 'd2\n', 'Remote develop change')
-  git(other, 'push', '-q', 'origin', 'develop')
-  git(other, 'checkout', '-q', 'main')
-  commit(other, 'm.txt', 'm\n', 'Remote main change')
-  git(other, 'push', '-q', 'origin', 'main')
+  git(repo, 'branch', '-q', '--track', 'cve-fix', 'origin/main')
 
   const { page, close } = await launch(repo)
   try {
+    await page.evaluate(() => localStorage.setItem('arbor.settings', JSON.stringify({ backgroundFetch: 0 })))
+    await page.reload()
     await expect(view(page).locator('.commit-row').first()).toBeVisible()
     const bell = page.getByRole('button', { name: /^Notifications/ })
     const panel = page.locator('.notifications-panel')
-    const branch = (name: string) => panel.locator('.notifications-branch', { has: page.locator('.ref-badge', { hasText: new RegExp(`^${name}$`) }) })
+    const entry = (upstream: string) => panel.locator('.notifications-branch', { has: page.locator('.ref-badge', { hasText: new RegExp(`^${upstream}$`) }) })
     await bell.click()
     await panel.getByRole('button', { name: 'Check now' }).click()
-    await expect(branch('main')).toBeVisible({ timeout: 20_000 })
-    await expect(branch('develop')).toBeVisible()
+    await expect.poll(() => baselines(page).then((b) => b.length), { timeout: 20_000 }).toBe(2)
 
-    await branch('develop').getByRole('button', { name: 'Clear develop', exact: true }).click()
-    await expect(branch('develop')).toHaveCount(0)
-    await expect(branch('main')).toBeVisible()
-    await expect(panel.locator('.notifications-foot')).toContainText('1 cleared branch hidden')
+    git(other, 'fetch', '-q', 'origin')
+    git(other, 'checkout', '-q', 'develop')
+    commit(other, 'd2.txt', 'd2\n', 'Remote develop change')
+    git(other, 'push', '-q', 'origin', 'develop')
+    git(other, 'checkout', '-q', 'main')
+    commit(other, 'm.txt', 'm\n', 'Remote main change')
+    git(other, 'push', '-q', 'origin', 'main')
+    await panel.getByRole('button', { name: 'Check now' }).click()
+    await expect(entry('origin/main')).toContainText('1 new', { timeout: 20_000 })
+    await expect(entry('origin/develop')).toContainText('1 new')
+    await expect(panel.locator('.notifications-branch')).toHaveCount(2)
+
+    await entry('origin/develop').getByRole('button', { name: 'Clear origin/develop', exact: true }).click()
+    await expect(entry('origin/develop')).toHaveCount(0)
+    await expect(panel.locator('.notifications-foot')).toContainText('Cleared 1')
+    await panel.getByRole('button', { name: 'Undo', exact: true }).click()
+    await expect(entry('origin/develop')).toContainText('1 new')
+    await expect(panel.locator('.notifications-foot')).toHaveCount(0)
 
     await panel.getByRole('button', { name: 'Clear all', exact: true }).click()
     await expect(panel.locator('.notifications-branch')).toHaveCount(0)
     await expect(panel.locator('.notifications-empty')).toContainText('Nothing new since you cleared them')
-    await expect(panel.locator('.notifications-foot')).toContainText('2 cleared branches hidden')
+    await page.keyboard.press('Escape')
+    await bell.click()
+    await expect(panel.locator('.notifications-foot')).toHaveCount(0)
+    await expect(panel.locator('.notifications-empty')).toContainText('No new commits')
 
     await page.reload()
     await expect(view(page).locator('.commit-row').first()).toBeVisible()
-    await expect(page.locator('.notif-badge')).toHaveCount(0)
-    await bell.click()
-    await panel.getByRole('button', { name: 'Check now' }).click()
-    await expect(panel.getByRole('button', { name: 'Check now' })).toBeEnabled({ timeout: 20_000 })
-    await expect(panel.locator('.notifications-branch')).toHaveCount(0)
-
     git(other, 'checkout', '-q', 'develop')
     commit(other, 'd3.txt', 'd3\n', 'Another develop change')
     git(other, 'push', '-q', 'origin', 'develop')
+    await bell.click()
     await panel.getByRole('button', { name: 'Check now' }).click()
-    await expect(branch('develop')).toContainText('2 new from origin/develop', { timeout: 20_000 })
-    await expect(branch('main')).toHaveCount(0)
-
-    await panel.getByRole('button', { name: 'Show again' }).click()
-    await expect(branch('main')).toBeVisible()
-    await expect(panel.locator('.notifications-foot')).toHaveCount(0)
+    await expect(entry('origin/develop')).toContainText('1 new', { timeout: 20_000 })
+    await expect(entry('origin/develop').locator('.notifications-commit')).toHaveCount(1)
+    await expect(entry('origin/develop').locator('.notifications-commit')).toContainText('Another develop change')
+    await expect(entry('origin/main')).toHaveCount(0)
   } finally {
     await close()
   }
