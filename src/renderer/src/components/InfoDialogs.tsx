@@ -47,6 +47,7 @@ export function AboutDialog({ onClose }: { onClose: () => void }): React.JSX.Ele
 
 const SHORTCUTS: [string, string][] = [
   ['Ctrl+T', 'Repository Management'],
+  ['Ctrl+P', 'Go to a repository'],
   ['Ctrl+O', 'Open a repository'],
   ['Ctrl+W', 'Close the current tab'],
   ['Ctrl+Tab / Ctrl+Shift+Tab', 'Next / previous tab'],

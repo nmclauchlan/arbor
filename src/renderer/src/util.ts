@@ -50,6 +50,11 @@ export function revealLabel(): string {
   return 'Show in file manager'
 }
 
+export function parentName(path: string): string {
+  const parts = path.replace(/[\\/]+$/, '').split(/[\\/]/)
+  return parts.length > 1 ? parts[parts.length - 2] : ''
+}
+
 export function copyToClipboard(text: string): Promise<void> {
   return window.native ? window.native.copy(text) : navigator.clipboard.writeText(text)
 }

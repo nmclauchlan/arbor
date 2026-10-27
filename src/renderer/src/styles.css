@@ -885,7 +885,9 @@ html[data-platform='darwin'] .menubar-row { padding-left: 80px; padding-right: 1
 .menubar-entry .label { flex: 1; }
 .menubar-entry .shortcut { color: var(--fg-faint); font-size: 11.5px; }
 
-.titlebar .home-tab { flex: none; min-width: 0; padding: 0 9px; justify-content: center; -webkit-app-region: no-drag; }
+.titlebar .home-tab, .titlebar .switcher-tab { flex: none; min-width: 0; padding: 0 9px; justify-content: center; -webkit-app-region: no-drag; }
+.titlebar .switcher-tab { color: var(--fg-dim); }
+.titlebar .switcher-tab:hover { color: var(--fg); }
 .titlebar .home-tab.active { color: var(--fg); }
 
 .repo-manager { flex: 1; min-height: 0; display: flex; flex-direction: column; background: var(--bg); }
@@ -939,3 +941,19 @@ html[data-platform='darwin'] .menubar-row { padding-left: 80px; padding-right: 1
 .about-table td { padding: 4px 0; border-bottom: 1px solid var(--border); }
 .about-table td:first-child { color: var(--fg-dim); width: 45%; }
 .about-table kbd { font-family: var(--mono); font-size: 11.5px; background: var(--bg-3); border: 1px solid var(--border); border-radius: 4px; padding: 1px 6px; }
+
+.overlay.switcher-overlay { align-items: flex-start; padding-top: 12vh; }
+.repo-switcher { width: 580px; max-width: calc(100vw - 32px); max-height: 70vh; padding: 10px; gap: 8px; }
+.repo-switcher-input { width: 100%; font-size: 14px; padding: 8px 10px; }
+.repo-switcher-list { display: flex; flex-direction: column; min-height: 0; overflow-y: auto; }
+.repo-switcher-item { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: baseline; column-gap: 10px; padding: 6px 10px; border-radius: 6px; cursor: pointer; }
+.repo-switcher-item .name { font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.repo-switcher-item .name mark { background: transparent; color: var(--accent); font-weight: 700; }
+.repo-switcher-item .meta { display: flex; align-items: center; gap: 6px; font-size: 11.5px; color: var(--fg-dim); white-space: nowrap; }
+.repo-switcher-item .open-badge { border: 1px solid currentColor; border-radius: 8px; padding: 0 6px; font-size: 10.5px; }
+.repo-switcher-item .path { grid-column: 1 / -1; font-size: 11.5px; color: var(--fg-faint); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.repo-switcher-item.selected { background: var(--accent); color: #fff; }
+.repo-switcher-item.selected .name mark { color: #fff; text-decoration: underline; }
+.repo-switcher-item.selected .meta, .repo-switcher-item.selected .path { color: rgba(255, 255, 255, 0.82); }
+.repo-switcher-empty { padding: 14px 10px; color: var(--fg-dim); font-size: 12px; }
+.repo-switcher-hint { padding: 0 4px; font-size: 11px; color: var(--fg-faint); }

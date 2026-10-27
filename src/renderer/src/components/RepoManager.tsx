@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import type { RepoInfo, RepoSummary } from '@shared/types'
-import { revealLabel } from '../util'
+import { parentName, revealLabel } from '../util'
 import { Spinner } from './Spinner'
 import { UpdateNotice } from './UpdateNotice'
 
@@ -30,11 +30,6 @@ function save(key: string, value: unknown): void {
   } catch {
     /* storage unavailable */
   }
-}
-
-function parentName(path: string): string {
-  const parts = path.replace(/[\\/]+$/, '').split(/[\\/]/)
-  return parts.length > 1 ? parts[parts.length - 2] : ''
 }
 
 const Icon = {

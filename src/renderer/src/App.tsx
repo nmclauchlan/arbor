@@ -10,8 +10,9 @@ import { UpdateNotice } from './components/UpdateNotice'
 import { Welcome } from './components/Welcome'
 import { MenuBar, type MenuDef } from './components/MenuBar'
 import { RepoManager } from './components/RepoManager'
+import { RepoSwitcher, type SwitcherEntry } from './components/RepoSwitcher'
 import { AboutDialog, ShortcutsDialog } from './components/InfoDialogs'
-import { revealInFolder } from './util'
+import { parentName, revealInFolder } from './util'
 import { BrandIcon } from './components/BrandIcon'
 import { RepoView } from './RepoView'
 import { errorMessage } from './util'
@@ -74,6 +75,7 @@ export default function App(): React.JSX.Element {
   const [homeBusy, setHomeBusy] = useState<string | null>(null)
   const [homeRefresh, setHomeRefresh] = useState(0)
   const [infoDialog, setInfoDialog] = useState<'about' | 'shortcuts' | null>(null)
+  const [switcherOpen, setSwitcherOpen] = useState(false)
   const [favorites, setFavorites] = useState<{ path: string; name: string }[]>(() => {
     try {
       return JSON.parse(localStorage.getItem('arbor.favorites') ?? '[]')
@@ -346,6 +348,9 @@ export default function App(): React.JSX.Element {
       } else if (e.key === 't' && !e.shiftKey) {
         e.preventDefault()
         setHome(true)
+      } else if (e.key === 'p' && !e.shiftKey && !e.altKey && !document.querySelector('.overlay')) {
+        e.preventDefault()
+        setSwitcherOpen(true)
       } else if (e.key === '=' || e.key === '+') {
         e.preventDefault()
         void zoom('zoomIn')
@@ -546,6 +551,27 @@ export default function App(): React.JSX.Element {
     setActivePath(path)
   }
 
+  const switcherEntries = (): SwitcherEntry[] => {
+    const seen = new Set<string>()
+    const out: SwitcherEntry[] = []
+    const add = (path: string, name: string, detail: string, open: boolean): void => {
+      const key = path.replace(/\\/g, '/').toLowerCase()
+      if (seen.has(key)) return
+      seen.add(key)
+      out.push({ path, name, detail, open })
+    }
+    for (const t of tabs) add(t.path, t.name, groups.find((g) => g.id === t.group)?.name || parentName(t.path), true)
+    for (const f of favorites) add(f.path, f.name, parentName(f.path), false)
+    for (const r of recent) add(r.path, r.name, parentName(r.path), false)
+    return out
+  }
+
+  const pickRepo = (entry: SwitcherEntry): void => {
+    setSwitcherOpen(false)
+    if (entry.open) selectTab(entry.path)
+    else void openPath(entry.path)
+  }
+
   const editable = (): boolean => {
     const a = document.activeElement as HTMLElement | null
     return !!a && !!a.closest('input, textarea, select, [contenteditable="true"], .cm-editor')
@@ -563,6 +589,7 @@ export default function App(): React.JSX.Element {
       label: 'File',
       items: [
         { label: 'Repository Management', shortcut: `${mod}T`, onSelect: () => setHome(true) },
+        { label: 'Go to repository…', shortcut: `${mod}P`, onSelect: () => setSwitcherOpen(true) },
         { separator: true },
         { label: 'Open repository…', shortcut: `${mod}O`, onSelect: () => shell.openRepo() },
         { label: 'Clone repository…', onSelect: () => setCloneOpen({}) },
@@ -651,6 +678,17 @@ export default function App(): React.JSX.Element {
         >
           <svg viewBox="0 0 16 16" width="15" height="15" aria-hidden="true" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinejoin="round">
             <path d="M1.5 4.5v-1h4.2l1.3 1.5h7.5v8h-13Z" />
+          </svg>
+        </button>
+        <button
+          className="tab switcher-tab"
+          title={`Go to repository (${mod}P)`}
+          aria-label="Go to repository"
+          onClick={() => setSwitcherOpen(true)}
+        >
+          <svg viewBox="0 0 16 16" width="15" height="15" aria-hidden="true" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">
+            <circle cx="7" cy="7" r="4.5" />
+            <path d="m10.4 10.4 3.6 3.6" />
           </svg>
         </button>
         <TabBar
@@ -747,6 +785,7 @@ export default function App(): React.JSX.Element {
       ))}
       {infoDialog === 'about' && <AboutDialog onClose={() => setInfoDialog(null)} />}
       {infoDialog === 'shortcuts' && <ShortcutsDialog onClose={() => setInfoDialog(null)} />}
+      {switcherOpen && <RepoSwitcher entries={switcherEntries()} onPick={pickRepo} onClose={() => setSwitcherOpen(false)} />}
       {notifOpen && (
         <NotificationsPanel
           repos={incomingList}
