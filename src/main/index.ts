@@ -154,6 +154,8 @@ const handlers: Handlers = {
   fileDiff: gitService.fileDiff,
   commitDetails: gitService.commitDetails,
   commitFileDiff: gitService.commitFileDiff,
+  fileHistory: gitService.fileHistory,
+  blame: gitService.blame,
   checkout: (path, ref) => journal.record(path, 'checkout', `Checkout ${shortRef(ref)}`, () => gitService.checkout(path, ref)),
   createBranch: (path, name, startPoint, co) =>
     journal.record(path, 'createBranch', `Create branch ${name}`, () => gitService.createBranch(path, name, startPoint, co), {

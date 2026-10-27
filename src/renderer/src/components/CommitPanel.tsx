@@ -41,7 +41,7 @@ export function CommitPanel({
     }
   }, [repoPath, hash])
 
-  const view = (file: StatusFile, mode: 'diff' | 'edit'): void => {
+  const view = (file: StatusFile, mode: FileViewRequest['mode']): void => {
     if (mode === 'edit' && !canEdit(file)) mode = 'diff'
     onView({ file, source: { kind: 'commit', hash }, mode })
   }
@@ -85,6 +85,12 @@ export function CommitPanel({
             const target = folder ?? files[0].path
             shell.openMenu(e, [
               ...(!folder && canEdit(files[0]) ? [{ label: 'Edit working copy', onClick: () => view(files[0], 'edit') }] : []),
+              ...(!folder
+                ? [
+                    { label: 'File history', onClick: () => view(files[0], 'history') },
+                    ...(canEdit(files[0]) ? [{ label: 'Blame', onClick: () => view(files[0], 'blame') }] : [])
+                  ]
+                : []),
               { label: revealLabel(), onClick: () => revealInFolder(repoPath, target) },
               {
                 label: 'Copy path',

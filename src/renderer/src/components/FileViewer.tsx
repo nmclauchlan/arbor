@@ -3,6 +3,8 @@ import { isImageFile, type ImageSource, type StatusFile } from '@shared/types'
 import type { Shell } from '../actions'
 import { ConflictResolver } from './ConflictResolver'
 import { DiffView, type ApplyMode } from './DiffView'
+import { FileHistory } from './FileHistory'
+import { BlameView } from './BlameView'
 import { Editor } from './Editor'
 import { ImageDiff } from './ImageDiff'
 import { errorMessage, shortHash } from '../util'
@@ -10,8 +12,14 @@ import { errorMessage, shortHash } from '../util'
 export interface FileViewRequest {
   file: StatusFile
   source: ImageSource
-  mode: 'diff' | 'edit' | 'conflict'
+  mode: 'diff' | 'edit' | 'conflict' | 'history' | 'blame'
 }
+
+const VIEW_TABS = [
+  { mode: 'diff', label: 'Diff' },
+  { mode: 'history', label: 'History' },
+  { mode: 'blame', label: 'Blame' }
+] as const
 
 export function canEdit(file: StatusFile): boolean {
   return file.status !== 'D' && !isImageFile(file.path)
@@ -28,7 +36,8 @@ export function FileViewer({
   shell,
   onChange,
   onClose,
-  onSaved
+  onSaved,
+  onShowCommit
 }: {
   repoPath: string
   request: FileViewRequest
@@ -36,6 +45,7 @@ export function FileViewer({
   onChange: (request: FileViewRequest) => void
   onClose: () => void
   onSaved: () => void
+  onShowCommit: (hash: string) => void
 }): React.JSX.Element {
   const { file, source, mode } = request
   const [diff, setDiff] = useState('')
@@ -44,7 +54,7 @@ export function FileViewer({
   const sourceKey = JSON.stringify(source)
 
   useEffect(() => {
-    if (mode === 'edit' || image) return
+    if (mode === 'edit' || mode === 'history' || mode === 'blame' || image) return
     let cancelled = false
     setLoading(true)
     const src: ImageSource = JSON.parse(sourceKey)
@@ -91,6 +101,15 @@ export function FileViewer({
           {label}
         </span>
         <span className="muted">{sourceLabel(source)}</span>
+        {(mode === 'diff' || mode === 'history' || mode === 'blame') && file.status !== '?' && (
+          <span className="view-tabs" role="tablist" aria-label="File view">
+            {VIEW_TABS.filter((t) => t.mode !== 'blame' || (!image && file.status !== 'D')).map((t) => (
+              <button key={t.mode} role="tab" aria-selected={mode === t.mode} className={mode === t.mode ? 'active' : ''} onClick={() => onChange({ ...request, mode: t.mode })}>
+                {t.label}
+              </button>
+            ))}
+          </span>
+        )}
         {mode === 'diff' && canEdit(file) && (
           <button onClick={() => onChange({ ...request, mode: 'edit' })} title="Edit the working copy">
             ✎ Edit
@@ -111,6 +130,10 @@ export function FileViewer({
           onClose={() => onChange({ ...request, mode: 'diff' })}
           onSaved={onSaved}
         />
+      ) : mode === 'history' ? (
+        <FileHistory key={file.path} repoPath={repoPath} file={file.path} onShowCommit={onShowCommit} />
+      ) : mode === 'blame' ? (
+        <BlameView key={file.path + sourceKey} repoPath={repoPath} file={file.path} rev={source.kind === 'commit' ? source.hash : undefined} onShowCommit={onShowCommit} />
       ) : image ? (
         <ImageDiff key={sourceKey + file.path} repoPath={repoPath} file={file.path} oldPath={file.oldPath} source={source} />
       ) : (

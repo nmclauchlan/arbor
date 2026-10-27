@@ -89,6 +89,35 @@ export interface Stash {
 
 export type CommitSearchMode = 'all' | 'message' | 'author' | 'sha' | 'file' | 'code'
 
+export interface FileHistoryEntry {
+  hash: string
+  author: string
+  email: string
+  date: number
+  subject: string
+  path: string
+  oldPath?: string
+  status: FileChange
+}
+
+export interface BlameLine {
+  sha: string
+  line: number
+  text: string
+}
+
+export interface BlameCommit {
+  author: string
+  email: string
+  time: number
+  summary: string
+}
+
+export interface BlameResult {
+  lines: BlameLine[]
+  commits: Record<string, BlameCommit>
+}
+
 export interface RepoRefs {
   branches: Branch[]
   remotes: RemoteBranch[]
@@ -162,6 +191,8 @@ export interface GitApi {
   fileDiff(path: string, file: string, staged: boolean, status: FileChange): Promise<string>
   commitDetails(path: string, hash: string): Promise<CommitDetails>
   commitFileDiff(path: string, hash: string, file: string): Promise<string>
+  fileHistory(path: string, file: string): Promise<FileHistoryEntry[]>
+  blame(path: string, file: string, rev?: string): Promise<BlameResult>
   checkout(path: string, ref: string): Promise<void>
   createBranch(path: string, name: string, startPoint: string, checkout: boolean): Promise<void>
   deleteBranch(path: string, name: string, force: boolean): Promise<void>

@@ -760,7 +760,42 @@ body.resizing iframe, body.resizing .cm-editor { pointer-events: none; }
 .file-viewer-bar { display: flex; align-items: center; gap: 8px; padding: 6px 12px; border-bottom: 1px solid var(--border); background: var(--bg-2); flex: none; }
 .file-viewer-bar .file-viewer-title { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-family: var(--mono); font-size: 12px; }
 .file-viewer-bar button { padding: 2px 10px; font-size: 12px; }
-.file-viewer > .diff, .file-viewer > .editor, .file-viewer > .image-diff { flex: 1; min-height: 0; }
+.file-viewer > .diff, .file-viewer > .editor, .file-viewer > .image-diff, .file-viewer > .file-history, .file-viewer > .blame { flex: 1; min-height: 0; }
+.view-tabs { display: inline-flex; border: 1px solid var(--border); border-radius: 5px; overflow: hidden; flex: none; }
+.view-tabs button { border: none; border-radius: 0; padding: 2px 10px; font-size: 12px; background: transparent; }
+.view-tabs button + button { border-left: 1px solid var(--border); }
+.view-tabs button.active { background: var(--bg-4); color: var(--fg); }
+.file-history { display: flex; min-height: 0; background: var(--bg); }
+.file-history > .placeholder { flex: 1; padding: 20px; color: var(--fg-faint); text-align: center; }
+.file-history-list { width: 320px; flex: none; overflow-y: auto; border-right: 1px solid var(--border); background: var(--bg-2); }
+.file-history-count { padding: 6px 12px; font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em; color: var(--fg-dim); border-bottom: 1px solid var(--border); }
+.file-history-item { padding: 6px 12px; border-bottom: 1px solid var(--border); cursor: pointer; }
+.file-history-item:hover { background: var(--bg-3); }
+.file-history-item.selected { background: var(--select-bg); }
+.file-history-item .subject { font-size: 12.5px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.file-history-item .meta { display: flex; gap: 8px; margin-top: 2px; font-size: 11px; color: var(--fg-dim); }
+.file-history-item .meta .author { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.file-history-item .renamed { margin-top: 2px; font-size: 11px; color: var(--yellow); }
+.file-history-diff { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.file-history-diff > .diff { flex: 1; min-height: 0; }
+.file-history-bar { display: flex; align-items: center; gap: 8px; padding: 5px 10px; border-bottom: 1px solid var(--border); background: var(--bg-2); font-size: 12px; flex: none; }
+.file-history-bar .subject { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.file-history-bar button { font-size: 11px; padding: 1px 8px; }
+.blame { overflow: auto; background: var(--bg); font-family: var(--mono); font-size: 12px; }
+.blame > .placeholder { padding: 20px; color: var(--fg-faint); text-align: center; font-family: inherit; }
+.blame table { border-collapse: collapse; width: 100%; }
+.blame td { padding: 0 8px; white-space: pre; line-height: 18px; vertical-align: top; }
+.blame tr.blame-start td { border-top: 1px solid var(--border); }
+.blame tr:first-child td { border-top: none; }
+.blame td.blame-age { width: 3px; min-width: 3px; max-width: 3px; padding: 0; background: var(--accent); }
+.blame td.blame-info { width: 1%; min-width: 260px; max-width: 320px; overflow: hidden; text-overflow: ellipsis; font-family: 'Segoe UI', system-ui, sans-serif; font-size: 11.5px; color: var(--fg-dim); background: var(--bg-2); border-right: 1px solid var(--border); }
+.blame td.blame-info.link { cursor: pointer; }
+.blame td.blame-info.link:hover { color: var(--fg); background: var(--bg-3); }
+.blame td.blame-info .sha { margin-right: 8px; color: var(--accent); font-family: var(--mono); font-size: 11px; }
+.blame td.blame-info .author { margin-right: 8px; }
+.blame td.blame-info .when { color: var(--fg-faint); }
+.blame td.ln { width: 1%; min-width: 40px; text-align: right; color: var(--fg-faint); user-select: none; border-right: 1px solid var(--border); }
+.blame td.code { width: 100%; user-select: text; }
 
 .tab-group { display: flex; align-items: center; gap: 7px; height: 30px; padding: 0 10px; border: 1px solid color-mix(in srgb, var(--group-color) 24%, var(--border)); border-bottom: 0; border-radius: 6px 6px 0 0; background: color-mix(in srgb, var(--group-color) 12%, var(--bg-2)); color: var(--fg); font-size: 11px; font-weight: 500; cursor: pointer; white-space: nowrap; -webkit-app-region: no-drag; flex: none; }
 .tab-group::before { content: ''; width: 6px; height: 6px; flex: none; border-radius: 50%; background: var(--group-color); box-shadow: 0 0 0 1px color-mix(in srgb, var(--fg) 16%, transparent); }

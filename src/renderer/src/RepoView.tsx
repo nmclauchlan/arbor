@@ -698,6 +698,10 @@ export function RepoView({
           onChange={setViewing}
           onClose={() => setViewing(null)}
           onSaved={refresh}
+          onShowCommit={(hash) => {
+            setViewing(null)
+            jumpTo(hash)
+          }}
         />
       ) : (
         <CommitList

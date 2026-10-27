@@ -4,7 +4,7 @@ import { tmpdir } from 'os'
 import { basename, join } from 'path'
 import { getSettings } from './settings'
 import {
-  type CommitSearchMode,
+  type BlameResult, type CommitSearchMode, type FileHistoryEntry,
   imageMime,
   type Commit, type CommitDetails, type FileChange, type ImageDiffResult, type ImageSource,
   type OperationState, type IncomingUpstream, type Ref, type RepoSummary, type GraphFilter, type RepoInfo, type RepoRefs, type RepoStatus, type StatusFile
@@ -318,6 +318,63 @@ export async function fileDiff(path: string, file: string, staged: boolean, st: 
   if (staged) args.push('--cached')
   args.push('--', file)
   return git(path).raw(args)
+}
+
+export async function fileHistory(path: string, file: string): Promise<FileHistoryEntry[]> {
+  const out = await git(path).raw([
+    'log', '--follow', '-M', '--name-status', '-n', '500', `--format=${RECORD}%H${FIELD}%an${FIELD}%ae${FIELD}%at${FIELD}%s`, '--', file
+  ])
+  const entries: FileHistoryEntry[] = []
+  for (const chunk of out.split(RECORD)) {
+    if (!chunk.trim()) continue
+    const [head, ...rest] = chunk.split('\n')
+    const [hash, author, email, at, subject] = head.split(FIELD)
+    const change = rest.map((l) => l.trim()).find(Boolean)
+    const parts = change ? change.split('\t') : []
+    const code = parts[0]?.[0] ?? 'M'
+    const renamed = code === 'R' || code === 'C'
+    entries.push({
+      hash,
+      author,
+      email,
+      date: Number(at) * 1000,
+      subject,
+      status: mapStatus(code),
+      path: (renamed ? parts[2] : parts[1]) ?? file,
+      oldPath: renamed ? parts[1] : undefined
+    })
+  }
+  return entries
+}
+
+export async function blame(path: string, file: string, rev?: string): Promise<BlameResult> {
+  const out = await git(path).raw(['blame', '--porcelain', ...(rev ? [rev] : []), '--', file])
+  const result: BlameResult = { lines: [], commits: {} }
+  let sha = ''
+  let line = 0
+  for (const raw of out.split('\n')) {
+    const head = /^([0-9a-f]{40}) \d+ (\d+)/.exec(raw)
+    if (head) {
+      sha = head[1]
+      line = Number(head[2])
+      result.commits[sha] ??= { author: '', email: '', time: 0, summary: '' }
+      continue
+    }
+    if (raw.startsWith('\t')) {
+      result.lines.push({ sha, line, text: raw.slice(1) })
+      continue
+    }
+    const c = result.commits[sha]
+    if (!c) continue
+    const space = raw.indexOf(' ')
+    const key = space === -1 ? raw : raw.slice(0, space)
+    const value = space === -1 ? '' : raw.slice(space + 1)
+    if (key === 'author') c.author = value
+    else if (key === 'author-mail') c.email = value.replace(/^<|>$/g, '')
+    else if (key === 'author-time') c.time = Number(value) * 1000
+    else if (key === 'summary') c.summary = value
+  }
+  return result
 }
 
 export async function commitDetails(path: string, hash: string): Promise<CommitDetails> {

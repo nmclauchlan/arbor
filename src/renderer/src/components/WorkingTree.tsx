@@ -72,7 +72,7 @@ export function WorkingTree({
     }, 'commit')
   }
 
-  const view = (area: Area, file: StatusFile, mode: 'diff' | 'edit' | 'conflict'): void => {
+  const view = (area: Area, file: StatusFile, mode: FileViewRequest['mode']): void => {
     if (mode === 'edit' && !canEdit(file)) mode = 'diff'
     onView({ file, source: { kind: 'worktree', staged: area === 'staged', status: file.status }, mode })
   }
@@ -122,6 +122,11 @@ export function WorkingTree({
       if (!folder && area !== 'conflict' && canEdit(files[0])) {
         items.push({ separator: true })
         items.push({ label: 'Edit', onClick: () => view(area, files[0], 'edit') })
+      }
+      if (!folder && area !== 'conflict' && files[0].status !== '?') {
+        items.push({ separator: true })
+        items.push({ label: 'File history', onClick: () => view(area, files[0], 'history') })
+        if (canEdit(files[0])) items.push({ label: 'Blame', onClick: () => view(area, files[0], 'blame') })
       }
       items.push({ separator: true })
       items.push({ label: revealLabel(), onClick: () => revealInFolder(repoPath, folder ?? files[0].path) })
