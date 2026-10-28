@@ -5,7 +5,7 @@ import { basename, join } from 'path'
 import { getSettings } from './settings'
 import {
   type RebaseCommit, type RebaseStep, type BlameResult, type CommitSearchMode, type FileHistoryEntry,
-  type CompareCommit, type CompareMode, type CompareSummary, type StashOptions,
+  type CompareCommit, type CompareMode, type CompareSummary, type StashOptions, type PullMode, type MergeMode, type IgnoreKind,
   imageMime,
   type Commit, type CommitDetails, type FileChange, type ImageDiffResult, type ImageSource,
   type OperationState, type IncomingUpstream, type Ref, type RepoSummary, type GraphFilter, type RepoInfo, type RepoRefs, type RepoStatus, type StatusFile
@@ -481,8 +481,28 @@ export async function fetch(path: string): Promise<void> {
   await git(path).raw(['fetch', '--all', '--prune'])
 }
 
-export async function pull(path: string): Promise<void> {
-  await git(path).raw(['pull'])
+const PULL_ARGS: Record<PullMode, string[]> = {
+  git: [],
+  merge: ['--no-rebase'],
+  rebase: ['--rebase', '--autostash'],
+  'ff-only': ['--ff-only']
+}
+
+export async function pull(path: string, mode: PullMode = 'git'): Promise<void> {
+  try {
+    await git(path).raw(['pull', ...PULL_ARGS[mode]])
+  } catch (e) {
+    await failOnConflict(path, 'Pull')
+    const msg = e instanceof Error ? e.message : String(e)
+    if (/divergent branches|how to reconcile/i.test(msg)) {
+      throw new Error('Your branch and its upstream have both moved on. Pick merge or rebase from the Pull menu, or choose a default in Settings.')
+    }
+    if (mode === 'ff-only' && /not possible to fast-forward/i.test(msg)) {
+      throw new Error("Can't fast-forward: your branch has commits its upstream doesn't. Pull with merge or rebase instead.")
+    }
+    throw e
+  }
+  await failOnConflict(path, 'Pull')
 }
 
 export async function pullFastForward(path: string): Promise<'updated' | 'up-to-date'> {
@@ -510,8 +530,14 @@ async function failOnConflict(path: string, what: string): Promise<void> {
   throw new Error(`CONFLICT: ${what} stopped with ${n} conflicted file${n === 1 ? '' : 's'} to resolve`)
 }
 
-export async function merge(path: string, ref: string): Promise<void> {
-  await git(path).raw(['merge', ref])
+const MERGE_ARGS: Record<MergeMode, string[]> = {
+  default: [],
+  'no-ff': ['--no-ff', '--no-edit'],
+  squash: ['--squash']
+}
+
+export async function merge(path: string, ref: string, mode: MergeMode = 'default'): Promise<void> {
+  await git(path).raw(['merge', ...MERGE_ARGS[mode], ref])
   await failOnConflict(path, 'Merge')
 }
 
@@ -553,6 +579,20 @@ export async function stashBranch(path: string, index: number, name: string): Pr
 
 export async function stashDrop(path: string, index: number): Promise<void> {
   await git(path).raw(['stash', 'drop', `stash@{${index}}`])
+}
+
+const ignoreEscape = (s: string): string => s.replace(/[\\*?[\]!#]/g, (c) => `\\${c}`).replace(/ $/, '\\ ')
+
+export async function ignore(path: string, kind: IgnoreKind, target: string): Promise<string> {
+  const clean = target.replace(/\\/g, '/').replace(/^\/+|\/+$/g, '')
+  if (!clean || /[\r\n]/.test(clean) || clean.split('/').includes('..') || (kind === 'extension' && clean.includes('/'))) throw new Error('Invalid path')
+  const pattern = kind === 'extension' ? `*${ignoreEscape(clean)}` : `/${ignoreEscape(clean)}${kind === 'folder' ? '/' : ''}`
+  const file = join(path, '.gitignore')
+  const current = await readFile(file, 'utf8').catch(() => '')
+  if (current.split(/\r?\n/).includes(pattern)) return pattern
+  const eol = current.includes('\r\n') ? '\r\n' : '\n'
+  await writeFile(file, `${current}${current && !current.endsWith('\n') ? eol : ''}${pattern}${eol}`)
+  return pattern
 }
 
 export async function resetTo(path: string, hash: string, mode: 'soft' | 'mixed' | 'hard'): Promise<void> {

@@ -26,6 +26,14 @@ export function commitUrl(host: HostInfo, sha: string): string {
   return `${host.webUrl}/commit/${sha}`
 }
 
+export function pullItems(actions: Actions): MenuItem[] {
+  return [
+    { label: 'Merge', hint: 'git pull --no-rebase', onClick: () => actions.pull('merge') },
+    { label: 'Rebase', hint: 'git pull --rebase', onClick: () => actions.pull('rebase') },
+    { label: 'Fast-forward only', hint: 'git pull --ff-only', onClick: () => actions.pull('ff-only') }
+  ]
+}
+
 export interface RefMenuInput {
   sha: string
   refs: Ref[]
@@ -68,8 +76,9 @@ export function buildRefMenu({ sha, refs, focus, repoRefs, host, actions, filter
   if (branch) {
     items.push(
       isCurrent
-        ? { label: 'Pull (fast-forward if possible)', onClick: () => actions.pull() }
+        ? { label: 'Pull', onClick: () => actions.pull() }
         : { label: 'Pull (fast-forward)', disabled: !info?.upstream, onClick: () => actions.updateBranch(branch!) },
+      ...(isCurrent ? [{ label: 'Pull with', items: pullItems(actions) }] : []),
       { label: 'Push', onClick: () => (isCurrent ? actions.push() : actions.pushBranch(branch!)) },
       { label: 'Force push (with lease)…', danger: true, disabled: !info?.upstream, onClick: () => actions.forcePush(branch!) },
       { label: 'Set upstream…', onClick: () => actions.setUpstream(branch!) },
@@ -81,6 +90,13 @@ export function buildRefMenu({ sha, refs, focus, repoRefs, host, actions, filter
     items.push(
       { label: `Fast-forward ${cur} to ${target}`, onClick: () => actions.fastForward(target) },
       { label: `Merge ${target} into ${cur}`, onClick: () => actions.merge(target) },
+      {
+        label: 'Merge options',
+        items: [
+          { label: `Merge ${target} (no fast-forward)`, hint: 'always make a merge commit', onClick: () => actions.merge(target, 'no-ff') },
+          { label: `Squash ${target} into ${cur}`, hint: 'stage it as one commit', onClick: () => actions.merge(target, 'squash') }
+        ]
+      },
       { label: `Rebase ${cur} onto ${target}`, onClick: () => actions.rebase(target) },
       { separator: true }
     )

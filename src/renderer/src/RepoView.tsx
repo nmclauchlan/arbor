@@ -19,7 +19,7 @@ import { Splitter } from './components/Splitter'
 import { AppVersion, UpdateNotice } from './components/UpdateNotice'
 import { setLayout, setPanelCollapsed, useCollapsedPanels, useLayout } from './layout'
 import { copyToClipboard, errorMessage, shortHash, WIP_HASH } from './util'
-import { useSettings } from './settings'
+import { currentSettings, useSettings } from './settings'
 
 
 const BUILD_COMMITS = 50
@@ -56,6 +56,7 @@ export function RepoView({
   const [viewing, setViewing] = useState<FileViewRequest | null>(null)
   const [comparing, setComparing] = useState<CompareRequest | null>(null)
   const [stashing, setStashing] = useState<{ paths?: string[] } | null>(null)
+  const [commitDraft, setCommitDraft] = useState<string | null>(null)
   const [undoInfo, setUndoInfo] = useState<UndoInfo>({ undo: null, redo: null })
   const undoRef = useRef(undoInfo)
   undoRef.current = undoInfo
@@ -456,20 +457,46 @@ export function RepoView({
           }
         })
       },
-      merge: (ref) =>
+      merge: (ref, mode = 'default') =>
         run('Merging', async () => {
+          const squash = mode === 'squash'
           try {
-            await window.git.merge(path, ref)
-            shell.showInfo(`Merged ${ref}`)
+            await window.git.merge(path, ref, mode)
+            if (squash) {
+              setCommitDraft(`Merge ${ref} (squashed)`)
+              shell.showInfo(`Staged ${ref}'s changes as one commit. Review them, then commit.`)
+              wantWip.current = true
+              setSelected(WIP_HASH)
+            } else {
+              shell.showInfo(`Merged ${ref}`)
+            }
           } catch (e) {
             if (!/CONFLICT/.test(errorMessage(e))) throw e
+            if (squash) setCommitDraft(`Merge ${ref} (squashed)`)
             shell.showInfo(`Merge of ${ref} has conflicts to resolve`)
             wantWip.current = true
             setSelected(WIP_HASH)
           }
         }),
+      ignore: (kind, target) =>
+        run('Ignoring', async () => {
+          const pattern = await window.git.ignore(path, kind, target)
+          shell.showInfo(`Added ${pattern} to .gitignore`)
+        }),
       fetch: () => run('Fetching', () => window.git.fetch(path), 'Fetched'),
-      pull: () => run('Pulling', () => window.git.pull(path), 'Pulled'),
+      pull: (mode) =>
+        run('Pulling', async () => {
+          let conflicted = false
+          await conflictAware(async () => {
+            try {
+              await window.git.pull(path, mode ?? currentSettings().pullMode)
+            } catch (e) {
+              conflicted = /CONFLICT|could not apply/i.test(errorMessage(e))
+              throw e
+            }
+          }, 'The pull has conflicts to resolve')
+          if (!conflicted) shell.showInfo('Pulled')
+        }),
       push: () =>
         run('Pushing', async () => {
           const current = refs?.branches.find((b) => b.current)
@@ -836,7 +863,7 @@ export function RepoView({
       {selectedPr && host ? (
         <PrPanel repoPath={path} host={host} pr={selectedPr} actions={actions} refreshKey={prRefresh} />
       ) : selected === WIP_HASH && status ? (
-        <WorkingTree repoPath={path} status={status} actions={actions} viewing={viewing} onView={setViewing} />
+        <WorkingTree repoPath={path} status={status} actions={actions} viewing={viewing} onView={setViewing} draft={commitDraft} onDraftUsed={() => setCommitDraft(null)} />
       ) : selected ? (
         <CommitPanel repoPath={path} hash={selected} shell={shell} viewing={viewing} onView={setViewing} builds={builds[selected]} buildsError={hasAccount ? buildsError : null} />
       ) : (

@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useState } from 'react'
-import type { HostAccount, HostKind } from '@shared/types'
+import type { HostAccount, HostKind, PullMode } from '@shared/types'
 import { hostName } from '../util'
 import { setFileView, useFileView } from '../fileView'
-import { SETTINGS_DEFAULTS, SETTINGS_LIMITS, setSettings, useSettings } from '../settings'
+import { PULL_LABELS, SETTINGS_DEFAULTS, SETTINGS_LIMITS, setSettings, useSettings } from '../settings'
 import { setTheme, THEMES, useTheme } from '../themes'
 import { errorMessage } from '../util'
 import { UpdateNotice } from './UpdateNotice'
@@ -253,6 +253,19 @@ export function SettingsDialog({ onClose, suggestBaseUrl }: { onClose: () => voi
 
         <section className="settings-section">
           <h4>Git</h4>
+          <label className="settings-row">
+            <span>
+              Pull with
+              <small>How Pull brings in commits when your branch and its upstream have both moved on. Rebase stashes your changes first.</small>
+            </span>
+            <select value={settings.pullMode} onChange={(e) => setSettings({ pullMode: e.target.value as PullMode })}>
+              {(Object.keys(PULL_LABELS) as PullMode[]).map((m) => (
+                <option key={m} value={m}>
+                  {PULL_LABELS[m]}
+                </option>
+              ))}
+            </select>
+          </label>
           <label className="settings-row column">
             <span>
               Git executable

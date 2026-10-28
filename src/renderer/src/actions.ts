@@ -1,4 +1,4 @@
-import type { RebaseAction } from '@shared/types'
+import type { IgnoreKind, MergeMode, PullMode, RebaseAction } from '@shared/types'
 import type { MenuItem } from './components/ContextMenu'
 import type { CompareRequest } from './components/CompareView'
 
@@ -20,9 +20,10 @@ export interface Actions extends Shell {
   checkoutTracking(local: string, remote: string): void
   createBranch(startPoint: string): void
   deleteBranch(name: string): void
-  merge(ref: string): void
+  merge(ref: string, mode?: MergeMode): void
+  ignore(kind: IgnoreKind, target: string): void
   fetch(): void
-  pull(): void
+  pull(mode?: PullMode): void
   push(): void
   stash(paths?: string[]): void
   stashPop(index: number): void

@@ -1,6 +1,8 @@
 import type { HostInfo, PullRequest, RepoInfo, RepoRefs, UndoInfo } from '@shared/types'
 import type { Actions } from '../actions'
 import { prPrefix } from '../util'
+import { pullItems } from '../refMenu'
+import { PULL_LABELS, useSettings } from '../settings'
 import { setPanelCollapsed, useCollapsedPanels, type PanelName } from '../layout'
 
 function PanelIcon({ side, open }: { side: 'left' | 'right'; open: boolean }): React.JSX.Element {
@@ -40,6 +42,7 @@ export function Toolbar({
   undoInfo: UndoInfo
 }): React.JSX.Element {
   const mod = /Mac/.test(navigator.platform) ? '⌘' : 'Ctrl+'
+  const { pullMode } = useSettings()
   const current = refs?.branches.find((b) => b.current)
   const currentPr = current ? prs.find((p) => p.sourceBranch === current.name) : undefined
   const collapsed = useCollapsedPanels()
@@ -86,10 +89,24 @@ export function Toolbar({
       <button disabled={busy} aria-busy={busyLabel === 'Fetching'} onClick={actions.fetch} title="git fetch --all --prune">
         ⟳ Fetch
       </button>
-      <button disabled={busy} aria-busy={busyLabel === 'Pulling'} onClick={actions.pull} title="git pull">
-        ⇣ Pull
-        {current?.behind ? <span className="badge">{current.behind}</span> : null}
-      </button>
+      <span className="split-button">
+        <button disabled={busy} aria-busy={busyLabel === 'Pulling'} onClick={() => actions.pull()} title={`Pull (${PULL_LABELS[pullMode].toLowerCase()})`}>
+          ⇣ Pull
+          {current?.behind ? <span className="badge">{current.behind}</span> : null}
+        </button>
+        <button
+          className="split-caret"
+          disabled={busy}
+          aria-label="Pull options"
+          title="Pull with merge, rebase or fast-forward only"
+          onClick={(e) => {
+            const r = e.currentTarget.getBoundingClientRect()
+            actions.openMenu({ ...e, clientX: r.left, clientY: r.bottom + 2 }, pullItems(actions))
+          }}
+        >
+          ▾
+        </button>
+      </span>
       <button disabled={busy} aria-busy={busyLabel === 'Pushing'} onClick={actions.push} title="git push">
         ⇡ Push
         {current?.ahead ? <span className="badge">{current.ahead}</span> : null}

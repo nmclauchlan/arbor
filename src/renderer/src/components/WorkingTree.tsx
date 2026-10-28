@@ -13,13 +13,17 @@ export function WorkingTree({
   status,
   actions,
   viewing,
-  onView
+  onView,
+  draft,
+  onDraftUsed
 }: {
   repoPath: string
   status: RepoStatus
   actions: Actions
   viewing: FileViewRequest | null
   onView: (request: FileViewRequest | null) => void
+  draft?: string | null
+  onDraftUsed?: () => void
 }): React.JSX.Element {
   const [message, setMessage] = useState('')
   const [amend, setAmend] = useState(false)
@@ -33,6 +37,13 @@ export function WorkingTree({
     if (operation?.message && !message) setMessage(operation.message)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [operation?.kind])
+
+  useEffect(() => {
+    if (!draft) return
+    if (!message) setMessage(draft)
+    onDraftUsed?.()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [draft])
 
   useEffect(() => {
     if (!viewing || viewing.source.kind !== 'worktree') return
@@ -110,6 +121,15 @@ export function WorkingTree({
         items.push({ label: `Stage ${noun}`, onClick: () => stage(paths) })
         items.push({ label: `Discard changes in ${noun}`, danger: true, onClick: () => discard(paths) })
         items.push({ label: `Stash ${noun}…`, onClick: () => actions.stash(paths) })
+        if (files.every((f) => f.status === '?')) {
+          const file = folder ? null : files[0].path
+          const dir = folder ?? (file!.includes('/') ? file!.slice(0, file!.lastIndexOf('/')) : null)
+          const ext = file && /\.[^./]+$/.exec(file.slice(file.lastIndexOf('/') + 1))?.[0]
+          items.push({ separator: true })
+          if (file) items.push({ label: 'Ignore file', onClick: () => actions.ignore('file', file) })
+          if (ext) items.push({ label: `Ignore all ${ext} files`, onClick: () => actions.ignore('extension', ext) })
+          if (dir) items.push({ label: folder ? 'Ignore folder' : `Ignore folder ${dir}/`, onClick: () => actions.ignore('folder', dir) })
+        }
       } else if (area === 'staged') {
         items.push({ label: `Unstage ${noun}`, onClick: () => unstage(paths) })
         items.push({ label: `Stash ${noun}…`, onClick: () => actions.stash(paths) })

@@ -167,7 +167,7 @@ const handlers: Handlers = {
   deleteBranch: (path, name, force) =>
     journal.record(path, 'deleteBranch', `Delete branch ${name}`, () => gitService.deleteBranch(path, name, force), { branchName: name }),
   fetch: gitService.fetch,
-  pull: (path) => journal.record(path, 'pull', 'Pull', () => gitService.pull(path)),
+  pull: (path, mode) => journal.record(path, 'pull', 'Pull', () => gitService.pull(path, mode)),
   pullFastForward: (path) => journal.record(path, 'pull', 'Pull', () => gitService.pullFastForward(path)),
   undoInfo: async (path) => journal.undoInfo(path),
   async repoSummary(path, withChanges) {
@@ -197,7 +197,8 @@ const handlers: Handlers = {
   undo: journal.undo,
   redo: journal.redo,
   push: gitService.push,
-  merge: (path, ref) => journal.record(path, 'merge', `Merge ${shortRef(ref)}`, () => gitService.merge(path, ref)),
+  merge: (path, ref, mode) => journal.record(path, 'merge', `Merge ${shortRef(ref)}`, () => gitService.merge(path, ref, mode)),
+  ignore: gitService.ignore,
   updateBranch: gitService.updateBranch,
   pushBranch: gitService.pushBranch,
   setUpstream: gitService.setUpstream,

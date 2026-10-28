@@ -1,5 +1,5 @@
 import { useSyncExternalStore } from 'react'
-import type { MainSettings } from '@shared/types'
+import type { MainSettings, PullMode } from '@shared/types'
 
 export interface Settings extends MainSettings {
   pollInterval: number
@@ -7,6 +7,7 @@ export interface Settings extends MainSettings {
   showAvatars: boolean
   showBodyPreview: boolean
   backgroundFetch: number
+  pullMode: PullMode
 }
 
 export const SETTINGS_DEFAULTS: Settings = {
@@ -15,6 +16,7 @@ export const SETTINGS_DEFAULTS: Settings = {
   showAvatars: true,
   showBodyPreview: true,
   backgroundFetch: 10,
+  pullMode: 'git',
   gitPath: '',
   autoUpdate: true
 }
@@ -24,6 +26,15 @@ export const SETTINGS_LIMITS = {
   logLimit: { min: 100, max: 50000 },
   backgroundFetch: { min: 0, max: 120 }
 } as const
+
+export const PULL_LABELS: Record<PullMode, string> = {
+  git: 'Your git config',
+  merge: 'Merge',
+  rebase: 'Rebase',
+  'ff-only': 'Fast-forward only'
+}
+
+const PULL_MODES = Object.keys(PULL_LABELS) as PullMode[]
 
 const KEY = 'arbor.settings'
 
@@ -47,6 +58,7 @@ export function setSettings(patch: Partial<Settings>): void {
   next.pollInterval = Math.min(SETTINGS_LIMITS.pollInterval.max, Math.max(SETTINGS_LIMITS.pollInterval.min, Math.round(next.pollInterval) || SETTINGS_DEFAULTS.pollInterval))
   next.backgroundFetch = Math.min(SETTINGS_LIMITS.backgroundFetch.max, Math.max(0, Math.round(Number(next.backgroundFetch)) || 0))
   next.logLimit = Math.min(SETTINGS_LIMITS.logLimit.max, Math.max(SETTINGS_LIMITS.logLimit.min, Math.round(next.logLimit) || SETTINGS_DEFAULTS.logLimit))
+  if (!PULL_MODES.includes(next.pullMode)) next.pullMode = SETTINGS_DEFAULTS.pullMode
   const mainChanged = next.gitPath !== current.gitPath || next.autoUpdate !== current.autoUpdate
   current = next
   try {

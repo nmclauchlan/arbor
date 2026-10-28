@@ -87,6 +87,12 @@ export interface Stash {
   hash: string
 }
 
+export type PullMode = 'git' | 'merge' | 'rebase' | 'ff-only'
+
+export type MergeMode = 'default' | 'no-ff' | 'squash'
+
+export type IgnoreKind = 'file' | 'folder' | 'extension'
+
 export interface StashOptions {
   message: string
   includeUntracked: boolean
@@ -240,7 +246,7 @@ export interface GitApi {
   createBranch(path: string, name: string, startPoint: string, checkout: boolean): Promise<void>
   deleteBranch(path: string, name: string, force: boolean): Promise<void>
   fetch(path: string): Promise<void>
-  pull(path: string): Promise<void>
+  pull(path: string, mode?: PullMode): Promise<void>
   pullFastForward(path: string): Promise<'updated' | 'up-to-date'>
   undoInfo(path: string): Promise<UndoInfo>
   repoSummary(path: string, withChanges: boolean): Promise<RepoSummary>
@@ -252,7 +258,8 @@ export interface GitApi {
   undo(path: string): Promise<string>
   redo(path: string): Promise<string>
   push(path: string, setUpstream: boolean, force?: boolean): Promise<void>
-  merge(path: string, ref: string): Promise<void>
+  merge(path: string, ref: string, mode?: MergeMode): Promise<void>
+  ignore(path: string, kind: IgnoreKind, target: string): Promise<string>
   stashPush(path: string, options: StashOptions): Promise<void>
   stashPop(path: string, index: number): Promise<void>
   stashApply(path: string, index: number): Promise<void>

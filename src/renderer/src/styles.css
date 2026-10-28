@@ -273,6 +273,9 @@ textarea { resize: vertical; font-family: inherit; }
 .avatar-initials { width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; color: #fff; font-size: 8.5px; font-weight: 700; letter-spacing: 0.02em; line-height: 1; }
 
 .toolbar-group { display: inline-flex; gap: 2px; margin-right: 6px; }
+.split-button { display: inline-flex; }
+.split-button > button:first-child { border-top-right-radius: 0; border-bottom-right-radius: 0; }
+.split-button > .split-caret { padding: 0 5px; border-left: none; border-top-left-radius: 0; border-bottom-left-radius: 0; color: var(--fg-dim); }
 .commit-row .author { flex: 0 1 auto; min-width: 50px; color: var(--fg-dim); overflow: hidden; text-overflow: ellipsis; }
 .commit-row .date { flex: 0 1 auto; min-width: 60px; color: var(--fg-dim); font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .commit-row .sha { flex: 0 1 auto; min-width: 50px; color: var(--fg-faint); font-family: var(--mono); font-size: 11px; overflow: hidden; }
