@@ -110,7 +110,7 @@ textarea { resize: vertical; font-family: inherit; }
 .repo-view > .sidebar { grid-column: 1; grid-row: 2; }
 .repo-view > .splitter-sidebar { grid-column: 2; grid-row: 2; }
 .repo-view > .commit-list { grid-column: 3; grid-row: 2; }
-.repo-view > .file-viewer { grid-column: 1 / 4; grid-row: 2; }
+.repo-view > .file-viewer, .repo-view > .compare-view { grid-column: 1 / 4; grid-row: 2; }
 .repo-view > .splitter-details { grid-column: 4; grid-row: 2; }
 .repo-view > .panel { grid-column: 5; grid-row: 2; }
 .repo-view.sidebar-collapsed > .sidebar, .repo-view.sidebar-collapsed > .splitter-sidebar,
@@ -797,6 +797,17 @@ body.resizing iframe, body.resizing .cm-editor { pointer-events: none; }
 .file-history-bar { display: flex; align-items: center; gap: 8px; padding: 5px 10px; border-bottom: 1px solid var(--border); background: var(--bg-2); font-size: 12px; flex: none; }
 .file-history-bar .subject { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .file-history-bar button { font-size: 11px; padding: 1px 8px; }
+.compare-view { display: flex; flex-direction: column; min-height: 0; min-width: 0; background: var(--bg); overflow: hidden; animation: fade-enter var(--motion-normal) ease-out; }
+.compare-view > .placeholder { flex: 1; padding: 20px; color: var(--fg-faint); text-align: center; }
+.compare-title { font-size: 12px; }
+.compare-view .file-viewer-bar .ref-badge { max-width: 280px; }
+.compare-body { flex: 1; min-height: 0; display: flex; }
+.compare-side { width: 340px; flex: none; display: flex; flex-direction: column; border-right: 1px solid var(--border); background: var(--bg-2); }
+.compare-side-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 6px 10px; border-bottom: 1px solid var(--border); flex: none; }
+.compare-side-body { flex: 1; min-height: 0; overflow-y: auto; }
+.compare-side-body > .empty, .compare-group > .empty { padding: 10px 12px; font-size: 12px; color: var(--fg-faint); }
+.compare-diff { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.compare-diff > .diff { flex: 1; min-height: 0; }
 .blame { overflow: auto; background: var(--bg); font-family: var(--mono); font-size: 12px; }
 .blame > .placeholder { padding: 20px; color: var(--fg-faint); text-align: center; font-family: inherit; }
 .blame table { border-collapse: collapse; width: 100%; }

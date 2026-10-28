@@ -154,6 +154,8 @@ const handlers: Handlers = {
   fileDiff: gitService.fileDiff,
   commitDetails: gitService.commitDetails,
   commitFileDiff: gitService.commitFileDiff,
+  compareRefs: gitService.compareRefs,
+  compareFileDiff: gitService.compareFileDiff,
   fileHistory: gitService.fileHistory,
   blame: gitService.blame,
   checkout: (path, ref) => journal.record(path, 'checkout', `Checkout ${shortRef(ref)}`, () => gitService.checkout(path, ref)),

@@ -106,6 +106,21 @@ export interface RebaseStep {
   message?: string
 }
 
+export type CompareMode = 'merge-base' | 'direct'
+
+export interface CompareCommit {
+  hash: string
+  author: string
+  date: number
+  subject: string
+}
+
+export interface CompareSummary {
+  files: StatusFile[]
+  ahead: CompareCommit[]
+  behind: CompareCommit[]
+}
+
 export interface FileHistoryEntry {
   hash: string
   author: string
@@ -210,6 +225,8 @@ export interface GitApi {
   fileDiff(path: string, file: string, staged: boolean, status: FileChange): Promise<string>
   commitDetails(path: string, hash: string): Promise<CommitDetails>
   commitFileDiff(path: string, hash: string, file: string): Promise<string>
+  compareRefs(path: string, from: string, to: string | null, mode: CompareMode): Promise<CompareSummary>
+  compareFileDiff(path: string, from: string, to: string | null, mode: CompareMode, file: string, oldPath?: string): Promise<string>
   fileHistory(path: string, file: string): Promise<FileHistoryEntry[]>
   blame(path: string, file: string, rev?: string): Promise<BlameResult>
   checkout(path: string, ref: string): Promise<void>

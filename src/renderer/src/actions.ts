@@ -1,5 +1,6 @@
 import type { RebaseAction } from '@shared/types'
 import type { MenuItem } from './components/ContextMenu'
+import type { CompareRequest } from './components/CompareView'
 
 export interface Shell {
   openRepo(): void
@@ -34,6 +35,7 @@ export interface Actions extends Shell {
   updateBranch(branch: string): void
   pushBranch(branch: string): void
   forcePush(branch: string): void
+  compare(request: CompareRequest): void
   setUpstream(branch: string): void
   fastForward(target: string): void
   rebase(onto: string): void

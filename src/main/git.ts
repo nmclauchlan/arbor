@@ -5,6 +5,7 @@ import { basename, join } from 'path'
 import { getSettings } from './settings'
 import {
   type RebaseCommit, type RebaseStep, type BlameResult, type CommitSearchMode, type FileHistoryEntry,
+  type CompareCommit, type CompareMode, type CompareSummary,
   imageMime,
   type Commit, type CommitDetails, type FileChange, type ImageDiffResult, type ImageSource,
   type OperationState, type IncomingUpstream, type Ref, type RepoSummary, type GraphFilter, type RepoInfo, type RepoRefs, type RepoStatus, type StatusFile
@@ -377,15 +378,8 @@ export async function blame(path: string, file: string, rev?: string): Promise<B
   return result
 }
 
-export async function commitDetails(path: string, hash: string): Promise<CommitDetails> {
-  const g = git(path)
-  const format = ['%H', '%P', '%an', '%ae', '%at', '%s', '%b'].join(FIELD)
-  const out = await g.raw(['show', '-s', `--format=${format}`, hash])
-  const [h, parents, author, email, date, subject, body] = out.split(FIELD)
-  const parentList = parents ? parents.split(' ').filter(Boolean) : []
-  const base = parentList[0] ?? EMPTY_TREE
-  const statOut = await g.raw(['diff', '--name-status', '-z', '-M', base, hash])
-  const parts = statOut.split('\0')
+function parseNameStatus(out: string): StatusFile[] {
+  const parts = out.split('\0')
   const files: StatusFile[] = []
   for (let i = 0; i < parts.length; i++) {
     const code = parts[i]
@@ -399,6 +393,17 @@ export async function commitDetails(path: string, hash: string): Promise<CommitD
       files.push({ path: parts[++i], status: mapStatus(kind) })
     }
   }
+  return files
+}
+
+export async function commitDetails(path: string, hash: string): Promise<CommitDetails> {
+  const g = git(path)
+  const format = ['%H', '%P', '%an', '%ae', '%at', '%s', '%b'].join(FIELD)
+  const out = await g.raw(['show', '-s', `--format=${format}`, hash])
+  const [h, parents, author, email, date, subject, body] = out.split(FIELD)
+  const parentList = parents ? parents.split(' ').filter(Boolean) : []
+  const base = parentList[0] ?? EMPTY_TREE
+  const files = parseNameStatus(await g.raw(['diff', '--name-status', '-z', '-M', base, hash]))
   return {
     hash: h.trim(), parents: parentList, author, email, date: Number(date) * 1000,
     subject, body: (body ?? '').trim(), files
@@ -410,6 +415,39 @@ export async function commitFileDiff(path: string, hash: string, file: string): 
   const parents = (await g.raw(['rev-list', '--parents', '-n', '1', hash])).trim().split(' ')
   const base = parents.length > 1 ? parents[1] : EMPTY_TREE
   return g.raw(['diff', '--no-color', '--no-ext-diff', '-M', base, hash, '--', file])
+}
+
+function compareRange(from: string, to: string | null, mode: CompareMode): string[] {
+  if ([from, to].some((r) => r?.startsWith('-'))) throw new Error('Invalid revision')
+  if (to === null) return [from]
+  return mode === 'merge-base' ? [`${from}...${to}`] : [from, to]
+}
+
+async function commitsBetween(g: SimpleGit, from: string, to: string): Promise<CompareCommit[]> {
+  const out = await g.raw(['log', '-n', '200', `--format=${RECORD}%H${FIELD}%an${FIELD}%at${FIELD}%s`, `${from}..${to}`])
+  return out
+    .split(RECORD)
+    .filter((r) => r.trim())
+    .map((r) => {
+      const [hash, author, at, subject] = r.replace(/\n$/, '').split(FIELD)
+      return { hash, author, date: Number(at) * 1000, subject }
+    })
+}
+
+export async function compareRefs(path: string, from: string, to: string | null, mode: CompareMode): Promise<CompareSummary> {
+  const g = git(path)
+  const range = compareRange(from, to, mode)
+  const [files, ahead, behind] = await Promise.all([
+    g.raw(['diff', '--name-status', '-z', '-M', ...range]).then(parseNameStatus),
+    to === null ? [] : commitsBetween(g, from, to),
+    to === null ? [] : commitsBetween(g, to, from)
+  ])
+  return { files, ahead, behind }
+}
+
+export async function compareFileDiff(path: string, from: string, to: string | null, mode: CompareMode, file: string, oldPath?: string): Promise<string> {
+  const paths = oldPath && oldPath !== file ? [oldPath, file] : [file]
+  return git(path).raw(['diff', '--no-color', '--no-ext-diff', '-M', ...compareRange(from, to, mode), '--', ...paths])
 }
 
 export async function checkout(path: string, ref: string): Promise<void> {

@@ -10,6 +10,7 @@ import { CommitSearch } from './components/CommitSearch'
 import { RebaseDialog } from './components/RebaseDialog'
 import { CommitPanel } from './components/CommitPanel'
 import { FileViewer, type FileViewRequest } from './components/FileViewer'
+import { CompareView, type CompareRequest } from './components/CompareView'
 import { Sidebar } from './components/Sidebar'
 import { Toolbar } from './components/Toolbar'
 import { WorkingTree } from './components/WorkingTree'
@@ -52,6 +53,7 @@ export function RepoView({
   const [rebasing, setRebasing] = useState<{ base: string; preset?: Record<string, RebaseAction> } | null>(null)
   const [busy, setBusy] = useState<string | null>(null)
   const [viewing, setViewing] = useState<FileViewRequest | null>(null)
+  const [comparing, setComparing] = useState<CompareRequest | null>(null)
   const [undoInfo, setUndoInfo] = useState<UndoInfo>({ undo: null, redo: null })
   const undoRef = useRef(undoInfo)
   undoRef.current = undoInfo
@@ -217,10 +219,12 @@ export function RepoView({
 
   useEffect(() => {
     setViewing(null)
+    setComparing(null)
   }, [selected])
 
   const openSearch = useCallback(() => {
     setViewing(null)
+    setComparing(null)
     setSearch((s) => ({ query: s?.query ?? '', mode: s?.mode ?? 'all', focus: (s?.focus ?? 0) + 1 }))
   }, [])
 
@@ -317,6 +321,7 @@ export function RepoView({
     if (!focus) return
     setSelectedPr(null)
     setViewing(null)
+    setComparing(null)
     wantHash.current = focus.hash
     setSelected(focus.hash)
     setScrollTarget((t) => ({ hash: focus.hash, n: (t?.n ?? 0) + 1 }))
@@ -477,6 +482,10 @@ export function RepoView({
             shell.showInfo('Pushed')
           }
         }),
+      compare: (request) => {
+        setViewing(null)
+        setComparing(request)
+      },
       forcePush: async (branch) => {
         const ok = await shell.confirm('Force push', forcePushWarning(branch), true)
         if (!ok) return
@@ -653,7 +662,7 @@ export function RepoView({
       parent,
       grandparent: parent ? headLine.byHash.get(parent)?.parents[0] : undefined
     }
-    actions.openMenu(e, buildRefMenu({ sha: c.hash, refs: c.refs, focus, repoRefs: refs, host, actions, filtered, history }))
+    actions.openMenu(e, buildRefMenu({ sha: c.hash, refs: c.refs, focus, repoRefs: refs, host, actions, filtered, history, selected }))
   }
 
   const searchQuery = search?.query.trim() ?? ''
@@ -724,7 +733,7 @@ export function RepoView({
 
   return (
     <div
-      className={`repo-view${sidebarOpen ? '' : ' sidebar-collapsed'}${detailsOpen ? '' : ' details-collapsed'}${viewing ? ' viewing' : ''}`}
+      className={`repo-view${sidebarOpen ? '' : ' sidebar-collapsed'}${detailsOpen ? '' : ' details-collapsed'}${viewing || comparing ? ' viewing' : ''}`}
       style={{ gridTemplateColumns: `${sidebarOpen ? `${layout.sidebar}px 4px` : '0 0'} minmax(0, 1fr) ${detailsOpen ? `4px ${layout.panel}px` : '0 0'}` }}
     >
       <Toolbar
@@ -775,6 +784,17 @@ export function RepoView({
           onSaved={refresh}
           onShowCommit={(hash) => {
             setViewing(null)
+            jumpTo(hash)
+          }}
+        />
+      ) : comparing ? (
+        <CompareView
+          repoPath={path}
+          request={comparing}
+          onChange={setComparing}
+          onClose={() => setComparing(null)}
+          onShowCommit={(hash) => {
+            setComparing(null)
             jumpTo(hash)
           }}
         />

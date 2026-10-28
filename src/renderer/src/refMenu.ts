@@ -1,7 +1,7 @@
 import type { HostInfo, Ref, RepoRefs } from '@shared/types'
 import type { Actions } from './actions'
 import type { MenuItem } from './components/ContextMenu'
-import { shortHash } from './util'
+import { shortHash, WIP_HASH } from './util'
 
 export type FocusRef = { kind: 'branch' | 'remote' | 'tag'; name: string }
 
@@ -35,9 +35,10 @@ export interface RefMenuInput {
   actions: Actions
   filtered: boolean
   history?: { onHeadBranch: boolean; isHead: boolean; merge: boolean; parent?: string; grandparent?: string }
+  selected?: string | null
 }
 
-export function buildRefMenu({ sha, refs, focus, repoRefs, host, actions, filtered, history }: RefMenuInput): MenuItem[] {
+export function buildRefMenu({ sha, refs, focus, repoRefs, host, actions, filtered, history, selected }: RefMenuInput): MenuItem[] {
   const current = repoRefs.branches.find((b) => b.current) ?? null
   const cur = current?.name ?? null
   const locals = refs.filter((r) => r.kind === 'branch').map((r) => r.name)
@@ -104,7 +105,28 @@ export function buildRefMenu({ sha, refs, focus, repoRefs, host, actions, filter
       .map((r) => ({ label: `${r.remote}/${r.name}`, hint: `new local ${r.name}`, onClick: () => actions.addWorktree(`${r.remote}/${r.name}`, r.name) })),
     { label: `${shortHash(sha)} (detached HEAD)`, onClick: () => actions.addWorktree(sha, null) }
   ]
-  items.push({ label: 'Checkout', items: checkoutItems }, { label: 'Create worktree from', items: worktreeItems }, { separator: true })
+  const head = cur ?? 'HEAD'
+  const short = shortHash(sha)
+  const compareItems: MenuItem[] = [
+    ...(target && !isCurrent
+      ? [{ label: `${target} with ${head}`, hint: 'since they diverged', onClick: () => actions.compare({ from: 'HEAD', to: target, fromLabel: head, toLabel: target, mode: 'merge-base' }) }]
+      : []),
+    {
+      label: `${short} with ${head}`,
+      disabled: sha === repoRefs.headHash,
+      onClick: () => actions.compare({ from: sha, to: 'HEAD', fromLabel: short, toLabel: head, mode: 'direct' })
+    },
+    { label: `${short} with the working tree`, onClick: () => actions.compare({ from: sha, to: null, fromLabel: short, toLabel: 'Working tree', mode: 'direct' }) },
+    ...(selected && selected !== sha && selected !== WIP_HASH
+      ? [{ label: `${short} with the selected commit`, hint: shortHash(selected), onClick: () => actions.compare({ from: sha, to: selected, fromLabel: short, toLabel: shortHash(selected), mode: 'direct' }) }]
+      : [])
+  ]
+  items.push(
+    { label: 'Checkout', items: checkoutItems },
+    { label: 'Create worktree from', items: worktreeItems },
+    { label: 'Compare', items: compareItems },
+    { separator: true }
+  )
 
   items.push(
     { label: 'Create branch here…', onClick: () => actions.createBranch(sha) },
