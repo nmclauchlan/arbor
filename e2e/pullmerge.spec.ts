@@ -26,7 +26,7 @@ test('pull with rebase from the Pull menu, and the fast-forward-only setting exp
     const v = view(page)
     await expect(v.locator('.commit-row').first()).toBeVisible()
 
-    await v.getByRole('button', { name: /^⇣ Pull/ }).click()
+    await v.getByRole('button', { name: /^Pull\d*$/ }).click()
     await expect(page.locator('.toast')).toContainText("Can't fast-forward")
 
     await v.getByRole('button', { name: 'Pull options' }).click()

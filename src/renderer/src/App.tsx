@@ -20,6 +20,7 @@ import { applyTheme, currentTheme, setTheme, THEMES, useTheme } from './themes'
 import { setPanelCollapsed, useCollapsedPanels } from './layout'
 import { collectCommands, type Command } from './commands'
 import { CommandPalette } from './components/CommandPalette'
+import { Icon } from './components/Icon'
 import { syncSettingsFromMain, useSettings } from './settings'
 import { BellIcon, failedBuildKey, NotificationsPanel, type FailedBuild, type RepoIncoming } from './components/Notifications'
 import {
@@ -829,7 +830,8 @@ export default function App(): React.JSX.Element {
         />
         <div className="titlebar-spacer" />
         <button className="icon titlebar-btn" title={`Theme: ${theme.name}`} onClick={themeMenu}>
-          ◐ {theme.name}
+          <Icon name="theme" size={14} />
+          {theme.name}
         </button>
         <button
           className={`icon titlebar-btn notifications-btn${unseenCount ? ' has-unseen' : ''}`}
@@ -841,8 +843,8 @@ export default function App(): React.JSX.Element {
           <BellIcon />
           {unseenCount > 0 && <span className="notif-badge">{unseenCount > 99 ? '99+' : unseenCount}</span>}
         </button>
-        <button className="icon titlebar-btn" title="Settings (Ctrl+,)" onClick={() => setSettingsOpen({})}>
-          ⚙
+        <button className="icon titlebar-btn" title="Settings (Ctrl+,)" aria-label="Settings" onClick={() => setSettingsOpen({})}>
+          <Icon name="settings" />
         </button>
       </div>
       {tabs.length === 0 && recent.length === 0 && favorites.length === 0 ? (

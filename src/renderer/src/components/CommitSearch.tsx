@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react'
 import type { CommitSearchMode } from '@shared/types'
 import { Spinner } from './Spinner'
+import { Icon } from './Icon'
 
 const MODES: { id: CommitSearchMode; label: string }[] = [
   { id: 'all', label: 'Message, author or SHA' },
@@ -77,13 +78,13 @@ export function CommitSearch({
         {!searching && older > 0 ? ` · ${older} older not loaded` : ''}
       </span>
       <button className="icon" title="Previous match (Shift+Enter)" aria-label="Previous match" disabled={!total} onClick={() => onStep(-1)}>
-        ↑
+        <Icon name="chevronUp" size={14} />
       </button>
       <button className="icon" title="Next match (Enter)" aria-label="Next match" disabled={!total} onClick={() => onStep(1)}>
-        ↓
+        <Icon name="chevronDown" size={14} />
       </button>
       <button className="icon" title="Close (Esc)" aria-label="Close search" onClick={onClose}>
-        ✕
+        <Icon name="close" size={14} />
       </button>
     </div>
   )

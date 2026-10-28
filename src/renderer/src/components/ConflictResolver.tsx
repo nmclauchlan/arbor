@@ -7,6 +7,7 @@ import { assemble, hasMarkers, parseConflicts, type Choice, type Segment } from 
 import { errorMessage } from '../util'
 import { currentTheme, subscribeTheme } from '../themes'
 import { buildEditorTheme, editorHighlight, languageFor } from './Editor'
+import { Icon } from './Icon'
 
 const CONTEXT_LINES = 3
 
@@ -50,7 +51,13 @@ function Side({
         <span className="side-title">{title}</span>
         <span className="muted mono">{label}</span>
         <button className={chosen ? 'primary' : ''} onClick={onUse}>
-          {chosen ? '✓ Used' : `Use ${title.toLowerCase()}`}
+          {chosen ? (
+            <>
+              <Icon name="check" size={13} /> Used
+            </>
+          ) : (
+            `Use ${title.toLowerCase()}`
+          )}
         </button>
       </div>
       <div className="conflict-lines">

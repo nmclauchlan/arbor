@@ -5,6 +5,7 @@ import type { MenuItem } from './ContextMenu'
 import { FileList, FileViewToggle } from './FileList'
 import { canEdit, type FileViewRequest } from './FileViewer'
 import { copyToClipboard, errorMessage, revealInFolder, revealLabel } from '../util'
+import { Icon } from './Icon'
 
 type Area = 'staged' | 'unstaged'
 
@@ -170,21 +171,21 @@ export function WorkingTree({
       const noun = folder ? 'folder' : 'file'
       const items: MenuItem[] = []
       if (area === 'unstaged') {
-        items.push({ label: `Stage ${noun}`, onClick: () => stage(paths) })
-        items.push({ label: `Discard changes in ${noun}`, danger: true, onClick: () => discard(paths) })
-        items.push({ label: `Stash ${noun}…`, onClick: () => actions.stash(paths) })
+        items.push({ icon: 'plus', label: `Stage ${noun}`, onClick: () => stage(paths) })
+        items.push({ icon: 'undo', label: `Discard changes in ${noun}`, danger: true, onClick: () => discard(paths) })
+        items.push({ icon: 'stash', label: `Stash ${noun}…`, onClick: () => actions.stash(paths) })
         if (files.every((f) => f.status === '?')) {
           const file = folder ? null : files[0].path
           const dir = folder ?? (file!.includes('/') ? file!.slice(0, file!.lastIndexOf('/')) : null)
           const ext = file && /\.[^./]+$/.exec(file.slice(file.lastIndexOf('/') + 1))?.[0]
           items.push({ separator: true })
-          if (file) items.push({ label: 'Ignore file', onClick: () => actions.ignore('file', file) })
+          if (file) items.push({ icon: 'eyeOff', label: 'Ignore file', onClick: () => actions.ignore('file', file) })
           if (ext) items.push({ label: `Ignore all ${ext} files`, onClick: () => actions.ignore('extension', ext) })
           if (dir) items.push({ label: folder ? 'Ignore folder' : `Ignore folder ${dir}/`, onClick: () => actions.ignore('folder', dir) })
         }
       } else if (area === 'staged') {
-        items.push({ label: `Unstage ${noun}`, onClick: () => unstage(paths) })
-        items.push({ label: `Stash ${noun}…`, onClick: () => actions.stash(paths) })
+        items.push({ icon: 'minus', label: `Unstage ${noun}`, onClick: () => unstage(paths) })
+        items.push({ icon: 'stash', label: `Stash ${noun}…`, onClick: () => actions.stash(paths) })
       } else {
         const takeAll = (side: 'ours' | 'theirs'): Promise<void> =>
           run(async () => {
@@ -195,7 +196,7 @@ export function WorkingTree({
       }
       if (!folder && area !== 'conflict' && canEdit(files[0])) {
         items.push({ separator: true })
-        items.push({ label: 'Edit', onClick: () => view(area, files[0], 'edit') })
+        items.push({ icon: 'edit', label: 'Edit', onClick: () => view(area, files[0], 'edit') })
       }
       if (!folder && area !== 'conflict' && files[0].status !== '?') {
         items.push({ separator: true })
@@ -203,8 +204,9 @@ export function WorkingTree({
         if (canEdit(files[0])) items.push({ label: 'Blame', onClick: () => view(area, files[0], 'blame') })
       }
       items.push({ separator: true })
-      items.push({ label: revealLabel(), onClick: () => revealInFolder(repoPath, folder ?? files[0].path) })
+      items.push({ icon: 'folder', label: revealLabel(), onClick: () => revealInFolder(repoPath, folder ?? files[0].path) })
       items.push({
+        icon: 'copy',
         label: 'Copy path',
         onClick: () => {
           const p = folder ?? files[0].path
@@ -282,7 +284,9 @@ export function WorkingTree({
               onContextMenu={fileMenu('conflict')}
               actions={(f) => (
                 <span className="actions" onClick={(e) => e.stopPropagation()}>
-                  <button title="Resolve in editor" onClick={() => view('unstaged', f, 'conflict')}>⚡</button>
+                  <button title="Resolve in editor" aria-label="Resolve in editor" onClick={() => view('unstaged', f, 'conflict')}>
+                    <Icon name="conflict" size={14} />
+                  </button>
                   <button title="Take ours" onClick={() => resolveWith(f, 'ours')}>Ours</button>
                   <button title="Take theirs" onClick={() => resolveWith(f, 'theirs')}>Theirs</button>
                 </span>
@@ -304,9 +308,17 @@ export function WorkingTree({
           onContextMenu={fileMenu('unstaged')}
           actions={(f) => (
             <span className="actions" onClick={(e) => e.stopPropagation()}>
-              {canEdit(f) && <button title="Edit" onClick={() => view('unstaged', f, 'edit')}>✎</button>}
-              <button title="Discard" onClick={() => discard([f.path])}>↶</button>
-              <button title="Stage" onClick={() => stage([f.path])}>+</button>
+              {canEdit(f) && (
+                <button title="Edit" aria-label="Edit" onClick={() => view('unstaged', f, 'edit')}>
+                  <Icon name="edit" size={14} />
+                </button>
+              )}
+              <button title="Discard" aria-label="Discard" onClick={() => discard([f.path])}>
+                <Icon name="undo" size={14} />
+              </button>
+              <button title="Stage" aria-label="Stage" onClick={() => stage([f.path])}>
+                <Icon name="plus" size={14} />
+              </button>
             </span>
           )}
         />
@@ -324,8 +336,14 @@ export function WorkingTree({
           onContextMenu={fileMenu('staged')}
           actions={(f) => (
             <span className="actions" onClick={(e) => e.stopPropagation()}>
-              {canEdit(f) && <button title="Edit" onClick={() => view('staged', f, 'edit')}>✎</button>}
-              <button title="Unstage" onClick={() => unstage([f.path])}>−</button>
+              {canEdit(f) && (
+                <button title="Edit" aria-label="Edit" onClick={() => view('staged', f, 'edit')}>
+                  <Icon name="edit" size={14} />
+                </button>
+              )}
+              <button title="Unstage" aria-label="Unstage" onClick={() => unstage([f.path])}>
+                <Icon name="minus" size={14} />
+              </button>
             </span>
           )}
         />

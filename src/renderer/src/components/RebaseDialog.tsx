@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import type { RebaseAction, RebaseCommit, RebaseStep } from '@shared/types'
 import { Loading } from './Spinner'
 import { errorMessage, shortHash } from '../util'
+import { Icon } from './Icon'
 
 const ACTIONS: { id: RebaseAction; label: string }[] = [
   { id: 'pick', label: 'Pick' },
@@ -128,7 +129,7 @@ export function RebaseDialog({
               >
                 <div className="rebase-row-head">
                   <span className="grip" aria-hidden="true">
-                    ⋮⋮
+                    <Icon name="grip" size={14} />
                   </span>
                   <select value={r.action} aria-label={`Action for ${r.subject}`} onChange={(e) => update(i, { action: e.target.value as RebaseAction })}>
                     {ACTIONS.map((a) => (
@@ -143,10 +144,10 @@ export function RebaseDialog({
                   </span>
                   <span className="muted author">{r.author}</span>
                   <button className="icon" aria-label={`Move ${r.subject} up`} disabled={i === 0} onClick={() => move(i, i - 1)}>
-                    ▲
+                    <Icon name="chevronUp" size={14} />
                   </button>
                   <button className="icon" aria-label={`Move ${r.subject} down`} disabled={i === rows.length - 1} onClick={() => move(i, i + 1)}>
-                    ▼
+                    <Icon name="chevronDown" size={14} />
                   </button>
                 </div>
                 {r.action === 'reword' && (

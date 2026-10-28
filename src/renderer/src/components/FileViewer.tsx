@@ -8,6 +8,7 @@ import { BlameView } from './BlameView'
 import { Editor } from './Editor'
 import { ImageDiff } from './ImageDiff'
 import { errorMessage, shortHash } from '../util'
+import { Icon } from './Icon'
 
 export interface FileViewRequest {
   file: StatusFile
@@ -112,11 +113,13 @@ export function FileViewer({
         )}
         {mode === 'diff' && canEdit(file) && (
           <button onClick={() => onChange({ ...request, mode: 'edit' })} title="Edit the working copy">
-            ✎ Edit
+            <Icon name="edit" size={14} />
+            Edit
           </button>
         )}
         <button onClick={onClose} title="Back to the commit graph (Esc)">
-          ✕ Close
+          <Icon name="close" size={14} />
+          Close
         </button>
       </div>
       {mode === 'conflict' ? (

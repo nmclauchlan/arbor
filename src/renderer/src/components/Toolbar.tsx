@@ -4,6 +4,7 @@ import { prPrefix } from '../util'
 import { pullItems } from '../refMenu'
 import { PULL_LABELS, useSettings } from '../settings'
 import { setPanelCollapsed, useCollapsedPanels, type PanelName } from '../layout'
+import { Icon } from './Icon'
 
 function PanelIcon({ side, open }: { side: 'left' | 'right'; open: boolean }): React.JSX.Element {
   const x = side === 'left' ? 2.5 : 10
@@ -64,7 +65,8 @@ export function Toolbar({
     <div className="toolbar">
       {toggle('sidebar', 'branch panel', 'left')}
       <button onClick={actions.openRepo} title="Open another repository">
-        📁 {repo.name}
+        <Icon name="folder" />
+        {repo.name}
       </button>
       <span className="toolbar-group">
         <button
@@ -74,7 +76,8 @@ export function Toolbar({
           title={undoInfo.undo ? `Undo ${undoInfo.undo} (${mod}Z)` : 'Nothing to undo'}
           aria-label="Undo"
         >
-          ↶ Undo
+          <Icon name="undo" />
+          Undo
         </button>
         <button
           disabled={busy || !undoInfo.redo}
@@ -83,15 +86,18 @@ export function Toolbar({
           title={undoInfo.redo ? `Redo ${undoInfo.redo} (${mod}Shift+Z)` : 'Nothing to redo'}
           aria-label="Redo"
         >
-          ↷ Redo
+          <Icon name="redo" />
+          Redo
         </button>
       </span>
       <button disabled={busy} aria-busy={busyLabel === 'Fetching'} onClick={actions.fetch} title="git fetch --all --prune">
-        ⟳ Fetch
+        <Icon name="fetch" />
+        Fetch
       </button>
       <span className="split-button">
         <button disabled={busy} aria-busy={busyLabel === 'Pulling'} onClick={() => actions.pull()} title={`Pull (${PULL_LABELS[pullMode].toLowerCase()})`}>
-          ⇣ Pull
+          <Icon name="pull" />
+          Pull
           {current?.behind ? <span className="badge">{current.behind}</span> : null}
         </button>
         <button
@@ -104,18 +110,21 @@ export function Toolbar({
             actions.openMenu({ ...e, clientX: r.left, clientY: r.bottom + 2 }, pullItems(actions))
           }}
         >
-          ▾
+          <Icon name="chevronDown" size={12} />
         </button>
       </span>
       <button disabled={busy} aria-busy={busyLabel === 'Pushing'} onClick={actions.push} title="git push">
-        ⇡ Push
+        <Icon name="push" />
+        Push
         {current?.ahead ? <span className="badge">{current.ahead}</span> : null}
       </button>
       <button disabled={busy} aria-busy={busyLabel === 'Creating branch'} onClick={() => actions.createBranch('HEAD')} title="Create a branch at HEAD">
-        ⑂ Branch
+        <Icon name="branch" />
+        Branch
       </button>
       <button disabled={busy} aria-busy={busyLabel === 'Stashing'} onClick={() => actions.stash()} title="Stash your uncommitted changes">
-        ▣ Stash
+        <Icon name="stash" />
+        Stash
       </button>
       <button
         disabled={busy || !refs?.stashes.length}
@@ -123,21 +132,25 @@ export function Toolbar({
         onClick={() => actions.stashPop(0)}
         title="git stash pop"
       >
-        ▢ Pop
+        <Icon name="pop" />
+        Pop
       </button>
       {host && current && (
         currentPr ? (
           <button disabled={busy} onClick={() => onViewPr(currentPr)} title={currentPr.title}>
-            ⇄ {host.kind === 'gitlab' ? 'MR' : 'PR'} {prPrefix(host.kind)}{currentPr.id}
+            <Icon name="pr" />
+            {host.kind === 'gitlab' ? 'MR' : 'PR'} {prPrefix(host.kind)}{currentPr.id}
           </button>
         ) : (
           <button disabled={busy || !current.upstream} onClick={onCreatePr} title={current.upstream ? `Create a ${host.kind === 'gitlab' ? 'merge' : 'pull'} request for this branch` : 'Push the branch first'}>
-            ⇄ {host.kind === 'gitlab' ? 'Merge request' : 'Pull request'}
+            <Icon name="pr" />
+            {host.kind === 'gitlab' ? 'Merge request' : 'Pull request'}
           </button>
         )
       )}
       <button onClick={onSearch} title={`Search commits (${mod}F)`}>
-        ⌕ Search
+        <Icon name="search" />
+        Search
       </button>
       <div className="spacer" />
       <span className="muted">

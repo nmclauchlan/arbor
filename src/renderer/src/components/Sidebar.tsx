@@ -6,6 +6,7 @@ import { Loading } from './Spinner'
 import { BuildMarker, buildsFor } from './BuildStatus'
 import { hostName, hostPath, prNoun, prPrefix } from '../util'
 import { setPanelCollapsed } from '../layout'
+import { Icon } from './Icon'
 
 const TAG_LIMIT = 10
 
@@ -25,7 +26,10 @@ function Section({
   return (
     <div>
       <div className="section-title" onClick={() => setOpen(!open)}>
-        <span>{shown ? '▾' : '▸'} {title}</span>
+        <span>
+          <Icon name={shown ? 'chevronDown' : 'chevronRight'} size={12} />
+          {title}
+        </span>
         <span>{count}</span>
       </div>
       {shown && children}
@@ -122,11 +126,11 @@ export function Sidebar({
   const stashMenu = (e: React.MouseEvent, s: Stash): void => {
     e.preventDefault()
     actions.openMenu(e, [
-      { label: 'Apply stash', onClick: () => actions.stashApply(s.index) },
-      { label: 'Pop stash', hint: 'apply and drop', onClick: () => actions.stashPop(s.index) },
-      { label: 'Create branch from stash…', onClick: () => actions.stashBranch(s.index) },
+      { icon: 'stash', label: 'Apply stash', onClick: () => actions.stashApply(s.index) },
+      { icon: 'pop', label: 'Pop stash', hint: 'apply and drop', onClick: () => actions.stashPop(s.index) },
+      { icon: 'branch', label: 'Create branch from stash…', onClick: () => actions.stashBranch(s.index) },
       { separator: true },
-      { label: 'Drop stash', danger: true, onClick: () => actions.stashDrop(s.index) }
+      { icon: 'trash', label: 'Drop stash', danger: true, onClick: () => actions.stashDrop(s.index) }
     ])
   }
 
@@ -234,7 +238,10 @@ export function Sidebar({
       <Section title="Remote" count={remotes.length} forceOpen={filtering}>
         {[...remoteGroups.entries()].map(([remote, list]) => (
           <div key={remote}>
-            <div className="remote-group">☁ {remote}</div>
+            <div className="remote-group">
+              <Icon name="cloud" size={14} />
+              {remote}
+            </div>
             {list.map((r) => (
               <div
                 key={r.name}
@@ -262,7 +269,10 @@ export function Sidebar({
             onClick={() => actions.selectHash(t.hash)}
             onContextMenu={(e) => tagMenu(e, t)}
           >
-            <span className="name">🏷 <Highlight text={t.name} query={q} /></span>
+            <span className="name">
+              <Icon name="tag" size={13} className="ref-kind-icon" />
+              <Highlight text={t.name} query={q} />
+            </span>
             {builds[t.hash] && <BuildMarker builds={builds[t.hash]} />}
           </div>
         ))}

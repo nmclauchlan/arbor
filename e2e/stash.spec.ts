@@ -42,6 +42,7 @@ test('stash with a message and untracked files, inspect it, apply it, branch fro
 
     await item.click({ button: 'right' })
     await menuItem(page, 'Apply stash')
+    await expect(page.locator('.toast')).toContainText('Applied stash@{0}')
     await expect.poll(() => changed(repo)).toEqual(['a.txt', 'notes.txt'])
     await expect.poll(() => stashes(repo)).toHaveLength(1)
 
@@ -64,10 +65,12 @@ test('stash with a message and untracked files, inspect it, apply it, branch fro
     await menuItem(page, 'Stash file')
     await expect(dialog.getByRole('heading')).toHaveText('Stash a.txt')
     await dialog.getByRole('button', { name: 'Stash', exact: true }).click()
+    await expect(page.locator('.toast')).toContainText('Stashed a.txt')
     await expect.poll(() => changed(repo)).toEqual(['README.md'])
     await expect.poll(() => stashes(repo)).toHaveLength(1)
 
     await v.locator('.toolbar').getByRole('button', { name: /Pop/ }).click()
+    await expect(page.locator('.toast')).toContainText('Popped stash@{0}')
     await expect.poll(() => changed(repo)).toEqual(['README.md', 'a.txt'])
     await expect.poll(() => stashes(repo)).toEqual([])
   } finally {

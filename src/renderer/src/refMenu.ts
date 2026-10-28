@@ -28,9 +28,9 @@ export function commitUrl(host: HostInfo, sha: string): string {
 
 export function pullItems(actions: Actions): MenuItem[] {
   return [
-    { label: 'Merge', hint: 'git pull --no-rebase', onClick: () => actions.pull('merge') },
-    { label: 'Rebase', hint: 'git pull --rebase', onClick: () => actions.pull('rebase') },
-    { label: 'Fast-forward only', hint: 'git pull --ff-only', onClick: () => actions.pull('ff-only') }
+    { icon: 'merge', label: 'Merge', hint: 'git pull --no-rebase', onClick: () => actions.pull('merge') },
+    { icon: 'rebase', label: 'Rebase', hint: 'git pull --rebase', onClick: () => actions.pull('rebase') },
+    { icon: 'fastForward', label: 'Fast-forward only', hint: 'git pull --ff-only', onClick: () => actions.pull('ff-only') }
   ]
 }
 
@@ -76,28 +76,28 @@ export function buildRefMenu({ sha, refs, focus, repoRefs, host, actions, filter
   if (branch) {
     items.push(
       isCurrent
-        ? { label: 'Pull', onClick: () => actions.pull() }
-        : { label: 'Pull (fast-forward)', disabled: !info?.upstream, onClick: () => actions.updateBranch(branch!) },
-      ...(isCurrent ? [{ label: 'Pull with', items: pullItems(actions) }] : []),
-      { label: 'Push', onClick: () => (isCurrent ? actions.push() : actions.pushBranch(branch!)) },
-      { label: 'Force push (with lease)…', danger: true, disabled: !info?.upstream, onClick: () => actions.forcePush(branch!) },
-      { label: 'Set upstream…', onClick: () => actions.setUpstream(branch!) },
+        ? { icon: 'pull', label: 'Pull', onClick: () => actions.pull() }
+        : { icon: 'pull', label: 'Pull (fast-forward)', disabled: !info?.upstream, onClick: () => actions.updateBranch(branch!) },
+      ...(isCurrent ? [{ icon: 'pull' as const, label: 'Pull with', items: pullItems(actions) }] : []),
+      { icon: 'push', label: 'Push', onClick: () => (isCurrent ? actions.push() : actions.pushBranch(branch!)) },
+      { icon: 'push', label: 'Force push (with lease)…', danger: true, disabled: !info?.upstream, onClick: () => actions.forcePush(branch!) },
+      { icon: 'link', label: 'Set upstream…', onClick: () => actions.setUpstream(branch!) },
       { separator: true }
     )
   }
 
   if (target && cur && !isCurrent) {
     items.push(
-      { label: `Fast-forward ${cur} to ${target}`, onClick: () => actions.fastForward(target) },
-      { label: `Merge ${target} into ${cur}`, onClick: () => actions.merge(target) },
+      { icon: 'fastForward', label: `Fast-forward ${cur} to ${target}`, onClick: () => actions.fastForward(target) },
+      { icon: 'merge', label: `Merge ${target} into ${cur}`, onClick: () => actions.merge(target) },
       {
         label: 'Merge options',
         items: [
-          { label: `Merge ${target} (no fast-forward)`, hint: 'always make a merge commit', onClick: () => actions.merge(target, 'no-ff') },
+          { icon: 'merge', label: `Merge ${target} (no fast-forward)`, hint: 'always make a merge commit', onClick: () => actions.merge(target, 'no-ff') },
           { label: `Squash ${target} into ${cur}`, hint: 'stage it as one commit', onClick: () => actions.merge(target, 'squash') }
         ]
       },
-      { label: `Rebase ${cur} onto ${target}`, onClick: () => actions.rebase(target) },
+      { icon: 'rebase', label: `Rebase ${cur} onto ${target}`, onClick: () => actions.rebase(target) },
       { separator: true }
     )
   }
@@ -138,16 +138,17 @@ export function buildRefMenu({ sha, refs, focus, repoRefs, host, actions, filter
       : [])
   ]
   items.push(
-    { label: 'Checkout', items: checkoutItems },
-    { label: 'Create worktree from', items: worktreeItems },
-    { label: 'Compare', items: compareItems },
+    { icon: 'checkout', label: 'Checkout', items: checkoutItems },
+    { icon: 'folder', label: 'Create worktree from', items: worktreeItems },
+    { icon: 'compare', label: 'Compare', items: compareItems },
     { separator: true }
   )
 
   items.push(
-    { label: 'Create branch here…', onClick: () => actions.createBranch(sha) },
-    { label: 'Cherry-pick commit', onClick: () => actions.cherryPick(sha) },
+    { icon: 'branch', label: 'Create branch here…', onClick: () => actions.createBranch(sha) },
+    { icon: 'cherry', label: 'Cherry-pick commit', onClick: () => actions.cherryPick(sha) },
     {
+      icon: 'reset',
       label: cur ? `Reset ${cur} to this commit` : 'Reset to this commit',
       items: [
         { label: 'Soft', hint: 'keep changes staged', onClick: () => actions.resetTo(sha, 'soft') },
@@ -155,47 +156,47 @@ export function buildRefMenu({ sha, refs, focus, repoRefs, host, actions, filter
         { label: 'Hard', hint: 'discard changes', danger: true, onClick: () => actions.resetTo(sha, 'hard') }
       ]
     },
-    { label: 'Revert commit', onClick: () => actions.revert(sha) },
+    { icon: 'undo', label: 'Revert commit', onClick: () => actions.revert(sha) },
     { separator: true }
   )
 
   if (history?.onHeadBranch && !history.merge) {
     const { parent, grandparent, isHead } = history
     items.push(
-      { label: 'Reword commit message…', disabled: !parent, onClick: () => actions.interactiveRebase(parent!, { [sha]: 'reword' }) },
-      { label: 'Squash into parent commit', disabled: !grandparent, onClick: () => actions.interactiveRebase(grandparent!, { [sha]: 'squash' }) },
-      { label: 'Drop commit…', danger: true, disabled: !parent, onClick: () => actions.interactiveRebase(parent!, { [sha]: 'drop' }) },
-      { label: 'Interactive rebase from here…', disabled: isHead, onClick: () => actions.interactiveRebase(sha) },
+      { icon: 'edit', label: 'Reword commit message…', disabled: !parent, onClick: () => actions.interactiveRebase(parent!, { [sha]: 'reword' }) },
+      { icon: 'squash', label: 'Squash into parent commit', disabled: !grandparent, onClick: () => actions.interactiveRebase(grandparent!, { [sha]: 'squash' }) },
+      { icon: 'trash', label: 'Drop commit…', danger: true, disabled: !parent, onClick: () => actions.interactiveRebase(parent!, { [sha]: 'drop' }) },
+      { icon: 'rebase', label: 'Interactive rebase from here…', disabled: isHead, onClick: () => actions.interactiveRebase(sha) },
       { separator: true }
     )
   }
 
   if (host && remoteExists && remote) {
     const noun = host.kind === 'gitlab' ? 'merge request' : 'pull request'
-    items.push({ label: `Start a ${noun} from ${remoteFull}`, onClick: () => actions.startPullRequest(remote!.name) }, { separator: true })
+    items.push({ icon: 'pr', label: `Start a ${noun} from ${remoteFull}`, onClick: () => actions.startPullRequest(remote!.name) }, { separator: true })
   }
 
   if (branch) {
     items.push(
-      { label: `Rename ${branch}…`, onClick: () => actions.renameBranch(branch!) },
-      { label: `Delete ${branch}`, danger: true, disabled: isCurrent, onClick: () => actions.deleteBranch(branch!) }
+      { icon: 'edit', label: `Rename ${branch}…`, onClick: () => actions.renameBranch(branch!) },
+      { icon: 'trash', label: `Delete ${branch}`, danger: true, disabled: isCurrent, onClick: () => actions.deleteBranch(branch!) }
     )
   }
   if (remote && remoteExists) {
-    items.push({ label: `Delete ${remoteFull}`, danger: true, onClick: () => actions.deleteRemoteBranch(remote!.remote, remote!.name) })
+    items.push({ icon: 'trash', label: `Delete ${remoteFull}`, danger: true, onClick: () => actions.deleteRemoteBranch(remote!.remote, remote!.name) })
   }
   if (branch && remote && remoteExists) {
-    items.push({ label: `Delete ${branch} and ${remoteFull}`, danger: true, disabled: isCurrent, onClick: () => actions.deleteBranchEverywhere(branch!, remote!.remote, remote!.name) })
+    items.push({ icon: 'trash', label: `Delete ${branch} and ${remoteFull}`, danger: true, disabled: isCurrent, onClick: () => actions.deleteBranchEverywhere(branch!, remote!.remote, remote!.name) })
   }
   items.push({ separator: true })
 
-  if (target) items.push({ label: 'Copy branch name', onClick: () => actions.copyText(branch ?? remote!.name, 'branch name') })
-  items.push({ label: 'Copy commit SHA', onClick: () => actions.copyHash(sha) })
+  if (target) items.push({ icon: 'copy', label: 'Copy branch name', onClick: () => actions.copyText(branch ?? remote!.name, 'branch name') })
+  items.push({ icon: 'copy', label: 'Copy commit SHA', onClick: () => actions.copyHash(sha) })
   if (host && remote && remoteExists) {
-    items.push({ label: `Copy link to branch: ${remoteFull}`, onClick: () => actions.copyText(branchUrl(host, remote!.name), 'branch link') })
+    items.push({ icon: 'copy', label: `Copy link to branch: ${remoteFull}`, onClick: () => actions.copyText(branchUrl(host, remote!.name), 'branch link') })
   }
-  if (host) items.push({ label: `Copy link to this commit on ${host.kind === 'azure' ? 'Azure DevOps' : host.kind === 'github' ? 'GitHub' : 'GitLab'}`, onClick: () => actions.copyText(commitUrl(host, sha), 'commit link') })
-  items.push({ label: 'Create patch from commit…', onClick: () => actions.savePatch(sha) }, { separator: true })
+  if (host) items.push({ icon: 'copy', label: `Copy link to this commit on ${host.kind === 'azure' ? 'Azure DevOps' : host.kind === 'github' ? 'GitHub' : 'GitLab'}`, onClick: () => actions.copyText(commitUrl(host, sha), 'commit link') })
+  items.push({ icon: 'file', label: 'Create patch from commit…', onClick: () => actions.savePatch(sha) }, { separator: true })
 
   const soloRefs: MenuItem[] = [
     ...locals.map((b) => ({ label: b, onClick: () => actions.soloRefs([`refs/heads/${b}`]) })),
@@ -207,13 +208,13 @@ export function buildRefMenu({ sha, refs, focus, repoRefs, host, actions, filter
     ...remotes.map((r) => ({ label: `${r.remote}/${r.name}`, onClick: () => actions.hideRef(`refs/remotes/${r.remote}/${r.name}`) })),
     ...tags.map((t) => ({ label: t, hint: 'tag', onClick: () => actions.hideRef(`refs/tags/${t}`) }))
   ]
-  items.push({ label: 'Solo', items: soloRefs }, { label: 'Hide', items: hideRefs })
+  items.push({ icon: 'eye', label: 'Solo', items: soloRefs }, { icon: 'eyeOff', label: 'Hide', items: hideRefs })
   if (filtered) items.push({ label: 'Show all branches', onClick: () => actions.showAllRefs() })
   items.push({ separator: true })
 
   items.push(
-    { label: 'Create tag here…', onClick: () => actions.createTag(sha, false) },
-    { label: 'Create annotated tag here…', onClick: () => actions.createTag(sha, true) }
+    { icon: 'tag', label: 'Create tag here…', onClick: () => actions.createTag(sha, false) },
+    { icon: 'tag', label: 'Create annotated tag here…', onClick: () => actions.createTag(sha, true) }
   )
   const tagRemote = remote?.remote ?? repoRefs.remotes[0]?.remote ?? 'origin'
   const tagFocus = focus?.kind === 'tag' ? [focus.name] : tags
@@ -221,11 +222,11 @@ export function buildRefMenu({ sha, refs, focus, repoRefs, host, actions, filter
     items.push({
       label: `Tag ${t}`,
       items: [
-        { label: `Push to ${tagRemote}`, onClick: () => actions.pushTag(tagRemote, t) },
-        { label: 'Copy tag name', onClick: () => actions.copyText(t, 'tag name') },
+        { icon: 'push', label: `Push to ${tagRemote}`, onClick: () => actions.pushTag(tagRemote, t) },
+        { icon: 'copy', label: 'Copy tag name', onClick: () => actions.copyText(t, 'tag name') },
         { separator: true },
-        { label: 'Delete locally', danger: true, onClick: () => actions.deleteTag(t) },
-        { label: `Delete from ${tagRemote}`, danger: true, onClick: () => actions.deleteRemoteTag(tagRemote, t) }
+        { icon: 'trash', label: 'Delete locally', danger: true, onClick: () => actions.deleteTag(t) },
+        { icon: 'trash', label: `Delete from ${tagRemote}`, danger: true, onClick: () => actions.deleteRemoteTag(tagRemote, t) }
       ]
     })
   }

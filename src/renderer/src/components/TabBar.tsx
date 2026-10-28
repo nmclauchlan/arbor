@@ -4,6 +4,7 @@ import type { MenuItem } from './ContextMenu'
 import type { Tab, TabGroup } from '../tabs'
 import { GroupColorDialog } from './GroupColorDialog'
 import { copyToClipboard, revealInFolder, revealLabel } from '../util'
+import { Icon } from './Icon'
 
 type DropHint = { path: string; after: boolean } | { group: string; after?: boolean } | null
 type Dragging = { kind: 'tab'; path: string } | { kind: 'group'; id: string } | null
@@ -299,7 +300,9 @@ export function TabBar({
         ) : (
           <span className="count">{count}</span>
         )}
-        <span className="caret">{isOpen ? '▴' : '▾'}</span>
+        <span className="caret">
+          <Icon name={isOpen ? 'chevronUp' : 'chevronDown'} size={12} />
+        </span>
       </div>
     )
   }
@@ -374,7 +377,7 @@ export function TabBar({
       </div>
       {overflowing && (
         <div className="tab tab-overflow" title="All tabs" onClick={allTabsMenu}>
-          ⌄
+          <Icon name="chevronDown" size={14} />
         </div>
       )}
       <div className="tab tab-add" title="Open, clone or create a group" onClick={addMenu}>
@@ -404,7 +407,7 @@ export function TabBar({
             </button>
             <span className="name">{open.name}</span>
             <button className="icon" title="Group options" onClick={(e) => groupMenu(e, open)}>
-              ⋯
+              <Icon name="more" size={14} />
             </button>
           </div>
           {openMembers.map((t) => (

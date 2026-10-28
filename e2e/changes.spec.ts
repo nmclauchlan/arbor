@@ -84,7 +84,7 @@ test('clicking a changed file previews its diff in the main view', async () => {
     await v.locator('.file-item', { hasText: 'notes.md' }).dblclick()
     await expect(v.locator('.file-viewer .cm-editor')).toBeVisible()
     await page.keyboard.press('Escape')
-    await v.locator('.file-viewer-bar > button', { hasText: '✕ Close' }).click()
+    await v.locator('.file-viewer-bar > button', { hasText: 'Close' }).click()
     await v.locator('.commit-row', { hasText: 'Initial' }).click()
     const committed = v.locator('.panel .file-item', { hasText: 'notes.md' })
     await committed.click()

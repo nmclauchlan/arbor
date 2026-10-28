@@ -2,6 +2,7 @@ import { useEffect, useId, useRef, useState, type CSSProperties, type FormEvent 
 import { createPortal } from 'react-dom'
 import type { TabGroup } from '../tabs'
 import { GROUP_COLOR_PALETTES, normalizeGroupColor, paletteFromColorHuntUrl } from '../tabColors'
+import { Icon } from './Icon'
 
 type Palette = { name: string; colors: readonly string[]; source: string }
 
@@ -125,7 +126,9 @@ export function GroupColorDialog({
             title={value.toUpperCase()}
             onClick={() => chooseColor(value)}
           >
-            {color === value && <span className="group-color-selected" aria-hidden="true">✓</span>}
+            {color === value && <span className="group-color-selected" aria-hidden="true">
+                  <Icon name="check" size={14} />
+                </span>}
           </button>
         ))}
       </div>
@@ -156,7 +159,9 @@ export function GroupColorDialog({
             <h3 id={`${id}-title`}>Group color</h3>
             <p id={`${id}-description`}>Give {group.name} a color of its own.</p>
           </div>
-          <button type="button" className="icon" aria-label="Close group color dialog" onClick={onClose}>✕</button>
+          <button type="button" className="icon" aria-label="Close group color dialog" onClick={onClose}>
+            <Icon name="close" />
+          </button>
         </header>
 
         <div className="group-color-body">
@@ -165,7 +170,9 @@ export function GroupColorDialog({
               <span className="group-color-label">Preview</span>
               <span className="tab-group group-color-preview" style={{ '--group-color': previewColor } as CSSProperties}>
                 <span className="group-color-preview-name">{group.name}</span>
-                <span className="caret" aria-hidden="true">⌄</span>
+                <span className="caret" aria-hidden="true">
+              <Icon name="chevronDown" size={12} />
+            </span>
               </span>
             </div>
             <div className="group-color-fields">

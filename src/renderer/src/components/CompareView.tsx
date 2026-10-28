@@ -4,6 +4,7 @@ import { DiffView } from './DiffView'
 import { FileList, FileViewToggle } from './FileList'
 import { Loading } from './Spinner'
 import { errorMessage, formatDate, shortHash } from '../util'
+import { Icon } from './Icon'
 
 export interface CompareRequest {
   from: string
@@ -121,7 +122,7 @@ export function CompareView({
             aria-label="Swap sides"
             onClick={() => onChange({ ...request, from: to, to: from, fromLabel: toLabel, toLabel: fromLabel })}
           >
-            ⇄
+            <Icon name="swap" size={14} />
           </button>
         )}
         <span className="spacer" />
@@ -148,7 +149,8 @@ export function CompareView({
           </span>
         )}
         <button onClick={onClose} title="Back to the commit graph (Esc)">
-          ✕ Close
+          <Icon name="close" size={14} />
+          Close
         </button>
       </div>
       {error ? (

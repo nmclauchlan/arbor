@@ -3,6 +3,7 @@ import type { RepoInfo, RepoSummary } from '@shared/types'
 import { parentName, revealLabel } from '../util'
 import { Spinner } from './Spinner'
 import { AppVersion, UpdateNotice } from './UpdateNotice'
+import { Icon } from './Icon'
 
 type SectionId = 'open' | 'favorites' | 'recent'
 
@@ -32,34 +33,6 @@ function save(key: string, value: unknown): void {
   }
 }
 
-const Icon = {
-  star: (filled: boolean) => (
-    <svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true" fill={filled ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth="1.3" strokeLinejoin="round">
-      <path d="m8 1.8 1.9 3.9 4.3.6-3.1 3 .7 4.3L8 11.6l-3.8 2 .7-4.3-3.1-3 4.3-.6Z" />
-    </svg>
-  ),
-  open: (
-    <svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M9 2.5h4.5V7M13.5 2.5 7.5 8.5M12 9.5v4H2.5V4h4" />
-    </svg>
-  ),
-  folder: (
-    <svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinejoin="round">
-      <path d="M1.5 4.5v-1h4.2l1.3 1.5h7.5v8h-13Z" />
-    </svg>
-  ),
-  close: (
-    <svg viewBox="0 0 16 16" width="13" height="13" aria-hidden="true" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round">
-      <path d="m4 4 8 8M12 4l-8 8" />
-    </svg>
-  ),
-  chevron: (open: boolean) => (
-    <svg viewBox="0 0 16 16" width="12" height="12" aria-hidden="true" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" style={{ transform: open ? 'none' : 'rotate(-90deg)' }}>
-      <path d="m4 6 4 4 4-4" />
-    </svg>
-  )
-}
-
 function BranchCell({ s, wip }: { s: RepoSummary | undefined; wip: boolean }): React.JSX.Element {
   if (!s) return <span className="muted"><Spinner /></span>
   if (!s.exists) return <span className="repo-missing">Folder not found</span>
@@ -74,8 +47,12 @@ function BranchCell({ s, wip }: { s: RepoSummary | undefined; wip: boolean }): R
       {s.ahead > 0 && <span className="repo-chip ahead" title={`${s.ahead} commit${s.ahead === 1 ? '' : 's'} ahead of ${s.upstream}`}>↑{s.ahead}</span>}
       {wip && c && (c.staged + c.modified > 0 || c.untracked > 0 || c.conflicted > 0) && (
         <span className="repo-chip changes" title={`${c.staged} staged, ${c.modified} modified, ${c.untracked} new${c.conflicted ? `, ${c.conflicted} conflicted` : ''}`}>
-          {c.conflicted > 0 && <span className="conflicted">⚠ {c.conflicted}</span>}
-          {c.staged + c.modified > 0 && <span>✎ {c.staged + c.modified}</span>}
+          {c.conflicted > 0 && <span className="conflicted">
+              <Icon name="warning" size={12} /> {c.conflicted}
+            </span>}
+          {c.staged + c.modified > 0 && <span>
+              <Icon name="edit" size={12} /> {c.staged + c.modified}
+            </span>}
           {c.untracked > 0 && <span className="added">+ {c.untracked}</span>}
         </span>
       )}
@@ -296,7 +273,7 @@ export function RepoManager({
           <section key={sec.id} className="repo-section" aria-labelledby={`sec-${sec.id}`}>
             <div className="repo-section-head">
               <button className="icon repo-section-toggle" aria-expanded={!collapsed[sec.id]} onClick={() => toggleSection(sec.id)} id={`sec-${sec.id}`}>
-                {Icon.chevron(!collapsed[sec.id])}
+                <Icon name={collapsed[sec.id] ? 'chevronRight' : 'chevronDown'} size={12} />
                 <span>{sec.title}</span>
                 <span className="count">{sec.entries.length}</span>
               </button>
@@ -329,13 +306,13 @@ export function RepoManager({
                           aria-label={favoriteSet.has(e.path) ? `Unfavorite ${e.name}` : `Favorite ${e.name}`}
                           onClick={() => onToggleFavorite(e)}
                         >
-                          {Icon.star(favoriteSet.has(e.path))}
+                          <Icon name={favoriteSet.has(e.path) ? 'starFilled' : 'star'} size={14} />
                         </button>
                         <button className="icon" title={openSet.has(e.path) ? 'Switch to tab' : 'Open in a tab'} aria-label={`Open ${e.name}`} onClick={() => onOpen([e.path])}>
-                          {Icon.open}
+                          <Icon name="external" size={14} />
                         </button>
                         <button className="icon" title={revealLabel()} aria-label={`${revealLabel()}: ${e.name}`} onClick={() => onReveal(e.path)}>
-                          {Icon.folder}
+                          <Icon name="folder" size={14} />
                         </button>
                         <button
                           className="icon"
@@ -343,7 +320,7 @@ export function RepoManager({
                           aria-label={`${sec.id === 'open' ? 'Close' : 'Remove'} ${e.name}`}
                           onClick={() => (sec.id === 'open' ? onClose([e.path]) : sec.id === 'favorites' ? onToggleFavorite(e) : onRemoveRecent([e.path]))}
                         >
-                          {Icon.close}
+                          <Icon name="close" size={13} />
                         </button>
                       </span>
                     </div>

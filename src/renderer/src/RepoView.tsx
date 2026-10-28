@@ -550,9 +550,18 @@ export function RepoView({
       },
       stash: (paths) => setStashing({ paths }),
       stashPop: (index) =>
-        run('Popping stash', () =>
-          conflictAware(() => window.git.stashPop(path, index), 'The stash conflicts with your changes. Resolve the conflicts; the stash has been kept.')
-        ),
+        run('Popping stash', async () => {
+          let conflicted = false
+          await conflictAware(async () => {
+            try {
+              await window.git.stashPop(path, index)
+            } catch (e) {
+              conflicted = /CONFLICT/.test(errorMessage(e))
+              throw e
+            }
+          }, 'The stash conflicts with your changes. Resolve the conflicts; the stash has been kept.')
+          if (!conflicted) shell.showInfo(`Popped stash@{${index}}`)
+        }),
       stashApply: (index) =>
         run('Applying stash', () => conflictAware(() => window.git.stashApply(path, index), 'The stash conflicts with your changes. Resolve the conflicts.'), `Applied stash@{${index}}`),
       stashBranch: async (index) => {

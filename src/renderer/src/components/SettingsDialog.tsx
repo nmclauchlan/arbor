@@ -6,6 +6,7 @@ import { PULL_LABELS, SETTINGS_DEFAULTS, SETTINGS_LIMITS, setSettings, useSettin
 import { setTheme, THEMES, useTheme } from '../themes'
 import { errorMessage } from '../util'
 import { UpdateNotice } from './UpdateNotice'
+import { Icon } from './Icon'
 
 function Accounts({ suggestBaseUrl }: { suggestBaseUrl?: string }): React.JSX.Element {
   const [accounts, setAccounts] = useState<HostAccount[]>([])
@@ -160,7 +161,9 @@ export function SettingsDialog({ onClose, suggestBaseUrl }: { onClose: () => voi
         <div className="settings-head">
           <h3>Settings</h3>
           <span className="muted">Arbor {version}</span>
-          <button className="icon" onClick={onClose} title="Close (Esc)">✕</button>
+          <button className="icon" onClick={onClose} title="Close (Esc)" aria-label="Close">
+            <Icon name="close" />
+          </button>
         </div>
 
         <section className="settings-section">

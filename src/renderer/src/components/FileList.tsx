@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react'
 import type { StatusFile } from '@shared/types'
 import { setFileView, useFileView } from '../fileView'
+import { Icon } from './Icon'
 
 export function FileRow({
   file,
@@ -165,8 +166,12 @@ export function FileList({
           onContextMenu={onContextMenu ? (e) => onContextMenu(e, collectFiles(dir), dir.path) : undefined}
           title={dir.path}
         >
-          <span className="chevron">{open ? '▾' : '▸'}</span>
-          <span className="folder">▭</span>
+          <span className="chevron">
+            <Icon name={open ? 'chevronDown' : 'chevronRight'} size={12} />
+          </span>
+          <span className="folder">
+            <Icon name="folder" size={14} />
+          </span>
           <span className="name">{dir.name}</span>
         </div>
       )

@@ -7,6 +7,7 @@ import { Markdown } from './Markdown'
 import { canEdit, type FileViewRequest } from './FileViewer'
 import { copyToClipboard, formatFullDate, revealInFolder, revealLabel, shortHash } from '../util'
 import type { Shell } from '../actions'
+import { Icon } from './Icon'
 
 export function CommitPanel({
   repoPath,
@@ -104,7 +105,9 @@ export function CommitPanel({
           actions={(f) =>
             canEdit(f) ? (
               <span className="actions" onClick={(e) => e.stopPropagation()}>
-                <button title="Edit working copy" onClick={() => view(f, 'edit')}>✎</button>
+                <button title="Edit working copy" aria-label="Edit working copy" onClick={() => view(f, 'edit')}>
+                  <Icon name="edit" size={14} />
+                </button>
               </span>
             ) : null
           }

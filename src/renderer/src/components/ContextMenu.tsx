@@ -1,5 +1,6 @@
 import { createContext, useContext, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
+import { Icon, type IconName } from './Icon'
 
 const LayerContext = createContext<HTMLElement | null>(null)
 
@@ -12,6 +13,7 @@ export interface MenuItem {
   items?: MenuItem[]
   hint?: string
   checked?: boolean
+  icon?: IconName
 }
 
 export interface MenuState {
@@ -37,6 +39,7 @@ function MenuList({ items, onClose, nested }: { items: MenuItem[]; onClose: () =
   const timer = useRef<number | undefined>(undefined)
   const list = compact(items)
   const ticks = list.some((i) => i.checked !== undefined)
+  const icons = !ticks && list.some((i) => i.icon)
 
   useEffect(() => () => window.clearTimeout(timer.current), [])
 
@@ -71,12 +74,17 @@ function MenuList({ items, onClose, nested }: { items: MenuItem[]; onClose: () =
           >
             {ticks && (
               <span className="check" aria-hidden="true">
-                {item.checked ? '✓' : ''}
+                {item.checked && <Icon name="check" size={13} />}
               </span>
             )}
+            {icons && <span className="menu-icon">{item.icon && <Icon name={item.icon} size={14} />}</span>}
             <span className="label">{item.label}</span>
             {item.hint && <span className="hint">{item.hint}</span>}
-            {item.items && <span className="chev">›</span>}
+            {item.items && (
+              <span className="chev">
+                <Icon name="chevronRight" size={12} />
+              </span>
+            )}
             {item.items && openSub === i && <Submenu items={item.items} onClose={onClose} index={i} />}
           </div>
         )

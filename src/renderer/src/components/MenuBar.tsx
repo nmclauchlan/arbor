@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import { Icon } from './Icon'
 
 export type MenuEntry =
   | { label: string; shortcut?: string; onSelect: () => void; disabled?: boolean; checked?: boolean }
@@ -66,7 +67,7 @@ export function MenuBar({ menus }: { menus: MenuDef[] }): React.JSX.Element {
                       item.onSelect()
                     }}
                   >
-                    <span className="check">{item.checked ? '✓' : ''}</span>
+                    <span className="check">{item.checked && <Icon name="check" size={13} />}</span>
                     <span className="label">{item.label}</span>
                     {item.shortcut && <span className="shortcut">{item.shortcut}</span>}
                   </button>

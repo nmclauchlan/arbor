@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { Loading } from './Spinner'
 import type { HostAccount, HostRepo } from '@shared/types'
 import { errorMessage, formatDate, hostName } from '../util'
+import { Icon } from './Icon'
 
 const DIR_KEY = 'arbor.cloneDir'
 const PROTO_KEY = 'arbor.cloneProtocol'
@@ -121,7 +122,9 @@ export function CloneDialog({
       <div className="dialog clone-dialog" onMouseDown={(e) => e.stopPropagation()}>
         <div className="settings-head">
           <h3>Clone repository</h3>
-          <button className="icon" onClick={onClose} disabled={busy} title="Close (Esc)">✕</button>
+          <button className="icon" onClick={onClose} disabled={busy} title="Close (Esc)" aria-label="Close">
+            <Icon name="close" />
+          </button>
         </div>
 
         <div className="clone-tabs">
