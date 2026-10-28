@@ -1,3 +1,4 @@
+import type { RebaseAction } from '@shared/types'
 import type { MenuItem } from './components/ContextMenu'
 
 export interface Shell {
@@ -35,6 +36,7 @@ export interface Actions extends Shell {
   setUpstream(branch: string): void
   fastForward(target: string): void
   rebase(onto: string): void
+  interactiveRebase(base: string, preset?: Record<string, RebaseAction>): void
   renameBranch(branch: string): void
   deleteRemoteBranch(remote: string, branch: string): void
   deleteBranchEverywhere(branch: string, remote: string, remoteBranch: string): void

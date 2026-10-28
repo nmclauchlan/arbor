@@ -4,7 +4,7 @@ import type { GitApi, GitMethod, HostApi, MainSettings, SettingsApi, UpdateStatu
 const methods: GitMethod[] = [
   'selectRepos', 'selectFolder', 'clone', 'gitVersion', 'initialRepo', 'openRepo', 'recentRepos', 'log', 'searchCommits', 'refs', 'status', 'stage', 'applyPatch', 'unstage', 'discard',
   'commit', 'fileDiff', 'commitDetails', 'commitFileDiff', 'fileHistory', 'blame', 'checkout', 'createBranch', 'deleteBranch',
-  'fetch', 'pull', 'pullFastForward', 'updateBranch', 'pushBranch', 'setUpstream', 'fastForward', 'rebase', 'renameBranch',
+  'fetch', 'pull', 'pullFastForward', 'updateBranch', 'pushBranch', 'setUpstream', 'fastForward', 'rebase', 'rebaseCommits', 'interactiveRebase', 'renameBranch',
   'deleteRemoteBranch', 'createTag', 'deleteTag', 'pushTag', 'deleteRemoteTag', 'addWorktree', 'savePatch', 'undoInfo', 'undo', 'redo', 'repoSummary', 'initRepo', 'removeRecent', 'clearRecent', 'backgroundFetch', 'incoming', 'push', 'merge', 'stashPush', 'stashPop', 'stashDrop', 'resetTo', 'cherryPick', 'revert', 'readFile', 'writeFile',
   'imageDiff', 'resolveFile', 'abortOperation', 'continueOperation'
 ]

@@ -1,10 +1,10 @@
 import { simpleGit, SimpleGit } from 'simple-git'
-import { readFile, writeFile, access, rm } from 'fs/promises'
+import { readFile, writeFile, access, rm, mkdtemp } from 'fs/promises'
 import { tmpdir } from 'os'
 import { basename, join } from 'path'
 import { getSettings } from './settings'
 import {
-  type BlameResult, type CommitSearchMode, type FileHistoryEntry,
+  type RebaseCommit, type RebaseStep, type BlameResult, type CommitSearchMode, type FileHistoryEntry,
   imageMime,
   type Commit, type CommitDetails, type FileChange, type ImageDiffResult, type ImageSource,
   type OperationState, type IncomingUpstream, type Ref, type RepoSummary, type GraphFilter, type RepoInfo, type RepoRefs, type RepoStatus, type StatusFile
@@ -693,6 +693,84 @@ export async function fastForward(path: string, target: string): Promise<void> {
 export async function rebase(path: string, onto: string): Promise<void> {
   try {
     await git(path).raw(['rebase', onto])
+  } catch (e) {
+    await failOnConflict(path, 'Rebase')
+    throw e
+  }
+  await failOnConflict(path, 'Rebase')
+}
+
+export async function rebaseCommits(path: string, base: string): Promise<RebaseCommit[]> {
+  const g = git(path)
+  const onBranch = await g.raw(['merge-base', '--is-ancestor', base, 'HEAD']).then(
+    () => true,
+    () => false
+  )
+  if (!onBranch) throw new Error("That commit isn't in the current branch's history")
+  const out = await g.raw(['log', '--reverse', `--format=${RECORD}%H${FIELD}%P${FIELD}%an${FIELD}%at${FIELD}%s${FIELD}%B`, `${base}..HEAD`])
+  return out
+    .split(RECORD)
+    .filter((c) => c.trim())
+    .map((chunk) => {
+      const [hash, parents, author, at, subject, message] = chunk.split(FIELD)
+      return {
+        hash: hash.trim(),
+        merge: parents.trim().split(' ').filter(Boolean).length > 1,
+        author,
+        date: Number(at) * 1000,
+        subject,
+        message: (message ?? '').replace(/\s+$/, '')
+      }
+    })
+}
+
+const shQuote = (s: string): string => `'${s.replace(/'/g, `'\\''`)}'`
+
+// Squash messages are built here rather than in git's editor buffer, whose comment stripping would drop "#123 ..." subject lines.
+export async function interactiveRebase(path: string, base: string, steps: RebaseStep[]): Promise<void> {
+  const kept = steps.filter((s) => s.action !== 'drop')
+  if (!kept.length) throw new Error('Keep at least one commit')
+  if (kept[0].action === 'squash' || kept[0].action === 'fixup') throw new Error('The first commit has nothing to fold into')
+  if (steps.some((s) => !/^[0-9a-f]{40}$/i.test(s.hash))) throw new Error('Unknown commit in the rebase plan')
+  const g = git(path)
+  const dir = await mkdtemp(join(tmpdir(), 'arbor-rebase-'))
+  const slash = (p: string): string => p.replace(/\\/g, '/')
+  const messageOf = async (hash: string): Promise<string> => (await g.raw(['log', '-1', '--format=%B', hash])).replace(/\s+$/, '')
+  const todo: string[] = []
+  for (let i = 0; i < steps.length; i++) {
+    const head = steps[i]
+    if (head.action === 'drop') {
+      todo.push(`drop ${head.hash}`)
+      continue
+    }
+    todo.push(`pick ${head.hash}`)
+    const extra: string[] = []
+    let rewrite = head.action === 'reword'
+    let j = i + 1
+    for (; j < steps.length && steps[j].action !== 'pick' && steps[j].action !== 'reword'; j++) {
+      const s = steps[j]
+      if (s.action === 'drop') {
+        todo.push(`drop ${s.hash}`)
+        continue
+      }
+      todo.push(`fixup ${s.hash}`)
+      if (s.action === 'squash') {
+        rewrite = true
+        extra.push(await messageOf(s.hash))
+      }
+    }
+    i = j - 1
+    if (!rewrite) continue
+    const first = head.action === 'reword' ? (head.message ?? '').trim() : await messageOf(head.hash)
+    const file = join(dir, `message-${todo.length}.txt`)
+    await writeFile(file, [first, ...extra].join('\n\n') + '\n')
+    todo.push(`exec git commit --amend --allow-empty --quiet --cleanup=whitespace -F ${shQuote(slash(file))}`)
+  }
+  const todoFile = join(dir, 'todo')
+  await writeFile(todoFile, todo.join('\n') + '\n')
+  const env = { GIT_SEQUENCE_EDITOR: `cp ${shQuote(slash(todoFile))}`, GIT_EDITOR: 'true' }
+  try {
+    await gitWithEnv(env, path).raw(['rebase', '-i', '--autostash', '--no-autosquash', base])
   } catch (e) {
     await failOnConflict(path, 'Rebase')
     throw e

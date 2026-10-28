@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import type { Commit, CommitBuild, CommitSearchMode, GraphFilter, HostInfo, PullRequest, RepoInfo, RepoRefs, RepoStatus, UndoInfo } from '@shared/types'
+import type { Commit, CommitBuild, CommitSearchMode, GraphFilter, RebaseAction, RebaseStep, HostInfo, PullRequest, RepoInfo, RepoRefs, RepoStatus, UndoInfo } from '@shared/types'
 import { CreatePrDialog } from './components/CreatePrDialog'
 import { Loading } from './components/Spinner'
 import { buildRefMenu, type FocusRef } from './refMenu'
@@ -7,6 +7,7 @@ import { PrPanel } from './components/PrPanel'
 import type { Actions, Shell } from './actions'
 import { CommitList } from './components/CommitList'
 import { CommitSearch } from './components/CommitSearch'
+import { RebaseDialog } from './components/RebaseDialog'
 import { CommitPanel } from './components/CommitPanel'
 import { FileViewer, type FileViewRequest } from './components/FileViewer'
 import { Sidebar } from './components/Sidebar'
@@ -48,6 +49,7 @@ export function RepoView({
   const [searchHits, setSearchHits] = useState<string[]>([])
   const [searching, setSearching] = useState(false)
   const rowsRef = useRef<Commit[]>([])
+  const [rebasing, setRebasing] = useState<{ base: string; preset?: Record<string, RebaseAction> } | null>(null)
   const [busy, setBusy] = useState<string | null>(null)
   const [viewing, setViewing] = useState<FileViewRequest | null>(null)
   const [undoInfo, setUndoInfo] = useState<UndoInfo>({ undo: null, redo: null })
@@ -494,6 +496,7 @@ export function RepoView({
           })
           if (!conflicted) shell.showInfo(`Rebased onto ${onto}`)
         }),
+      interactiveRebase: (base, preset) => setRebasing({ base, preset }),
       renameBranch: async (branch) => {
         const name = await shell.prompt('Rename branch', `New name for ${branch}`, branch)
         if (name && name !== branch) run('Renaming branch', () => window.git.renameBranch(path, branch, name), `Renamed ${branch} to ${name}`)
@@ -576,9 +579,45 @@ export function RepoView({
   )
   actionsRef.current = actions
 
+  const headLine = useMemo(() => {
+    const byHash = new Map(commits.map((c) => [c.hash, c]))
+    const reachable = new Set<string>()
+    const stack = refs?.headHash ? [refs.headHash] : []
+    while (stack.length) {
+      const h = stack.pop()!
+      const c = byHash.get(h)
+      if (!c || reachable.has(h)) continue
+      reachable.add(h)
+      stack.push(...c.parents)
+    }
+    return { byHash, reachable }
+  }, [commits, refs?.headHash])
+
+  const startRebase = (base: string, steps: RebaseStep[]): void =>
+    void run('Rebasing', async () => {
+      let conflicted = false
+      await conflictAware(async () => {
+        try {
+          await window.git.interactiveRebase(path, base, steps)
+        } catch (e) {
+          conflicted = /CONFLICT|could not apply/i.test(errorMessage(e))
+          throw e
+        }
+      })
+      if (!conflicted) shell.showInfo(`Rebased ${steps.length} commit${steps.length === 1 ? '' : 's'}`)
+    })
+
   const commitMenu = (c: Commit, e: React.MouseEvent, focus?: FocusRef | null): void => {
     if (!refs) return
-    actions.openMenu(e, buildRefMenu({ sha: c.hash, refs: c.refs, focus, repoRefs: refs, host, actions, filtered }))
+    const parent = c.parents[0]
+    const history = {
+      onHeadBranch: headLine.reachable.has(c.hash),
+      isHead: c.hash === refs.headHash,
+      merge: c.parents.length > 1,
+      parent,
+      grandparent: parent ? headLine.byHash.get(parent)?.parents[0] : undefined
+    }
+    actions.openMenu(e, buildRefMenu({ sha: c.hash, refs: c.refs, focus, repoRefs: refs, host, actions, filtered, history }))
   }
 
   const searchQuery = search?.query.trim() ?? ''
@@ -740,6 +779,15 @@ export function RepoView({
         <div className="panel">
           {refs && !commits.length ? <div className="center">No commits yet</div> : <Loading />}
         </div>
+      )}
+      {rebasing && (
+        <RebaseDialog
+          repoPath={path}
+          base={rebasing.base}
+          preset={rebasing.preset}
+          onStart={(steps) => startRebase(rebasing.base, steps)}
+          onClose={() => setRebasing(null)}
+        />
       )}
       {creatingPr && host && refs && (
         <CreatePrDialog

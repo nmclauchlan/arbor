@@ -34,9 +34,10 @@ export interface RefMenuInput {
   host: HostInfo | null
   actions: Actions
   filtered: boolean
+  history?: { onHeadBranch: boolean; isHead: boolean; merge: boolean; parent?: string; grandparent?: string }
 }
 
-export function buildRefMenu({ sha, refs, focus, repoRefs, host, actions, filtered }: RefMenuInput): MenuItem[] {
+export function buildRefMenu({ sha, refs, focus, repoRefs, host, actions, filtered, history }: RefMenuInput): MenuItem[] {
   const current = repoRefs.branches.find((b) => b.current) ?? null
   const cur = current?.name ?? null
   const locals = refs.filter((r) => r.kind === 'branch').map((r) => r.name)
@@ -118,6 +119,17 @@ export function buildRefMenu({ sha, refs, focus, repoRefs, host, actions, filter
     { label: 'Revert commit', onClick: () => actions.revert(sha) },
     { separator: true }
   )
+
+  if (history?.onHeadBranch && !history.merge) {
+    const { parent, grandparent, isHead } = history
+    items.push(
+      { label: 'Reword commit message…', disabled: !parent, onClick: () => actions.interactiveRebase(parent!, { [sha]: 'reword' }) },
+      { label: 'Squash into parent commit', disabled: !grandparent, onClick: () => actions.interactiveRebase(grandparent!, { [sha]: 'squash' }) },
+      { label: 'Drop commit…', danger: true, disabled: !parent, onClick: () => actions.interactiveRebase(parent!, { [sha]: 'drop' }) },
+      { label: 'Interactive rebase from here…', disabled: isHead, onClick: () => actions.interactiveRebase(sha) },
+      { separator: true }
+    )
+  }
 
   if (host && remoteExists && remote) {
     const noun = host.kind === 'gitlab' ? 'merge request' : 'pull request'

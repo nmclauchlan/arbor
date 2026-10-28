@@ -89,6 +89,23 @@ export interface Stash {
 
 export type CommitSearchMode = 'all' | 'message' | 'author' | 'sha' | 'file' | 'code'
 
+export type RebaseAction = 'pick' | 'reword' | 'squash' | 'fixup' | 'drop'
+
+export interface RebaseCommit {
+  hash: string
+  subject: string
+  message: string
+  author: string
+  date: number
+  merge: boolean
+}
+
+export interface RebaseStep {
+  hash: string
+  action: RebaseAction
+  message?: string
+}
+
 export interface FileHistoryEntry {
   hash: string
   author: string
@@ -173,6 +190,8 @@ export interface GitApi {
   setUpstream(path: string, branch: string, upstream: string): Promise<void>
   fastForward(path: string, target: string): Promise<void>
   rebase(path: string, onto: string): Promise<void>
+  rebaseCommits(path: string, base: string): Promise<RebaseCommit[]>
+  interactiveRebase(path: string, base: string, steps: RebaseStep[]): Promise<void>
   renameBranch(path: string, from: string, to: string): Promise<void>
   deleteRemoteBranch(path: string, remote: string, branch: string): Promise<void>
   createTag(path: string, name: string, target: string, message: string | null): Promise<void>

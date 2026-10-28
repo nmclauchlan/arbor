@@ -389,6 +389,22 @@ textarea { resize: vertical; font-family: inherit; }
 .diff tr.hunk td { background: var(--bg-3); color: var(--accent); }
 .diff tr.meta td { color: var(--fg-dim); }
 .diff .placeholder { padding: 20px; color: var(--fg-faint); text-align: center; }
+.dialog.rebase-dialog { width: min(760px, 92vw); max-width: none; max-height: 86vh; display: flex; flex-direction: column; }
+.rebase-dialog > p { margin-top: 0; }
+.rebase-list { flex: 1; min-height: 120px; overflow-y: auto; border: 1px solid var(--border); border-radius: 6px; background: var(--bg); margin-bottom: 10px; }
+.rebase-row { padding: 5px 8px; border-bottom: 1px solid var(--border); }
+.rebase-row:last-child { border-bottom: none; }
+.rebase-row.dragging { opacity: 0.5; }
+.rebase-row.drop .subject { text-decoration: line-through; color: var(--fg-faint); }
+.rebase-row.squash, .rebase-row.fixup { padding-left: 28px; }
+.rebase-row-head { display: flex; align-items: center; gap: 8px; min-width: 0; font-size: 12.5px; }
+.rebase-row-head .grip { cursor: grab; color: var(--fg-faint); letter-spacing: -2px; user-select: none; }
+.rebase-row-head select { width: 96px; flex: none; }
+.rebase-row-head .sha { color: var(--accent); font-size: 11px; flex: none; }
+.rebase-row-head .subject { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.rebase-row-head .author { flex: none; max-width: 140px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 11.5px; }
+.rebase-row-head button.icon { padding: 0 5px; font-size: 10px; }
+.rebase-row textarea { display: block; width: calc(100% - 112px); margin: 6px 0 2px 112px; font-family: var(--mono); font-size: 12px; }
 .diff tr.hunk td:last-child { display: flex; align-items: center; gap: 8px; }
 .diff tr.hunk .hunk-text { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
 .diff .hunk-actions { display: inline-flex; gap: 4px; flex: none; font-family: 'Segoe UI', system-ui, sans-serif; }

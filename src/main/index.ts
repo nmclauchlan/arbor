@@ -201,6 +201,8 @@ const handlers: Handlers = {
   setUpstream: gitService.setUpstream,
   fastForward: (path, target) => journal.record(path, 'merge', `Fast-forward to ${shortRef(target)}`, () => gitService.fastForward(path, target)),
   rebase: (path, onto) => journal.record(path, 'merge', `Rebase onto ${shortRef(onto)}`, () => gitService.rebase(path, onto)),
+  rebaseCommits: gitService.rebaseCommits,
+  interactiveRebase: (path, base, steps) => journal.record(path, 'merge', 'Interactive rebase', () => gitService.interactiveRebase(path, base, steps)),
   renameBranch: gitService.renameBranch,
   deleteRemoteBranch: gitService.deleteRemoteBranch,
   createTag: gitService.createTag,
