@@ -81,11 +81,15 @@ export function Sidebar({
     const key = (e: KeyboardEvent): void => {
       if ((e.ctrlKey || e.metaKey) && e.key === 'b') {
         e.preventDefault()
-        setPanelCollapsed('sidebar', false)
-        requestAnimationFrame(() => {
+        const focus = (): void => {
           input.current?.focus()
           input.current?.select()
-        })
+        }
+        if (input.current?.offsetParent) focus()
+        else {
+          setPanelCollapsed('sidebar', false)
+          requestAnimationFrame(focus)
+        }
       }
     }
     window.addEventListener('keydown', key)
