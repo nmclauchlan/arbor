@@ -11,6 +11,7 @@ import { RebaseDialog } from './components/RebaseDialog'
 import { CommitPanel } from './components/CommitPanel'
 import { FileViewer, type FileViewRequest } from './components/FileViewer'
 import { CompareView, type CompareRequest } from './components/CompareView'
+import { StashDialog } from './components/StashDialog'
 import { Sidebar } from './components/Sidebar'
 import { Toolbar } from './components/Toolbar'
 import { WorkingTree } from './components/WorkingTree'
@@ -54,6 +55,7 @@ export function RepoView({
   const [busy, setBusy] = useState<string | null>(null)
   const [viewing, setViewing] = useState<FileViewRequest | null>(null)
   const [comparing, setComparing] = useState<CompareRequest | null>(null)
+  const [stashing, setStashing] = useState<{ paths?: string[] } | null>(null)
   const [undoInfo, setUndoInfo] = useState<UndoInfo>({ undo: null, redo: null })
   const undoRef = useRef(undoInfo)
   undoRef.current = undoInfo
@@ -344,10 +346,10 @@ export function RepoView({
       if (selected !== WIP_HASH) setSelected(WIP_HASH)
       return
     }
-    if (selected && rows.some((c) => c.hash === selected)) return
+    if (selected && (rows.some((c) => c.hash === selected) || refs?.stashes.some((s) => s.hash === selected))) return
     if (wantWip.current) return
     setSelected(rows[0].hash)
-  }, [rows, selected])
+  }, [rows, selected, refs?.stashes])
 
   const run = useCallback(
     async (label: string, fn: () => Promise<void>, successMessage?: string) => {
@@ -401,12 +403,12 @@ export function RepoView({
     }
   }
 
-  const conflictAware = async (fn: () => Promise<void>): Promise<void> => {
+  const conflictAware = async (fn: () => Promise<void>, note = 'There are conflicts to resolve'): Promise<void> => {
     try {
       await fn()
     } catch (e) {
       if (!/CONFLICT|could not apply/i.test(errorMessage(e))) throw e
-      shell.showInfo('There are conflicts to resolve')
+      shell.showInfo(note)
       wantWip.current = true
       setSelected(WIP_HASH)
     }
@@ -492,12 +494,18 @@ export function RepoView({
         const current = refs?.branches.find((b) => b.current)?.name === branch
         run('Pushing', () => leased(branch, () => (current ? window.git.push(path, false, true) : window.git.pushBranch(path, branch, true))), `Force pushed ${branch}`)
       },
-      stash: async () => {
-        const msg = await shell.prompt('Stash changes', 'Stash message', 'WIP')
-        if (msg === null) return
-        run('Stashing', () => window.git.stashPush(path, msg))
+      stash: (paths) => setStashing({ paths }),
+      stashPop: (index) =>
+        run('Popping stash', () =>
+          conflictAware(() => window.git.stashPop(path, index), 'The stash conflicts with your changes. Resolve the conflicts; the stash has been kept.')
+        ),
+      stashApply: (index) =>
+        run('Applying stash', () => conflictAware(() => window.git.stashApply(path, index), 'The stash conflicts with your changes. Resolve the conflicts.'), `Applied stash@{${index}}`),
+      stashBranch: async (index) => {
+        const name = (await shell.prompt('Create branch from stash', `Branch name (starts at the commit stash@{${index}} was made on)`))?.trim()
+        if (!name) return
+        run('Creating branch', () => window.git.stashBranch(path, index, name), `Created ${name} from stash@{${index}}`)
       },
-      stashPop: (index) => run('Popping stash', () => window.git.stashPop(path, index)),
       stashDrop: async (index) => {
         const ok = await shell.confirm('Drop stash', `Drop stash@{${index}}?`, true)
         if (ok) run('Dropping stash', () => window.git.stashDrop(path, index))
@@ -843,6 +851,17 @@ export function RepoView({
           preset={rebasing.preset}
           onStart={(steps) => startRebase(rebasing.base, steps)}
           onClose={() => setRebasing(null)}
+        />
+      )}
+      {stashing && (
+        <StashDialog
+          paths={stashing.paths}
+          onClose={() => setStashing(null)}
+          onStash={(options) => {
+            setStashing(null)
+            const n = options.paths?.length ?? 0
+            run('Stashing', () => window.git.stashPush(path, options), n ? `Stashed ${n === 1 ? options.paths![0] : `${n} files`}` : 'Stashed changes')
+          }}
         />
       )}
       {creatingPr && host && refs && (

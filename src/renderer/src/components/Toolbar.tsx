@@ -97,7 +97,7 @@ export function Toolbar({
       <button disabled={busy} aria-busy={busyLabel === 'Creating branch'} onClick={() => actions.createBranch('HEAD')} title="Create a branch at HEAD">
         ⑂ Branch
       </button>
-      <button disabled={busy} aria-busy={busyLabel === 'Stashing'} onClick={actions.stash} title="git stash push --include-untracked">
+      <button disabled={busy} aria-busy={busyLabel === 'Stashing'} onClick={() => actions.stash()} title="Stash your uncommitted changes">
         ▣ Stash
       </button>
       <button

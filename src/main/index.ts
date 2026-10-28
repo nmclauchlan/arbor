@@ -223,6 +223,8 @@ const handlers: Handlers = {
   },
   stashPush: gitService.stashPush,
   stashPop: gitService.stashPop,
+  stashApply: gitService.stashApply,
+  stashBranch: gitService.stashBranch,
   stashDrop: gitService.stashDrop,
   resetTo: (path, hash, mode) =>
     journal.record(path, 'reset', `Reset (${mode}) to ${shortRef(hash)}`, () => gitService.resetTo(path, hash, mode), { mode }),

@@ -109,8 +109,10 @@ export function WorkingTree({
       if (area === 'unstaged') {
         items.push({ label: `Stage ${noun}`, onClick: () => stage(paths) })
         items.push({ label: `Discard changes in ${noun}`, danger: true, onClick: () => discard(paths) })
+        items.push({ label: `Stash ${noun}…`, onClick: () => actions.stash(paths) })
       } else if (area === 'staged') {
         items.push({ label: `Unstage ${noun}`, onClick: () => unstage(paths) })
+        items.push({ label: `Stash ${noun}…`, onClick: () => actions.stash(paths) })
       } else {
         const takeAll = (side: 'ours' | 'theirs'): Promise<void> =>
           run(async () => {

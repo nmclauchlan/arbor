@@ -119,7 +119,9 @@ export function Sidebar({
   const stashMenu = (e: React.MouseEvent, s: Stash): void => {
     e.preventDefault()
     actions.openMenu(e, [
-      { label: 'Pop stash', onClick: () => actions.stashPop(s.index) },
+      { label: 'Apply stash', onClick: () => actions.stashApply(s.index) },
+      { label: 'Pop stash', hint: 'apply and drop', onClick: () => actions.stashPop(s.index) },
+      { label: 'Create branch from stash…', onClick: () => actions.stashBranch(s.index) },
       { separator: true },
       { label: 'Drop stash', danger: true, onClick: () => actions.stashDrop(s.index) }
     ])
@@ -268,7 +270,8 @@ export function Sidebar({
           <div
             key={s.index}
             className="ref-item"
-            title={s.message}
+            title={`stash@{${s.index}}: ${s.message}\nClick to see its changes, double-click to pop`}
+            onClick={() => actions.selectHash(s.hash)}
             onDoubleClick={() => actions.stashPop(s.index)}
             onContextMenu={(e) => stashMenu(e, s)}
           >

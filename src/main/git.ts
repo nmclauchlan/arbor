@@ -5,7 +5,7 @@ import { basename, join } from 'path'
 import { getSettings } from './settings'
 import {
   type RebaseCommit, type RebaseStep, type BlameResult, type CommitSearchMode, type FileHistoryEntry,
-  type CompareCommit, type CompareMode, type CompareSummary,
+  type CompareCommit, type CompareMode, type CompareSummary, type StashOptions,
   imageMime,
   type Commit, type CommitDetails, type FileChange, type ImageDiffResult, type ImageSource,
   type OperationState, type IncomingUpstream, type Ref, type RepoSummary, type GraphFilter, type RepoInfo, type RepoRefs, type RepoStatus, type StatusFile
@@ -396,6 +396,13 @@ function parseNameStatus(out: string): StatusFile[] {
   return files
 }
 
+// A stash made with --include-untracked keeps its untracked files in a parentless third parent.
+async function stashUntracked(g: SimpleGit, parents: string[]): Promise<string | null> {
+  if (parents.length !== 3) return null
+  const [own, subject = ''] = (await g.raw(['log', '-1', `--format=%P${FIELD}%s`, parents[2]])).trim().split(FIELD)
+  return !own && subject.startsWith('untracked files on ') ? parents[2] : null
+}
+
 export async function commitDetails(path: string, hash: string): Promise<CommitDetails> {
   const g = git(path)
   const format = ['%H', '%P', '%an', '%ae', '%at', '%s', '%b'].join(FIELD)
@@ -404,6 +411,8 @@ export async function commitDetails(path: string, hash: string): Promise<CommitD
   const parentList = parents ? parents.split(' ').filter(Boolean) : []
   const base = parentList[0] ?? EMPTY_TREE
   const files = parseNameStatus(await g.raw(['diff', '--name-status', '-z', '-M', base, hash]))
+  const untracked = await stashUntracked(g, parentList)
+  if (untracked) files.push(...parseNameStatus(await g.raw(['diff', '--name-status', '-z', EMPTY_TREE, untracked])))
   return {
     hash: h.trim(), parents: parentList, author, email, date: Number(date) * 1000,
     subject, body: (body ?? '').trim(), files
@@ -414,6 +423,10 @@ export async function commitFileDiff(path: string, hash: string, file: string): 
   const g = git(path)
   const parents = (await g.raw(['rev-list', '--parents', '-n', '1', hash])).trim().split(' ')
   const base = parents.length > 1 ? parents[1] : EMPTY_TREE
+  const untracked = await stashUntracked(g, parents.slice(1))
+  if (untracked && !(await g.raw(['ls-tree', '--name-only', hash, '--', file])).trim()) {
+    return g.raw(['diff', '--no-color', '--no-ext-diff', EMPTY_TREE, untracked, '--', file])
+  }
   return g.raw(['diff', '--no-color', '--no-ext-diff', '-M', base, hash, '--', file])
 }
 
@@ -502,14 +515,40 @@ export async function merge(path: string, ref: string): Promise<void> {
   await failOnConflict(path, 'Merge')
 }
 
-export async function stashPush(path: string, message: string): Promise<void> {
-  const args = ['stash', 'push', '--include-untracked']
+export async function stashPush(path: string, { message, includeUntracked, keepIndex, paths }: StashOptions): Promise<void> {
+  const args = ['stash', 'push']
+  if (includeUntracked) args.push('--include-untracked')
+  if (keepIndex) args.push('--keep-index')
   if (message) args.push('-m', message)
+  if (paths?.length) args.push('--', ...paths)
   await git(path).raw(args)
 }
 
+async function restoreStash(path: string, verb: 'pop' | 'apply', index: number): Promise<void> {
+  const conflicted = async (): Promise<void> => {
+    if (!(await status(path)).conflicted.length) return
+    throw new Error(`CONFLICT: stash@{${index}} conflicts with your changes`)
+  }
+  try {
+    await git(path).raw(['stash', verb, `stash@{${index}}`])
+  } catch (e) {
+    await conflicted()
+    throw e
+  }
+  await conflicted()
+}
+
 export async function stashPop(path: string, index: number): Promise<void> {
-  await git(path).raw(['stash', 'pop', `stash@{${index}}`])
+  await restoreStash(path, 'pop', index)
+}
+
+export async function stashApply(path: string, index: number): Promise<void> {
+  await restoreStash(path, 'apply', index)
+}
+
+export async function stashBranch(path: string, index: number, name: string): Promise<void> {
+  if (name.startsWith('-')) throw new Error('Invalid branch name')
+  await git(path).raw(['stash', 'branch', name, `stash@{${index}}`])
 }
 
 export async function stashDrop(path: string, index: number): Promise<void> {

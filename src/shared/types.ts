@@ -87,6 +87,13 @@ export interface Stash {
   hash: string
 }
 
+export interface StashOptions {
+  message: string
+  includeUntracked: boolean
+  keepIndex: boolean
+  paths?: string[]
+}
+
 export type CommitSearchMode = 'all' | 'message' | 'author' | 'sha' | 'file' | 'code'
 
 export type RebaseAction = 'pick' | 'reword' | 'squash' | 'fixup' | 'drop'
@@ -246,8 +253,10 @@ export interface GitApi {
   redo(path: string): Promise<string>
   push(path: string, setUpstream: boolean, force?: boolean): Promise<void>
   merge(path: string, ref: string): Promise<void>
-  stashPush(path: string, message: string): Promise<void>
+  stashPush(path: string, options: StashOptions): Promise<void>
   stashPop(path: string, index: number): Promise<void>
+  stashApply(path: string, index: number): Promise<void>
+  stashBranch(path: string, index: number, name: string): Promise<void>
   stashDrop(path: string, index: number): Promise<void>
   resetTo(path: string, hash: string, mode: 'soft' | 'mixed' | 'hard'): Promise<void>
   cherryPick(path: string, hash: string): Promise<void>

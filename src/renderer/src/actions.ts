@@ -24,8 +24,10 @@ export interface Actions extends Shell {
   fetch(): void
   pull(): void
   push(): void
-  stash(): void
+  stash(paths?: string[]): void
   stashPop(index: number): void
+  stashApply(index: number): void
+  stashBranch(index: number): void
   stashDrop(index: number): void
   cherryPick(hash: string): void
   revert(hash: string): void
