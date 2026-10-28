@@ -312,7 +312,7 @@ export function CommitList({
   onSelect: (hash: string) => void
   onContextMenu: (commit: Commit, e: React.MouseEvent, focus?: { kind: 'branch' | 'remote' | 'tag'; name: string } | null) => void
   filterNote?: React.ReactNode
-  scrollTarget: { hash: string; n: number } | null
+  scrollTarget: { hash: string; n: number; nearest?: boolean } | null
   loading?: boolean
   builds?: Record<string, CommitBuild[]>
   onHeaderMenu?: (e: React.MouseEvent, items: MenuItem[]) => void
@@ -365,7 +365,13 @@ export function CommitList({
     const idx = commits.findIndex((c) => c.hash === scrollTarget.hash)
     if (idx === -1) return
     const el = container.current
-    el.scrollTop = Math.max(0, idx * ROW_H - el.clientHeight / 2 + ROW_H / 2)
+    const top = idx * ROW_H
+    if (scrollTarget.nearest) {
+      if (top < el.scrollTop) el.scrollTop = top
+      else if (top + ROW_H > el.scrollTop + el.clientHeight) el.scrollTop = top + ROW_H - el.clientHeight
+      return
+    }
+    el.scrollTop = Math.max(0, top - el.clientHeight / 2 + ROW_H / 2)
   }, [scrollTarget, commits])
 
   const cx = (lane: number): number => lane * laneW + laneW / 2 + 4

@@ -18,6 +18,8 @@ import { RepoView } from './RepoView'
 import { errorMessage } from './util'
 import { applyTheme, currentTheme, setTheme, THEMES, useTheme } from './themes'
 import { setPanelCollapsed, useCollapsedPanels } from './layout'
+import { collectCommands, type Command } from './commands'
+import { CommandPalette } from './components/CommandPalette'
 import { syncSettingsFromMain, useSettings } from './settings'
 import { BellIcon, failedBuildKey, NotificationsPanel, type FailedBuild, type RepoIncoming } from './components/Notifications'
 import {
@@ -54,6 +56,8 @@ function saveShaMap(key: string, map: Record<string, string>): void {
   }
 }
 
+const PALETTE_SKIP = new Set(['Cut', 'Copy', 'Paste', 'Select all', 'Command palette…'])
+
 export default function App(): React.JSX.Element {
   const [tabs, setTabs] = useState<Tab[]>([])
   const [groups, setGroups] = useState<TabGroup[]>([])
@@ -86,6 +90,7 @@ export default function App(): React.JSX.Element {
   const [homeRefresh, setHomeRefresh] = useState(0)
   const [infoDialog, setInfoDialog] = useState<'about' | 'shortcuts' | null>(null)
   const [switcherOpen, setSwitcherOpen] = useState(false)
+  const [paletteOpen, setPaletteOpen] = useState(false)
   const [favorites, setFavorites] = useState<{ path: string; name: string }[]>(() => {
     try {
       return JSON.parse(localStorage.getItem('arbor.favorites') ?? '[]')
@@ -393,6 +398,9 @@ export default function App(): React.JSX.Element {
       } else if (e.key === 't' && !e.shiftKey) {
         e.preventDefault()
         setHome(true)
+      } else if (e.key.toLowerCase() === 'p' && e.shiftKey && !e.altKey && !document.querySelector('.overlay')) {
+        e.preventDefault()
+        setPaletteOpen(true)
       } else if (e.key === 'p' && !e.shiftKey && !e.altKey && !document.querySelector('.overlay')) {
         e.preventDefault()
         setSwitcherOpen(true)
@@ -704,6 +712,8 @@ export default function App(): React.JSX.Element {
     {
       label: 'View',
       items: [
+        { label: 'Command palette…', shortcut: `${mod}Shift+P`, onSelect: () => setPaletteOpen(true) },
+        { separator: true },
         { label: 'Repository Management', shortcut: `${mod}T`, checked: home || !tabs.length, onSelect: () => setHome((h) => (tabs.length ? !h : true)) },
         { separator: true },
         { label: 'Branch panel', checked: !collapsedPanels.includes('sidebar'), onSelect: () => setPanelCollapsed('sidebar', !collapsedPanels.includes('sidebar')) },
@@ -732,6 +742,19 @@ export default function App(): React.JSX.Element {
         { label: 'About Arbor', onSelect: () => setInfoDialog('about') }
       ]
     }
+  ]
+
+  const paletteCommands = (): Command[] => [
+    ...collectCommands(),
+    ...menus.flatMap((m) =>
+      m.items.flatMap((item): Command[] => {
+        if ('separator' in item || item.disabled || PALETTE_SKIP.has(item.label)) return []
+        const theme = m.label === 'View' && THEMES.some((t) => t.name === item.label)
+        const panel = item.checked !== undefined && / panel$/.test(item.label)
+        const title = theme ? `Theme: ${item.label}` : panel ? `${item.checked ? 'Hide' : 'Show'} ${item.label.toLowerCase()}` : item.label
+        return [{ id: `menu:${m.label}:${item.label}`, group: m.label, title, shortcut: item.shortcut, run: item.onSelect }]
+      })
+    )
   ]
 
   const ungroup = (id: string): void => {
@@ -868,6 +891,7 @@ export default function App(): React.JSX.Element {
       {infoDialog === 'about' && <AboutDialog onClose={() => setInfoDialog(null)} />}
       {infoDialog === 'shortcuts' && <ShortcutsDialog onClose={() => setInfoDialog(null)} />}
       {switcherOpen && <RepoSwitcher entries={switcherEntries()} onPick={pickRepo} onClose={() => setSwitcherOpen(false)} />}
+      {paletteOpen && <CommandPalette commands={paletteCommands()} onClose={() => setPaletteOpen(false)} />}
       {notifOpen && (
         <NotificationsPanel
           repos={incomingList}

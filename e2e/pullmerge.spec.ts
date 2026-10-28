@@ -65,8 +65,8 @@ test('merge without fast-forward, squash merge into staged changes, and ignore u
     await expect(page.locator('.toast')).toContainText('Review them, then commit')
     expect(git(repo, 'rev-parse', 'HEAD').trim()).toBe(head)
     expect(git(repo, 'diff', '--cached', '--name-only').trim().split('\n')).toEqual(['one.txt', 'two.txt'])
-    await expect(v.getByPlaceholder('Commit message')).toHaveValue('Merge feature (squashed)')
-    await v.getByPlaceholder('Commit message').press('Control+Enter')
+    await expect(v.getByRole('textbox', { name: 'Commit summary' })).toHaveValue('Merge feature (squashed)')
+    await v.getByRole('textbox', { name: 'Commit summary' }).press('Control+Enter')
     await expect.poll(() => git(repo, 'log', '-1', '--format=%s').trim()).toBe('Merge feature (squashed)')
     expect(parents(repo)).toHaveLength(1)
 

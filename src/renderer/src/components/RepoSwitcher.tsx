@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
+import { highlight, run, subsequence } from '../fuzzy'
 
 export interface SwitcherEntry {
   path: string
@@ -11,16 +12,6 @@ interface Match {
   entry: SwitcherEntry
   rank: number
   marks: number[]
-}
-
-function subsequence(text: string, q: string): number[] | null {
-  const marks: number[] = []
-  for (let i = 0; i < text.length && marks.length < q.length; i++) if (text[i] === q[marks.length]) marks.push(i)
-  return marks.length === q.length ? marks : null
-}
-
-function run(start: number, length: number): number[] {
-  return Array.from({ length }, (_, i) => start + i)
 }
 
 function match(entry: SwitcherEntry, q: string): Match | null {
@@ -36,20 +27,6 @@ function match(entry: SwitcherEntry, q: string): Match | null {
   if (detail.includes(q) || path.includes(q.replace(/\\/g, '/'))) return { entry, rank: 3, marks: [] }
   if (subsequence(detail, compact)) return { entry, rank: 4, marks: [] }
   return null
-}
-
-function highlight(text: string, marks: number[]): React.ReactNode {
-  if (!marks.length) return text
-  const marked = new Set(marks)
-  const out: React.ReactNode[] = []
-  let start = 0
-  for (let i = 1; i <= text.length; i++) {
-    if (i < text.length && marked.has(i) === marked.has(start)) continue
-    const piece = text.slice(start, i)
-    out.push(marked.has(start) ? <mark key={start}>{piece}</mark> : piece)
-    start = i
-  }
-  return out
 }
 
 export function RepoSwitcher({

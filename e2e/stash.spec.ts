@@ -1,7 +1,13 @@
 import { expect, test } from '@playwright/test'
 import { answerPrompt, commit, git, initRepo, launch, menuItem, tempDir, view, write } from './helpers'
 
-const stashes = (repo: string): string[] => git(repo, 'stash', 'list', '--format=%gs').split('\n').filter(Boolean)
+const stashes = (repo: string): string[] => {
+  try {
+    return git(repo, 'stash', 'list', '--format=%gs').split('\n').filter(Boolean)
+  } catch {
+    return ['<stash is being rewritten>']
+  }
+}
 const changed = (repo: string): string[] =>
   git(repo, 'status', '--porcelain', '--untracked-files=all')
     .split('\n')
@@ -37,7 +43,7 @@ test('stash with a message and untracked files, inspect it, apply it, branch fro
     await item.click({ button: 'right' })
     await menuItem(page, 'Apply stash')
     await expect.poll(() => changed(repo)).toEqual(['a.txt', 'notes.txt'])
-    expect(stashes(repo)).toHaveLength(1)
+    await expect.poll(() => stashes(repo)).toHaveLength(1)
 
     git(repo, 'checkout', '-q', '--', '.')
     git(repo, 'clean', '-fdq')
@@ -46,7 +52,7 @@ test('stash with a message and untracked files, inspect it, apply it, branch fro
     await answerPrompt(page, 'rescued')
     await expect(page.locator('.toast')).toContainText('Created rescued from stash@{0}')
     expect(git(repo, 'rev-parse', '--abbrev-ref', 'HEAD').trim()).toBe('rescued')
-    expect(stashes(repo)).toEqual([])
+    await expect.poll(() => stashes(repo)).toEqual([])
     expect(changed(repo)).toEqual(['a.txt', 'notes.txt'])
 
     git(repo, 'add', '-A')
@@ -59,11 +65,11 @@ test('stash with a message and untracked files, inspect it, apply it, branch fro
     await expect(dialog.getByRole('heading')).toHaveText('Stash a.txt')
     await dialog.getByRole('button', { name: 'Stash', exact: true }).click()
     await expect.poll(() => changed(repo)).toEqual(['README.md'])
-    expect(stashes(repo)).toHaveLength(1)
+    await expect.poll(() => stashes(repo)).toHaveLength(1)
 
     await v.locator('.toolbar').getByRole('button', { name: /Pop/ }).click()
     await expect.poll(() => changed(repo)).toEqual(['README.md', 'a.txt'])
-    expect(stashes(repo)).toEqual([])
+    await expect.poll(() => stashes(repo)).toEqual([])
   } finally {
     await close()
   }

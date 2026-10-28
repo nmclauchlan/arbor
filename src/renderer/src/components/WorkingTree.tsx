@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import type { RepoStatus, StatusFile } from '@shared/types'
 import type { Actions } from '../actions'
 import type { MenuItem } from './ContextMenu'
@@ -8,6 +8,8 @@ import { copyToClipboard, errorMessage, revealInFolder, revealLabel } from '../u
 
 type Area = 'staged' | 'unstaged'
 
+const SUMMARY_LIMIT = 72
+
 export function WorkingTree({
   repoPath,
   status,
@@ -15,7 +17,8 @@ export function WorkingTree({
   viewing,
   onView,
   draft,
-  onDraftUsed
+  onDraftUsed,
+  branch
 }: {
   repoPath: string
   status: RepoStatus
@@ -24,8 +27,19 @@ export function WorkingTree({
   onView: (request: FileViewRequest | null) => void
   draft?: string | null
   onDraftUsed?: () => void
+  branch?: string | null
 }): React.JSX.Element {
-  const [message, setMessage] = useState('')
+  const [summary, setSummary] = useState('')
+  const [description, setDescription] = useState('')
+  const [amendPrefill, setAmendPrefill] = useState<string | null>(null)
+  const descriptionRef = useRef<HTMLTextAreaElement>(null)
+  const spaceQueue = useRef<Promise<void>>(Promise.resolve())
+  const message = description.trim() ? `${summary.trim()}\n\n${description.trim()}` : summary.trim()
+  const setMessage = (text: string): void => {
+    const [first = '', ...rest] = text.split('\n')
+    setSummary(first.trim())
+    setDescription(rest.join('\n').replace(/^\s*\n/, '').trimEnd())
+  }
   const [amend, setAmend] = useState(false)
   const [working, setWorking] = useState<string | null>(null)
   const operation = status.operation
@@ -44,6 +58,28 @@ export function WorkingTree({
     onDraftUsed?.()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [draft])
+
+  useEffect(() => {
+    if (!viewing || viewing.source.kind !== 'worktree') return
+    const staged = viewing.source.staged
+    const key = (e: KeyboardEvent): void => {
+      if (e.key !== ' ' || e.ctrlKey || e.metaKey || e.altKey) return
+      const t = e.target
+      if (t instanceof HTMLElement && t.closest('input, textarea, select, button, [contenteditable="true"], .cm-editor')) return
+      if (document.querySelector('.overlay, .dialog, .context-menu-root') || conflicted.has(viewing.file.path)) return
+      e.preventDefault()
+      const list = staged ? status.staged : unstagedFiles
+      const at = list.findIndex((f) => f.path === viewing.file.path)
+      const next = list[at + 1] ?? list[at - 1]
+      const file = viewing.file.path
+      const task = (): Promise<void> => (staged ? unstage : stage)([file])
+      spaceQueue.current = spaceQueue.current.then(task, task)
+      if (next) view(staged ? 'staged' : 'unstaged', next, 'diff')
+      else onView(null)
+    }
+    window.addEventListener('keydown', key)
+    return () => window.removeEventListener('keydown', key)
+  })
 
   useEffect(() => {
     if (!viewing || viewing.source.kind !== 'worktree') return
@@ -75,12 +111,28 @@ export function WorkingTree({
   }
 
   const commit = async (): Promise<void> => {
-    if (!message.trim() && !amend) return
+    if ((!message && !amend) || working === 'commit') return
     await run(async () => {
-      await window.git.commit(repoPath, message.trim(), amend)
+      if (stageAllFirst) await window.git.stage(repoPath, unstagedPaths)
+      await window.git.commit(repoPath, message, amend)
       setMessage('')
       setAmend(false)
+      setAmendPrefill(null)
     }, 'commit')
+  }
+
+  const toggleAmend = async (on: boolean): Promise<void> => {
+    setAmend(on)
+    if (on && !message) {
+      const head = await window.git.commitDetails(repoPath, 'HEAD').catch(() => null)
+      if (!head) return
+      const text = head.body ? `${head.subject}\n\n${head.body}` : head.subject
+      setMessage(text)
+      setAmendPrefill(text)
+    } else if (!on && amendPrefill !== null && message === amendPrefill) {
+      setMessage('')
+      setAmendPrefill(null)
+    }
   }
 
   const view = (area: Area, file: StatusFile, mode: FileViewRequest['mode']): void => {
@@ -174,7 +226,19 @@ export function WorkingTree({
 
   const unstagedPaths = unstagedFiles.map((f) => f.path)
   const stagedPaths = status.staged.map((f) => f.path)
-  const canCommit = (status.staged.length > 0 && message.trim().length > 0) || amend
+  const stageAllFirst = !amend && !operation && status.staged.length === 0 && unstagedFiles.length > 0
+  const canCommit = amend || (!!summary.trim() && (status.staged.length > 0 || stageAllFirst))
+  const files = (n: number): string => `${n} file${n === 1 ? '' : 's'}`
+  const onto = branch ? ` to ${branch}` : ''
+  const commitLabel = amend
+    ? status.staged.length
+      ? `Amend with ${files(status.staged.length)}`
+      : 'Amend last commit'
+    : stageAllFirst
+      ? `Stage all and commit ${files(unstagedFiles.length)}${onto}`
+      : status.staged.length
+        ? `Commit ${files(status.staged.length)}${onto}`
+        : 'Commit'
 
   return (
     <div className="panel">
@@ -267,17 +331,47 @@ export function WorkingTree({
         />
       </div>
       <div className="commit-form">
+        <div className="commit-summary">
+          <input
+            aria-label="Commit summary"
+            placeholder="Summary"
+            value={summary}
+            onChange={(e) => setSummary(e.target.value)}
+            onPaste={(e) => {
+              const text = e.clipboardData.getData('text')
+              if (summary || !text.includes('\n')) return
+              e.preventDefault()
+              setMessage(description ? `${text.trimEnd()}\n\n${description}` : text)
+            }}
+            onKeyDown={(e) => {
+              if (e.key !== 'Enter') return
+              e.preventDefault()
+              if (e.ctrlKey || e.metaKey) void commit()
+              else descriptionRef.current?.focus()
+            }}
+          />
+          {summary.length > 0 && (
+            <span
+              className={`commit-summary-count${summary.length > SUMMARY_LIMIT ? ' over' : ''}`}
+              title={`Summaries of ${SUMMARY_LIMIT} characters or fewer read best in logs and pull requests`}
+            >
+              {SUMMARY_LIMIT - summary.length}
+            </span>
+          )}
+        </div>
         <textarea
-          placeholder="Commit message"
-          value={message}
-          onChange={(e) => setMessage(e.target.value)}
+          ref={descriptionRef}
+          aria-label="Commit description"
+          placeholder="Description (optional)"
+          value={description}
+          onChange={(e) => setDescription(e.target.value)}
           onKeyDown={(e) => {
-            if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') commit()
+            if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') void commit()
           }}
         />
         <div className="row">
           <label>
-            <input type="checkbox" checked={amend} onChange={(e) => setAmend(e.target.checked)} /> Amend
+            <input type="checkbox" checked={amend} onChange={(e) => void toggleAmend(e.target.checked)} /> Amend
           </label>
           <div style={{ flex: 1 }} />
           {operation ? (
@@ -285,8 +379,8 @@ export function WorkingTree({
               {operation.kind === 'merge' ? 'Commit merge' : `Continue ${operation.kind}`}
             </button>
           ) : (
-            <button className="primary" disabled={!!working || !canCommit} aria-busy={working === 'commit'} onClick={commit}>
-              {amend ? 'Amend commit' : `Commit ${status.staged.length ? `(${status.staged.length})` : ''}`}
+            <button className="primary commit-button" disabled={!!working || !canCommit} aria-busy={working === 'commit'} onClick={() => void commit()} title={commitLabel}>
+              {commitLabel}
             </button>
           )}
         </div>

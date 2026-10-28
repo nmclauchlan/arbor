@@ -81,7 +81,7 @@ test('quick reword, squash into parent and drop keep uncommitted work and "#" su
     await dialog.getByRole('button', { name: /Rebase 2 commits/ }).click()
     await expect.poll(() => subjects(repo)).toEqual(['Add debug logging', '#101 Add feature one', 'Initial'])
     expect(existsSync(join(repo, 'two.txt'))).toBe(false)
-    expect(readFileSync(join(repo, 'README.md'), 'utf8')).toBe('# app\nwork in progress\n')
+    await expect.poll(() => readFileSync(join(repo, 'README.md'), 'utf8')).toBe('# app\nwork in progress\n')
   } finally {
     await close()
   }

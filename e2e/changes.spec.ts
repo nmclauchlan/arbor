@@ -18,8 +18,8 @@ test('stage and commit changes, then undo and redo the commit', async () => {
     await v.getByRole('button', { name: 'Stage all', exact: true }).click()
     await expect(v.locator('.file-group-title', { hasText: 'Staged (2)' })).toBeVisible()
 
-    await v.locator('.commit-form textarea').fill('Add the second line')
-    await v.locator('.commit-form textarea').press('Control+Enter')
+    await v.getByRole('textbox', { name: 'Commit summary' }).fill('Add the second line')
+    await v.getByRole('textbox', { name: 'Commit summary' }).press('Control+Enter')
     await expect.poll(() => headSubject(page)).toBe('Add the second line')
     expect(git(repo, 'log', '-1', '--format=%s').trim()).toBe('Add the second line')
 

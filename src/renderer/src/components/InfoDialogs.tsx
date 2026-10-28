@@ -47,6 +47,7 @@ export function AboutDialog({ onClose }: { onClose: () => void }): React.JSX.Ele
 
 const SHORTCUTS: [string, string][] = [
   ['Ctrl+T', 'Repository Management'],
+  ['Ctrl+Shift+P', 'Command palette: run any action, check out or merge a branch'],
   ['Ctrl+P', 'Go to a repository'],
   ['Ctrl+O', 'Open a repository'],
   ['Ctrl+W', 'Close the current tab'],
@@ -54,6 +55,10 @@ const SHORTCUTS: [string, string][] = [
   ['Ctrl+Z / Ctrl+Shift+Z', 'Undo / redo the last git action'],
   ['Ctrl+B', 'Filter branches'],
   ['Ctrl+F', 'Search commits'],
+  ['↑ / ↓ or J / K', 'Move through the commit graph'],
+  ['Home / End', 'Jump to the newest / oldest loaded commit'],
+  ['Space', 'Stage or unstage the open file and open the next one'],
+  ['Enter', 'From the commit summary, move to the description'],
   ['Ctrl+Enter', 'Commit'],
   ['Ctrl+S', 'Save the file being edited'],
   ['Ctrl+, ', 'Settings'],

@@ -148,7 +148,7 @@ const handlers: Handlers = {
   unstage: gitService.unstage,
   discard: gitService.discard,
   commit: (path, message, amend) =>
-    journal.record(path, amend ? 'amend' : 'commit', `${amend ? 'Amend' : 'Commit'} “${firstLine(message)}”`, () =>
+    journal.record(path, amend ? 'amend' : 'commit', `${amend ? 'Amend' : 'Commit'}${message.trim() ? ` “${firstLine(message)}”` : ''}`, () =>
       gitService.commit(path, message, amend)
     ),
   fileDiff: gitService.fileDiff,

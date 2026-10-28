@@ -18,8 +18,9 @@ import { WorkingTree } from './components/WorkingTree'
 import { Splitter } from './components/Splitter'
 import { AppVersion, UpdateNotice } from './components/UpdateNotice'
 import { fitPanels, setLayout, setPanelCollapsed, useCollapsedPanels, useLayout, useWindowWidth } from './layout'
-import { copyToClipboard, errorMessage, shortHash, WIP_HASH } from './util'
+import { copyToClipboard, errorMessage, prNoun, shortHash, WIP_HASH } from './util'
 import { currentSettings, useSettings } from './settings'
+import { useCommands, type Command } from './commands'
 
 
 const BUILD_COMMITS = 50
@@ -46,7 +47,7 @@ export function RepoView({
   const [refs, setRefs] = useState<RepoRefs | null>(null)
   const [status, setStatus] = useState<RepoStatus | null>(null)
   const [selected, setSelected] = useState<string | null>(null)
-  const [scrollTarget, setScrollTarget] = useState<{ hash: string; n: number } | null>(null)
+  const [scrollTarget, setScrollTarget] = useState<{ hash: string; n: number; nearest?: boolean } | null>(null)
   const [search, setSearch] = useState<{ query: string; mode: CommitSearchMode; focus: number } | null>(null)
   const [searchHits, setSearchHits] = useState<string[]>([])
   const [searching, setSearching] = useState(false)
@@ -332,6 +333,30 @@ export function RepoView({
     setScrollTarget((t) => ({ hash: focus.hash, n: (t?.n ?? 0) + 1 }))
     refresh()
   }, [focus, refresh])
+
+  useEffect(() => {
+    if (!active || viewing || comparing) return
+    const key = (e: KeyboardEvent): void => {
+      if (e.ctrlKey || e.metaKey || e.altKey) return
+      const step = e.key === 'ArrowDown' || e.key === 'j' ? 1 : e.key === 'ArrowUp' || e.key === 'k' ? -1 : 0
+      if (!step && e.key !== 'Home' && e.key !== 'End') return
+      const t = e.target
+      if (t instanceof HTMLElement && t.closest('input, textarea, select, [contenteditable="true"], .cm-editor')) return
+      if (document.querySelector('.overlay, .dialog, .context-menu-root, .menubar-dropdown')) return
+      const list = rowsRef.current
+      if (!list.length) return
+      e.preventDefault()
+      const at = list.findIndex((c) => c.hash === selected)
+      const next = e.key === 'Home' ? 0 : e.key === 'End' ? list.length - 1 : Math.max(0, Math.min(list.length - 1, at === -1 ? 0 : at + step))
+      const hash = list[next].hash
+      wantHash.current = null
+      setSelectedPr(null)
+      setSelected(hash)
+      setScrollTarget((s) => ({ hash, n: (s?.n ?? 0) + 1, nearest: true }))
+    }
+    window.addEventListener('keydown', key)
+    return () => window.removeEventListener('keydown', key)
+  }, [active, viewing, comparing, selected])
 
   const wantWip = useRef(false)
   useEffect(() => {
@@ -661,6 +686,49 @@ export function RepoView({
   )
   actionsRef.current = actions
 
+  useCommands(`repo:${path}`, active, (): Command[] => {
+    if (!refs) return []
+    const current = refs.branches.find((b) => b.current) ?? null
+    const cur = current?.name ?? null
+    const repo = (id: string, title: string, run: () => void): Command => ({ id: `repo:${id}`, group: 'Repository', title, run })
+    const branch = (id: string, title: string, run: () => void): Command => ({ id: `branch:${id}`, group: 'Branch', title, run })
+    const list: Command[] = [
+      repo('fetch', 'Fetch', actions.fetch),
+      repo('pull', 'Pull', () => actions.pull()),
+      repo('pull-merge', 'Pull with merge', () => actions.pull('merge')),
+      repo('pull-rebase', 'Pull with rebase', () => actions.pull('rebase')),
+      repo('pull-ff', 'Pull, fast-forward only', () => actions.pull('ff-only')),
+      repo('push', 'Push', actions.push),
+      repo('create-branch', 'Create branch…', () => actions.createBranch('HEAD')),
+      repo('stash', 'Stash changes…', () => actions.stash())
+    ]
+    if (cur && current?.upstream) list.push(repo('force-push', `Force push ${cur} (with lease)…`, () => actions.forcePush(cur)))
+    if (host && cur) list.push(repo('pull-request', `Create a ${prNoun(host.kind)} for ${cur}…`, () => setCreatingPr(cur)))
+    for (const b of refs.branches) {
+      if (b.current) continue
+      list.push(branch(`checkout:${b.name}`, `Checkout ${b.name}`, () => actions.checkout(b.name)))
+      if (!cur) continue
+      list.push(
+        branch(`merge:${b.name}`, `Merge ${b.name} into ${cur}`, () => actions.merge(b.name)),
+        branch(`rebase:${b.name}`, `Rebase ${cur} onto ${b.name}`, () => actions.rebase(b.name)),
+        branch(`compare:${b.name}`, `Compare ${b.name} with ${cur}`, () =>
+          actions.compare({ from: 'HEAD', to: b.name, fromLabel: cur, toLabel: b.name, mode: 'merge-base' })
+        )
+      )
+    }
+    for (const r of refs.remotes) {
+      if (refs.branches.some((b) => b.name === r.name)) continue
+      list.push(branch(`checkout-remote:${r.remote}/${r.name}`, `Checkout ${r.remote}/${r.name}`, () => actions.checkout(r.name)))
+    }
+    for (const s of refs.stashes) {
+      list.push(
+        { id: `stash:apply:${s.index}`, group: 'Stash', title: `Apply stash: ${s.message}`, run: () => actions.stashApply(s.index) },
+        { id: `stash:pop:${s.index}`, group: 'Stash', title: `Pop stash: ${s.message}`, run: () => actions.stashPop(s.index) }
+      )
+    }
+    return list
+  })
+
   const headLine = useMemo(() => {
     const byHash = new Map(commits.map((c) => [c.hash, c]))
     const reachable = new Set<string>()
@@ -865,7 +933,7 @@ export function RepoView({
       {selectedPr && host ? (
         <PrPanel repoPath={path} host={host} pr={selectedPr} actions={actions} refreshKey={prRefresh} />
       ) : selected === WIP_HASH && status ? (
-        <WorkingTree repoPath={path} status={status} actions={actions} viewing={viewing} onView={setViewing} draft={commitDraft} onDraftUsed={() => setCommitDraft(null)} />
+        <WorkingTree repoPath={path} status={status} actions={actions} viewing={viewing} onView={setViewing} draft={commitDraft} onDraftUsed={() => setCommitDraft(null)} branch={refs?.branches.find((b) => b.current)?.name ?? null} />
       ) : selected ? (
         <CommitPanel repoPath={path} hash={selected} shell={shell} viewing={viewing} onView={setViewing} builds={builds[selected]} buildsError={hasAccount ? buildsError : null} />
       ) : (

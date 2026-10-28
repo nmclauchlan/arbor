@@ -238,7 +238,7 @@ async function operationState(path: string): Promise<OperationState | null> {
 }
 
 export async function status(path: string): Promise<RepoStatus> {
-  const out = await git(path).raw(['status', '--porcelain=v1', '-z', '--untracked-files=all'])
+  const out = await git(path).raw(['--no-optional-locks', 'status', '--porcelain=v1', '-z', '--untracked-files=all'])
   const result: RepoStatus = { staged: [], unstaged: [], conflicted: [], operation: await operationState(path) }
   const entries = out.split('\0')
   for (let i = 0; i < entries.length; i++) {
@@ -304,9 +304,8 @@ export async function discard(path: string, files: string[]): Promise<void> {
 }
 
 export async function commit(path: string, message: string, amend: boolean): Promise<void> {
-  const args = ['commit', '-m', message]
-  if (amend) args.push('--amend')
-  await git(path).raw(args)
+  if (amend && !message.trim()) await git(path).raw(['commit', '--amend', '--no-edit'])
+  else await git(path).raw(['commit', '-m', message, ...(amend ? ['--amend'] : [])])
 }
 
 async function untrackedAsDiff(path: string, file: string): Promise<string> {
@@ -756,7 +755,7 @@ export async function repoSummary(path: string, withChanges: boolean): Promise<R
   if (!exists) return empty
   let out: string
   try {
-    out = await git(path).raw(['status', '--porcelain=v2', '--branch', withChanges ? '--untracked-files=normal' : '--untracked-files=no'])
+    out = await git(path).raw(['--no-optional-locks', 'status', '--porcelain=v2', '--branch', withChanges ? '--untracked-files=normal' : '--untracked-files=no'])
   } catch {
     return { ...empty, exists: true }
   }
