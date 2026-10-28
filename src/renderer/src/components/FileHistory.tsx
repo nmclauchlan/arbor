@@ -37,7 +37,7 @@ export function FileHistory({ repoPath, file, onShowCommit }: { repoPath: string
     let cancelled = false
     setLoadingDiff(true)
     window.git
-      .commitFileDiff(repoPath, selected.hash, selected.path)
+      .commitFileDiff(repoPath, selected.hash, selected.path, selected.oldPath)
       .then((d) => !cancelled && setDiff(d))
       .catch((e) => !cancelled && setDiff(errorMessage(e)))
       .finally(() => !cancelled && setLoadingDiff(false))

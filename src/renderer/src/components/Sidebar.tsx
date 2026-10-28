@@ -7,6 +7,8 @@ import { BuildMarker, buildsFor } from './BuildStatus'
 import { hostName, hostPath, prNoun, prPrefix } from '../util'
 import { setPanelCollapsed } from '../layout'
 
+const TAG_LIMIT = 10
+
 function Section({
   title,
   count,
@@ -72,6 +74,7 @@ export function Sidebar({
   builds?: Record<string, CommitBuild[]>
 }): React.JSX.Element {
   const [query, setQuery] = useState('')
+  const [allTags, setAllTags] = useState(false)
   const input = useRef<HTMLInputElement>(null)
   const q = query.trim().toLowerCase()
   const matches = (name: string): boolean => !q || name.toLowerCase().includes(q)
@@ -251,7 +254,7 @@ export function Sidebar({
         {remotes.length === 0 && !filtering && <div className="empty">No remote branches</div>}
       </Section>
       <Section title="Tags" count={tags.length} forceOpen={filtering}>
-        {tags.map((t) => (
+        {(filtering || allTags ? tags : tags.slice(0, TAG_LIMIT)).map((t) => (
           <div
             key={t.name}
             className="ref-item"
@@ -263,6 +266,11 @@ export function Sidebar({
             {builds[t.hash] && <BuildMarker builds={builds[t.hash]} />}
           </div>
         ))}
+        {!filtering && tags.length > TAG_LIMIT && (
+          <button className="section-more" onClick={() => setAllTags(!allTags)}>
+            {allTags ? 'Show fewer' : `Show all ${tags.length}`}
+          </button>
+        )}
         {tags.length === 0 && !filtering && <div className="empty">No tags</div>}
       </Section>
       <Section title="Stashes" count={stashes.length} forceOpen={filtering}>

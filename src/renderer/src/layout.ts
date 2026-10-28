@@ -21,11 +21,13 @@ export const LIMITS = {
 } as const
 
 const KEY = 'arbor.layout'
-export const LAYOUT_DEFAULTS: Layout = { sidebar: 250, panel: 440, colRefs: 130, colGraph: 0, colAuthor: 110, colDate: 90, colSha: 64 }
+export const LAYOUT_DEFAULTS: Layout = { sidebar: 250, panel: 440, colRefs: 0, colGraph: 0, colAuthor: 110, colDate: 90, colSha: 64 }
 
 function load(): Layout {
   try {
     const saved = JSON.parse(localStorage.getItem(KEY) ?? '{}') as Partial<Layout>
+    // 130 was the old fixed default, so treat it as unset and let the column size itself.
+    if (saved.colRefs === 130) delete saved.colRefs
     return { ...LAYOUT_DEFAULTS, ...saved }
   } catch {
     return LAYOUT_DEFAULTS
@@ -65,6 +67,36 @@ export function setLayout(key: keyof Layout, value: number, persist = true): voi
 export function resetLayout(key: keyof Layout): void {
   if (current[key] === LAYOUT_DEFAULTS[key]) return
   store({ ...current, [key]: LAYOUT_DEFAULTS[key] })
+}
+
+const MIN_SIDEBAR = 180
+const MIN_PANEL = 300
+
+export function fitPanels(width: number, sidebar: number, panel: number): { sidebar: number; panel: number } {
+  let over = sidebar + panel + 8 + Math.min(520, width * 0.45) - width
+  if (over <= 0) return { sidebar, panel }
+  const panelCut = Math.min(over, Math.max(0, panel - MIN_PANEL))
+  panel -= panelCut
+  over -= panelCut
+  const sidebarCut = Math.min(over, Math.max(0, sidebar - MIN_SIDEBAR))
+  sidebar -= sidebarCut
+  over -= sidebarCut
+  if (over > 0 && sidebar + panel > 0) {
+    const scale = Math.max(0, sidebar + panel - over) / (sidebar + panel)
+    sidebar = Math.round(sidebar * scale)
+    panel = Math.round(panel * scale)
+  }
+  return { sidebar, panel }
+}
+
+export function useWindowWidth(): number {
+  return useSyncExternalStore(
+    (l) => {
+      window.addEventListener('resize', l)
+      return () => window.removeEventListener('resize', l)
+    },
+    () => window.innerWidth
+  )
 }
 
 export function useLayout(): Layout {

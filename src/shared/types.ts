@@ -237,7 +237,7 @@ export interface GitApi {
   commit(path: string, message: string, amend: boolean): Promise<void>
   fileDiff(path: string, file: string, staged: boolean, status: FileChange): Promise<string>
   commitDetails(path: string, hash: string): Promise<CommitDetails>
-  commitFileDiff(path: string, hash: string, file: string): Promise<string>
+  commitFileDiff(path: string, hash: string, file: string, oldPath?: string): Promise<string>
   compareRefs(path: string, from: string, to: string | null, mode: CompareMode): Promise<CompareSummary>
   compareFileDiff(path: string, from: string, to: string | null, mode: CompareMode, file: string, oldPath?: string): Promise<string>
   fileHistory(path: string, file: string): Promise<FileHistoryEntry[]>

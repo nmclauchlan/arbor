@@ -153,6 +153,15 @@ export async function log(path: string, limit: number, filter?: GraphFilter): Pr
   return commits
 }
 
+function newestTagFirst(a: string, b: string): number {
+  const [aBase, ...aPre] = a.split('-')
+  const [bBase, ...bPre] = b.split('-')
+  const base = bBase.localeCompare(aBase, undefined, { numeric: true })
+  if (base) return base
+  if (!aPre.length !== !bPre.length) return aPre.length ? 1 : -1
+  return bPre.join('-').localeCompare(aPre.join('-'), undefined, { numeric: true })
+}
+
 export async function refs(path: string): Promise<RepoRefs> {
   const g = git(path)
   const out = await g.raw([
@@ -184,6 +193,7 @@ export async function refs(path: string): Promise<RepoRefs> {
       result.tags.push({ name: refname.slice(10), hash: peeled || hash })
     }
   }
+  result.tags.sort((a, b) => newestTagFirst(a.name, b.name))
   result.headHash = (await g.revparse(['HEAD']).catch(() => '')).trim()
   result.detached = !result.branches.some((b) => b.current)
   const stashOut = await g.raw(['stash', 'list', `--format=%gd${FIELD}%H${FIELD}%gs`]).catch(() => '')
@@ -419,7 +429,7 @@ export async function commitDetails(path: string, hash: string): Promise<CommitD
   }
 }
 
-export async function commitFileDiff(path: string, hash: string, file: string): Promise<string> {
+export async function commitFileDiff(path: string, hash: string, file: string, oldPath?: string): Promise<string> {
   const g = git(path)
   const parents = (await g.raw(['rev-list', '--parents', '-n', '1', hash])).trim().split(' ')
   const base = parents.length > 1 ? parents[1] : EMPTY_TREE
@@ -427,7 +437,7 @@ export async function commitFileDiff(path: string, hash: string, file: string): 
   if (untracked && !(await g.raw(['ls-tree', '--name-only', hash, '--', file])).trim()) {
     return g.raw(['diff', '--no-color', '--no-ext-diff', EMPTY_TREE, untracked, '--', file])
   }
-  return g.raw(['diff', '--no-color', '--no-ext-diff', '-M', base, hash, '--', file])
+  return g.raw(['diff', '--no-color', '--no-ext-diff', '-M', base, hash, '--', ...(oldPath && oldPath !== file ? [oldPath, file] : [file])])
 }
 
 function compareRange(from: string, to: string | null, mode: CompareMode): string[] {

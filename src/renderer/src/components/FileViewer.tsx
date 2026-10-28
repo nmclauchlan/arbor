@@ -60,7 +60,7 @@ export function FileViewer({
     const src: ImageSource = JSON.parse(sourceKey)
     const load =
       src.kind === 'commit'
-        ? window.git.commitFileDiff(repoPath, src.hash, file.path)
+        ? window.git.commitFileDiff(repoPath, src.hash, file.path, file.oldPath)
         : window.git.fileDiff(repoPath, file.path, src.staged, file.status)
     load
       .then((d) => !cancelled && setDiff(d))

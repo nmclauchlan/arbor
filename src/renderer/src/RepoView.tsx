@@ -17,7 +17,7 @@ import { Toolbar } from './components/Toolbar'
 import { WorkingTree } from './components/WorkingTree'
 import { Splitter } from './components/Splitter'
 import { AppVersion, UpdateNotice } from './components/UpdateNotice'
-import { setLayout, setPanelCollapsed, useCollapsedPanels, useLayout } from './layout'
+import { fitPanels, setLayout, setPanelCollapsed, useCollapsedPanels, useLayout, useWindowWidth } from './layout'
 import { copyToClipboard, errorMessage, shortHash, WIP_HASH } from './util'
 import { currentSettings, useSettings } from './settings'
 
@@ -122,6 +122,8 @@ export function RepoView({
   const collapsedPanels = useCollapsedPanels()
   const sidebarOpen = !collapsedPanels.includes('sidebar')
   const detailsOpen = !collapsedPanels.includes('details')
+  const windowWidth = useWindowWidth()
+  const fitted = fitPanels(windowWidth, sidebarOpen ? layout.sidebar : 0, detailsOpen ? layout.panel : 0)
 
   const loadAll = useCallback(async () => {
     const [log, r, s, u] = await Promise.all([
@@ -769,7 +771,7 @@ export function RepoView({
   return (
     <div
       className={`repo-view${sidebarOpen ? '' : ' sidebar-collapsed'}${detailsOpen ? '' : ' details-collapsed'}${viewing || comparing ? ' viewing' : ''}`}
-      style={{ gridTemplateColumns: `${sidebarOpen ? `${layout.sidebar}px 4px` : '0 0'} minmax(0, 1fr) ${detailsOpen ? `4px ${layout.panel}px` : '0 0'}` }}
+      style={{ gridTemplateColumns: `${sidebarOpen ? `${fitted.sidebar}px 4px` : '0 0'} minmax(0, 1fr) ${detailsOpen ? `4px ${fitted.panel}px` : '0 0'}` }}
     >
       <Toolbar
         repo={repo}
@@ -805,7 +807,7 @@ export function RepoView({
       <Splitter
         className="splitter-sidebar"
         direction="vertical"
-        value={layout.sidebar}
+        value={fitted.sidebar}
         onChange={(v) => (v < 100 ? setPanelCollapsed('sidebar', true) : setLayout('sidebar', v))}
         onReset={() => setLayout('sidebar', 250)}
       />
@@ -855,7 +857,7 @@ export function RepoView({
       <Splitter
         className="splitter-details"
         direction="vertical"
-        value={layout.panel}
+        value={fitted.panel}
         onChange={(v) => (v < 200 ? setPanelCollapsed('details', true) : setLayout('panel', v))}
         invert
         onReset={() => setLayout('panel', 440)}

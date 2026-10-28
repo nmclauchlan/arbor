@@ -2,7 +2,7 @@ import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import type { Commit, CommitBuild, Ref } from '@shared/types'
 import { LANE_COLORS, layoutGraph } from '../graph/layout'
 import { formatDate, shortHash, WIP_HASH } from '../util'
-import { resetColumns, resetLayout, setColumnHidden, setLayout, useHiddenColumns, useLayout, type Layout } from '../layout'
+import { resetColumns, resetLayout, setColumnHidden, setLayout, useHiddenColumns, useLayout, useWindowWidth, type Layout } from '../layout'
 import { useSettings } from '../settings'
 import { Avatar } from '../avatars'
 import { Loading } from './Spinner'
@@ -140,6 +140,9 @@ function messageRoom(header: Element | null | undefined): number {
   return message.offsetWidth - Math.max(MIN_MESSAGE, MESSAGE_SHARE * (header as HTMLElement).clientWidth)
 }
 const FIT_SLACK = 6
+const AUTO_REFS_MIN = 130
+const AUTO_REFS_MAX = 260
+const AUTO_REFS_MESSAGE = 180
 const COLS: ColKey[] = ['colRefs', 'colGraph', 'colAuthor', 'colDate', 'colSha']
 
 let measureCtx: CanvasRenderingContext2D | null = null
@@ -185,6 +188,15 @@ function refsWidth(cell: HTMLElement): number {
   }
   width += Math.max(0, items - 1) * (parseFloat(style.columnGap) || 0)
   return items > 1 ? Math.max(width, padding + first + 34) : width
+}
+
+function leadRefWidth(cell: HTMLElement): number {
+  const first = cell.firstElementChild as HTMLElement | null
+  if (!first) return 0
+  const style = getComputedStyle(cell)
+  const name = first.querySelector<HTMLElement>('.ref-name')
+  const natural = first.offsetWidth + (name ? textWidth(name.textContent ?? '', fontOf(getComputedStyle(name))) - name.clientWidth : 0)
+  return parseFloat(style.paddingLeft) + parseFloat(style.paddingRight) + natural + (cell.querySelector('.ref-more') ? 34 : 0)
 }
 
 function ColHandle({ col, width, side, onFit }: { col: ColKey; width: number; side: 'left' | 'right'; onFit: (col: ColKey) => void }): React.JSX.Element {
@@ -311,7 +323,10 @@ export function CommitList({
   const container = useRef<HTMLDivElement>(null)
   const listRef = useRef<HTMLDivElement>(null)
   const [range, setRange] = useState({ start: 0, end: 50 })
-  const cols = useLayout()
+  const stored = useLayout()
+  const windowWidth = useWindowWidth()
+  const [autoRefs, setAutoRefs] = useState(AUTO_REFS_MIN)
+  const cols = useMemo(() => (stored.colRefs ? stored : { ...stored, colRefs: autoRefs }), [stored, autoRefs])
   const hiddenCols = useHiddenColumns()
   const shown = (col: ColKey): boolean => !hiddenCols.includes(col)
   const { showAvatars, showBodyPreview } = useSettings()
@@ -357,6 +372,20 @@ export function CommitList({
   const cy = (row: number): number => row * ROW_H + ROW_H / 2
 
   const headIndex = useMemo(() => commits.findIndex((c) => c.refs.some((r) => r.kind === 'head')), [commits])
+  const headRow = headIndex === -1 ? null : commits[headIndex]
+  const headRefsKey = headRow ? `${headRow.hash}:${headRow.refs.map((r) => r.name).join(',')}` : ''
+
+  useLayoutEffect(() => {
+    if (stored.colRefs || !headRow) return
+    const root = listRef.current
+    const cell = root?.querySelector<HTMLElement>(`.commit-row[data-hash="${headRow.hash}"] .refs-cell`)
+    const message = root?.querySelector<HTMLElement>('.commit-header .hcell.subject')
+    if (!root || !cell || !message) return
+    const cap = Math.min(AUTO_REFS_MAX, cell.offsetWidth + message.offsetWidth - AUTO_REFS_MESSAGE)
+    const next = Math.round(Math.max(AUTO_REFS_MIN, Math.min(cap, leadRefWidth(cell) + FIT_SLACK)))
+    setAutoRefs((w) => (w === next ? w : next))
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [stored.colRefs, headRefsKey, range.start, range.end, windowWidth])
 
   const { start, end } = range
   const visibleEdges = useMemo(

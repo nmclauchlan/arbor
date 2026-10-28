@@ -15,9 +15,29 @@ interface Row {
   line?: number
 }
 
+function headerNotes(header: string[]): string[] {
+  const notes: string[] = []
+  let oldMode = ''
+  let similarity = ''
+  for (const h of header) {
+    let m: RegExpExecArray | null
+    if (!h.trim() || /^(diff --git |index |--- |\+\+\+ |rename to |copy to |dissimilarity index )/.test(h)) continue
+    if (/^new file\b/.test(h)) notes.push('New file')
+    else if (/^deleted file\b/.test(h)) notes.push('Deleted file')
+    else if ((m = /^old mode (\d+)/.exec(h))) oldMode = m[1]
+    else if ((m = /^new mode (\d+)/.exec(h))) notes.push(`File mode changed from ${oldMode} to ${m[1]}`)
+    else if ((m = /^similarity index (\d+%)/.exec(h))) similarity = m[1]
+    else if ((m = /^rename from (.*)/.exec(h))) notes.push(`Renamed from ${m[1]}${similarity && similarity !== '100%' ? ` (${similarity} similar)` : ''}`)
+    else if ((m = /^copy from (.*)/.exec(h))) notes.push(`Copied from ${m[1]}`)
+    else if (/^Binary files .* differ$/.test(h)) notes.push('Binary file changed')
+    else notes.push(h)
+  }
+  return notes
+}
+
 function layoutRows(p: ParsedPatch): Row[] {
   const rows: Row[] = []
-  for (const h of p.header) if (h.trim()) rows.push({ kind: 'meta', text: h })
+  for (const note of headerNotes(p.header)) rows.push({ kind: 'meta', text: note })
   p.hunks.forEach((h, hi) => {
     const oldCount = h.lines.filter((l) => l.op === ' ' || l.op === '-').length
     const newCount = h.lines.filter((l) => l.op === ' ' || l.op === '+').length
