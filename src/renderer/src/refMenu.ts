@@ -70,6 +70,7 @@ export function buildRefMenu({ sha, refs, focus, repoRefs, host, actions, filter
         ? { label: 'Pull (fast-forward if possible)', onClick: () => actions.pull() }
         : { label: 'Pull (fast-forward)', disabled: !info?.upstream, onClick: () => actions.updateBranch(branch!) },
       { label: 'Push', onClick: () => (isCurrent ? actions.push() : actions.pushBranch(branch!)) },
+      { label: 'Force push (with lease)…', danger: true, disabled: !info?.upstream, onClick: () => actions.forcePush(branch!) },
       { label: 'Set upstream…', onClick: () => actions.setUpstream(branch!) },
       { separator: true }
     )

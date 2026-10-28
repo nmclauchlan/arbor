@@ -186,7 +186,7 @@ export interface GitApi {
   log(path: string, limit: number, filter?: GraphFilter): Promise<Commit[]>
   searchCommits(path: string, query: string, mode: CommitSearchMode, filter?: GraphFilter): Promise<string[]>
   updateBranch(path: string, branch: string): Promise<void>
-  pushBranch(path: string, branch: string): Promise<void>
+  pushBranch(path: string, branch: string, force?: boolean): Promise<void>
   setUpstream(path: string, branch: string, upstream: string): Promise<void>
   fastForward(path: string, target: string): Promise<void>
   rebase(path: string, onto: string): Promise<void>
@@ -227,7 +227,7 @@ export interface GitApi {
   incoming(path: string, since: Record<string, string>): Promise<IncomingUpstream[]>
   undo(path: string): Promise<string>
   redo(path: string): Promise<string>
-  push(path: string, setUpstream: boolean): Promise<void>
+  push(path: string, setUpstream: boolean, force?: boolean): Promise<void>
   merge(path: string, ref: string): Promise<void>
   stashPush(path: string, message: string): Promise<void>
   stashPop(path: string, index: number): Promise<void>

@@ -365,6 +365,37 @@ export function RepoView({
     [refresh, refreshPrs, refreshBuilds, shell]
   )
 
+  const forcePushWarning = (branch: string): string =>
+    `Force pushing replaces the remote copy of ${branch} with yours. Arbor uses --force-with-lease, so it refuses if someone else has pushed there since you last fetched.`
+
+  const leased = async (branch: string, push: () => Promise<void>): Promise<void> => {
+    try {
+      await push()
+    } catch (e) {
+      if (/stale info|rejected.*lease/i.test(errorMessage(e))) {
+        throw new Error(`Someone else has pushed to the remote copy of ${branch} since your last fetch. Fetch, review their commits, then try again.`)
+      }
+      throw e
+    }
+  }
+
+  const pushOrForce = async (branch: string, push: (force: boolean) => Promise<void>): Promise<boolean> => {
+    try {
+      await push(false)
+      return true
+    } catch (e) {
+      if (!/non-fast-forward|fetch first|Updates were rejected|\[rejected\]/i.test(errorMessage(e))) throw e
+      const ok = await shell.confirm(
+        'Push rejected',
+        `The remote copy of ${branch} has commits your branch doesn't, usually because you rewrote history with a rebase or amend. ${forcePushWarning(branch)}`,
+        true
+      )
+      if (!ok) return false
+      await leased(branch, () => push(true))
+      return true
+    }
+  }
+
   const conflictAware = async (fn: () => Promise<void>): Promise<void> => {
     try {
       await fn()
@@ -433,23 +464,25 @@ export function RepoView({
       fetch: () => run('Fetching', () => window.git.fetch(path), 'Fetched'),
       pull: () => run('Pulling', () => window.git.pull(path), 'Pulled'),
       push: () =>
-        run(
-          'Pushing',
-          async () => {
-            const current = refs?.branches.find((b) => b.current)
-            if (current && !current.upstream) {
-              const ok = await shell.confirm(
-                'Push',
-                `"${current.name}" has no upstream. Push to origin/${current.name} and set upstream?`
-              )
-              if (!ok) return
-              await window.git.push(path, true)
-            } else {
-              await window.git.push(path, false)
-            }
-          },
-          'Pushed'
-        ),
+        run('Pushing', async () => {
+          const current = refs?.branches.find((b) => b.current)
+          if (current && !current.upstream) {
+            const ok = await shell.confirm(
+              'Push',
+              `"${current.name}" has no upstream. Push to origin/${current.name} and set upstream?`
+            )
+            if (!ok) return
+            if (await pushOrForce(current.name, (force) => window.git.push(path, true, force))) shell.showInfo('Pushed')
+          } else if (await pushOrForce(current?.name ?? 'HEAD', (force) => window.git.push(path, false, force))) {
+            shell.showInfo('Pushed')
+          }
+        }),
+      forcePush: async (branch) => {
+        const ok = await shell.confirm('Force push', forcePushWarning(branch), true)
+        if (!ok) return
+        const current = refs?.branches.find((b) => b.current)?.name === branch
+        run('Pushing', () => leased(branch, () => (current ? window.git.push(path, false, true) : window.git.pushBranch(path, branch, true))), `Force pushed ${branch}`)
+      },
       stash: async () => {
         const msg = await shell.prompt('Stash changes', 'Stash message', 'WIP')
         if (msg === null) return
@@ -475,7 +508,10 @@ export function RepoView({
         shell.showInfo(`Copied ${what}: ${text}`)
       },
       updateBranch: (branch) => run('Pulling', () => window.git.updateBranch(path, branch), `Updated ${branch} from its upstream`),
-      pushBranch: (branch) => run('Pushing', () => window.git.pushBranch(path, branch), `Pushed ${branch}`),
+      pushBranch: (branch) =>
+        run('Pushing', async () => {
+          if (await pushOrForce(branch, (force) => window.git.pushBranch(path, branch, force))) shell.showInfo(`Pushed ${branch}`)
+        }),
       setUpstream: async (branch) => {
         const current = refs?.branches.find((b) => b.name === branch)?.upstream
         const remote = refs?.remotes[0]?.remote ?? 'origin'

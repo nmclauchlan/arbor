@@ -442,13 +442,14 @@ export async function pullFastForward(path: string): Promise<'updated' | 'up-to-
   return before === after ? 'up-to-date' : 'updated'
 }
 
-export async function push(path: string, setUpstream: boolean): Promise<void> {
+export async function push(path: string, setUpstream: boolean, force = false): Promise<void> {
   const g = git(path)
+  const lease = force ? ['--force-with-lease'] : []
   if (setUpstream) {
     const branch = (await g.revparse(['--abbrev-ref', 'HEAD'])).trim()
-    await g.raw(['push', '-u', 'origin', branch])
+    await g.raw(['push', ...lease, '-u', 'origin', branch])
   } else {
-    await g.raw(['push'])
+    await g.raw(['push', ...lease])
   }
 }
 
@@ -676,10 +677,11 @@ export async function updateBranch(path: string, branch: string): Promise<void> 
   await git(path).raw(['fetch', up.remote, `${up.ref}:refs/heads/${branch}`])
 }
 
-export async function pushBranch(path: string, branch: string): Promise<void> {
+export async function pushBranch(path: string, branch: string, force = false): Promise<void> {
   const up = await upstreamOf(path, branch)
-  if (up) await git(path).raw(['push', up.remote, `refs/heads/${branch}:${up.ref}`])
-  else await git(path).raw(['push', '-u', 'origin', branch])
+  const lease = force ? ['--force-with-lease'] : []
+  if (up) await git(path).raw(['push', ...lease, up.remote, `refs/heads/${branch}:${up.ref}`])
+  else await git(path).raw(['push', ...lease, '-u', 'origin', branch])
 }
 
 export async function setUpstream(path: string, branch: string, upstream: string): Promise<void> {

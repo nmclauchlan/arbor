@@ -33,6 +33,7 @@ export interface Actions extends Shell {
   copyText(text: string, what: string): void
   updateBranch(branch: string): void
   pushBranch(branch: string): void
+  forcePush(branch: string): void
   setUpstream(branch: string): void
   fastForward(target: string): void
   rebase(onto: string): void
