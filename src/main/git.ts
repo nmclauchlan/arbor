@@ -776,6 +776,9 @@ export async function interactiveRebase(path: string, base: string, steps: Rebas
   } catch (e) {
     await failOnConflict(path, 'Rebase')
     throw e
+  } finally {
+    // A rebase paused on a conflict still runs the exec lines that read these message files.
+    if (!(await operationState(path))) await rm(dir, { recursive: true, force: true })
   }
   await failOnConflict(path, 'Rebase')
 }

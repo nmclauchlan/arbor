@@ -20,7 +20,7 @@ export function git(cwd: string, ...args: string[]): string {
 }
 
 export function tempDir(prefix = 'arbor-e2e-'): string {
-  return mkdtempSync(join(tmpdir(), prefix))
+  return mkdtempSync(join(process.env.ARBOR_E2E_TMP ?? tmpdir(), prefix))
 }
 
 export function write(repo: string, file: string, content: string): void {
@@ -75,9 +75,10 @@ export async function launch(repoPath?: string, userData = tempDir('arbor-profil
   const args = [MAIN]
   if (process.platform === 'linux') args.push('--no-sandbox')
   if (repoPath) args.push(repoPath)
+  const scratch = process.env.ARBOR_E2E_TMP
   const app = await electron.launch({
     args,
-    env: { ...process.env, ARBOR_USER_DATA: userData, NODE_ENV: 'production' } as Record<string, string>
+    env: { ...process.env, ...(scratch && { TMP: scratch, TEMP: scratch, TMPDIR: scratch }), ARBOR_USER_DATA: userData, NODE_ENV: 'production' } as Record<string, string>
   })
   const page = await app.firstWindow()
   await page.waitForSelector('.app')
@@ -91,7 +92,7 @@ export async function launch(repoPath?: string, userData = tempDir('arbor-profil
       try {
         rmSync(userData, { recursive: true, force: true, maxRetries: 5, retryDelay: 200 })
       } catch {
-        // Windows can keep Electron's helper processes alive briefly; a leftover temp profile is harmless.
+        // Windows can keep Electron's helper processes alive briefly; the run's teardown removes it later.
       }
     }
   }
